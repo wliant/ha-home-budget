@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Initial Database Setup
+
+        This changeset establishes the initial database schema for the
+        Home Budget Tracker application scaffolding.
+
+        Purpose: Project infrastructure verification
+        - Validates Liquibase integration is working
+        - Confirms database connectivity
+        - Establishes migration baseline
+
+        Note: This is intentionally minimal for the scaffolding phase.
+        Business entity tables will be added in subsequent features.
+    -->
+
+    <changeSet id="001-initial-setup" author="claude">
+        <comment>
+            Initial database setup - infrastructure validation only.
+            No business tables are created at this stage.
+        </comment>
+
+        <!--
+            Create a simple metadata table to verify Liquibase is working.
+            This table tracks application metadata and configuration.
+        -->
+        <createTable tableName="app_metadata">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="metadata_key" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="metadata_value" type="VARCHAR(1000)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="description" type="VARCHAR(500)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Insert initial metadata -->
+        <insert tableName="app_metadata">
+            <column name="metadata_key" value="schema_version"/>
+            <column name="metadata_value" value="1.0.0"/>
+            <column name="description" value="Current database schema version"/>
+        </insert>
+
+        <insert tableName="app_metadata">
+            <column name="metadata_key" value="initialized_at"/>
+            <column name="metadata_value" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="description" value="Timestamp when database was first initialized"/>
+        </insert>
+
+        <rollback>
+            <dropTable tableName="app_metadata"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

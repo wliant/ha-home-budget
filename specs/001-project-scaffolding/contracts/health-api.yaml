@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: Home Budget Tracker - Health Check API
+  description: |
+    Health check endpoints for the development environment infrastructure.
+    These endpoints verify that the backend service is operational and can
+    communicate with the MySQL database.
+  version: 1.0.0
+  contact:
+    name: Home Budget Tracker Team
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: http://backend:8080
+    description: Docker Compose internal network
+
+paths:
+  /actuator/health:
+    get:
+      summary: Backend health check
+      description: |
+        Returns the health status of the backend application and its dependencies.
+        Used by Docker Compose health checks and for developer verification.
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: All systems operational
+                  value:
+                    status: UP
+                    components:
+                      db:
+                        status: UP
+                        details:
+                          database: MySQL
+                          validationQuery: isValid()
+                      diskSpace:
+                        status: UP
+                        details:
+                          total: 107374182400
+                          free: 53687091200
+                          threshold: 10485760
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                database_down:
+                  summary: Database connection failed
+                  value:
+                    status: DOWN
+                    components:
+                      db:
+                        status: DOWN
+                        details:
+                          error: "java.sql.SQLException: Communications link failure"
+
+  /actuator/health/liveness:
+    get:
+      summary: Liveness probe
+      description: |
+        Kubernetes-style liveness probe. Returns 200 if the application is running,
+        even if dependencies are down. Used to determine if the container should be restarted.
+      operationId: getLiveness
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Application is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LivenessResponse'
+              example:
+                status: UP
+
+  /actuator/health/readiness:
+    get:
+      summary: Readiness probe
+      description: |
+        Kubernetes-style readiness probe. Returns 200 only if the application
+        is ready to serve traffic (database connection established, migrations complete).
+      operationId: getReadiness
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Application is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              example:
+                status: UP
+                components:
+                  db:
+                    status: UP
+        '503':
+          description: Application is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              example:
+                status: DOWN
+                components:
+                  db:
+                    status: DOWN
+
+  /actuator/info:
+    get:
+      summary: Application information
+      description: |
+        Returns metadata about the backend application including version,
+        build timestamp, and environment information.
+      operationId: getInfo
+      tags:
+        - Information
+      responses:
+        '200':
+          description: Application information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InfoResponse'
+              example:
+                app:
+                  name: home-budget-backend
+                  version: 1.0.0-SNAPSHOT
+                  description: Backend service for Home Budget Tracker
+                build:
+                  artifact: budget-backend
+                  name: budget-backend
+                  time: "2025-10-22T12:00:00.000Z"
+                  version: 1.0.0-SNAPSHOT
+                java:
+                  version: 17.0.9
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, OUT_OF_SERVICE, UNKNOWN]
+          description: Overall health status
+        components:
+          type: object
+          description: Health status of individual components
+          additionalProperties:
+            $ref: '#/components/schemas/ComponentHealth'
+
+    ComponentHealth:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, OUT_OF_SERVICE, UNKNOWN]
+        details:
+          type: object
+          description: Component-specific details
+          additionalProperties: true
+
+    LivenessResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [UP]
+          description: Always UP if the application is running
+
+    ReadinessResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+          description: UP if ready to serve traffic
+        components:
+          type: object
+          description: Readiness of dependencies
+          additionalProperties:
+            $ref: '#/components/schemas/ComponentHealth'
+
+    InfoResponse:
+      type: object
+      properties:
+        app:
+          type: object
+          properties:
+            name:
+              type: string
+              example: home-budget-backend
+            version:
+              type: string
+              example: 1.0.0-SNAPSHOT
+            description:
+              type: string
+              example: Backend service for Home Budget Tracker
+        build:
+          type: object
+          properties:
+            artifact:
+              type: string
+            name:
+              type: string
+            time:
+              type: string
+              format: date-time
+            version:
+              type: string
+        java:
+          type: object
+          properties:
+            version:
+              type: string
+              example: "17.0.9"
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Information
+    description: Application metadata endpoints

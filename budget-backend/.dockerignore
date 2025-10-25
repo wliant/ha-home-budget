@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Build artifacts
+target/
+build/
+*.class
+*.jar
+*.war
+
+# Testing
+.nyc_output/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+mvnwrapper/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local

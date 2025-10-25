@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Master changelog for Home Budget Tracker
+
+        This is the main entry point for all database migrations.
+        Each feature migration should be included as a separate file.
+
+        Convention:
+        - 001-xxx.xml: Project scaffolding / initial setup
+        - 002-xxx.xml: Next feature
+        - etc.
+    -->
+
+    <!-- Initial setup - infrastructure validation -->
+    <include file="db/changelog/changes/001-initial-setup.xml"/>
+
+    <!-- Test migration - verify workflow -->
+    <include file="db/changelog/changes/002-test-migration.xml"/>
+
+    <!-- Future migrations will be included here -->
+
+</databaseChangeLog>

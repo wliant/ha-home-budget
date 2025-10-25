@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: homebudget-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-dev_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-homebudget}
+      MYSQL_USER: ${MYSQL_USER:-budget_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-budget_password}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - homebudget-network
+
+  backend:
+    build:
+      context: ./budget-backend
+      dockerfile: Dockerfile
+    container_name: homebudget-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-homebudget}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-budget_user}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-budget_password}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./budget-backend/src:/app/src
+      - backend-m2:/root/.m2
+    networks:
+      - homebudget-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./budget-frontend
+      dockerfile: Dockerfile
+    container_name: homebudget-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./budget-frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - homebudget-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+    driver: local
+  backend-m2:
+    driver: local
+
+networks:
+  homebudget-network:
+    driver: bridge

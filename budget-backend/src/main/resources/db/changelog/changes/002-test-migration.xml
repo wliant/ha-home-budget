@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Test Migration
+
+        Purpose: Verify migration workflow is functioning correctly
+        - Tests that new migrations are automatically applied on restart
+        - Validates team synchronization workflow
+        - Can be safely removed after verification
+
+        This changeset will be removed before production deployment.
+    -->
+
+    <changeSet id="002-test-migration" author="claude">
+        <comment>
+            Test migration to verify Liquibase workflow.
+            Adds a test entry to app_metadata table.
+        </comment>
+
+        <insert tableName="app_metadata">
+            <column name="metadata_key" value="test_migration_applied"/>
+            <column name="metadata_value" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="description" value="Test migration to verify Liquibase is working correctly"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="app_metadata">
+                <where>metadata_key = 'test_migration_applied'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
