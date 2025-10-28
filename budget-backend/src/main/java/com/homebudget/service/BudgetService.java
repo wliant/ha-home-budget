@@ -209,6 +209,21 @@ public class BudgetService {
         );
     }
 
+    /**
+     * Get current month's budget.
+     * Used for dashboard display.
+     */
+    @Transactional(readOnly = true)
+    public BudgetSummaryDTO getCurrentMonthBudget() {
+        LocalDate now = LocalDate.now();
+        int year = now.getYear();
+        int month = now.getMonthValue();
+
+        return budgetRepository.findByYearAndMonth(year, month)
+                .map(this::mapToBudgetSummary)
+                .orElse(null);
+    }
+
     private ExpenseDTO mapToExpenseDTO(Expense expense) {
         ExpenseDTO dto = new ExpenseDTO();
         dto.setId(expense.getId());

@@ -119,6 +119,11 @@ export const budgetService = {
   deleteBudget: async (id: number): Promise<void> => {
     await api.delete(`/api/budgets/${id}`);
   },
+
+  getCurrentMonthBudget: async (): Promise<BudgetSummaryDTO> => {
+    const response = await api.get<BudgetSummaryDTO>('/api/budgets/current');
+    return response.data;
+  },
 };
 
 // ============================================================================

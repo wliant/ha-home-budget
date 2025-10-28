@@ -96,4 +96,17 @@ public class BudgetController {
         budgetService.deleteBudget(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Get current month's budget for dashboard.
+     * User Story 4: Budget Dashboard and Insights
+     */
+    @GetMapping("/current")
+    public ResponseEntity<BudgetSummaryDTO> getCurrentMonthBudget() {
+        BudgetSummaryDTO budget = budgetService.getCurrentMonthBudget();
+        if (budget == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(budget);
+    }
 }
