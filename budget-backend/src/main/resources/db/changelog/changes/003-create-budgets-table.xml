@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="003-create-budgets-table" author="claude">
+        <comment>Create budgets table for household monthly budget tracking</comment>
+
+        <createTable tableName="budgets">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="year" type="INT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="month" type="INT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="total_amount" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="description" type="VARCHAR(500)"/>
+
+            <column name="created_by" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="version" type="BIGINT" defaultValue="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Unique constraint to prevent duplicate budgets for same month -->
+        <addUniqueConstraint
+            tableName="budgets"
+            columnNames="year, month"
+            constraintName="uk_budgets_year_month"/>
+
+        <!-- Index for efficient budget lookups by month -->
+        <createIndex tableName="budgets" indexName="idx_budgets_year_month">
+            <column name="year"/>
+            <column name="month"/>
+        </createIndex>
+
+        <!-- Index for filtering by created_by user -->
+        <createIndex tableName="budgets" indexName="idx_budgets_created_by">
+            <column name="created_by"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="budgets"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

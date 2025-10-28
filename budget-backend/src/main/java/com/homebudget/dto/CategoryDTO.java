@@ -1,0 +1,104 @@
+package com.homebudget.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
+
+/**
+ * Data Transfer Object for Category entity.
+ * Used for API requests and responses.
+ */
+public class CategoryDTO {
+
+    private Long id;
+
+    @NotBlank(message = "Category name is required")
+    private String name;
+
+    private String icon;
+
+    private String createdBy;
+
+    private LocalDateTime createdAt;
+
+    private Boolean isSystem;
+
+    private Long expenseCount;
+
+    // Constructors
+    public CategoryDTO() {
+    }
+
+    public CategoryDTO(Long id, String name, String icon) {
+        this.id = id;
+        this.name = name;
+        this.icon = icon;
+    }
+
+    public CategoryDTO(Long id, String name, String icon, String createdBy, LocalDateTime createdAt,
+                       Boolean isSystem, Long expenseCount) {
+        this.id = id;
+        this.name = name;
+        this.icon = icon;
+        this.createdBy = createdBy;
+        this.createdAt = createdAt;
+        this.isSystem = isSystem;
+        this.expenseCount = expenseCount;
+    }
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getIcon() {
+        return icon;
+    }
+
+    public void setIcon(String icon) {
+        this.icon = icon;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Boolean getIsSystem() {
+        return isSystem;
+    }
+
+    public void setIsSystem(Boolean isSystem) {
+        this.isSystem = isSystem;
+    }
+
+    public Long getExpenseCount() {
+        return expenseCount;
+    }
+
+    public void setExpenseCount(Long expenseCount) {
+        this.expenseCount = expenseCount;
+    }
+}

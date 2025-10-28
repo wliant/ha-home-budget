@@ -23,6 +23,9 @@
     <!-- Test migration - verify workflow -->
     <include file="db/changelog/changes/002-test-migration.xml"/>
 
-    <!-- Future migrations will be included here -->
+    <!-- Feature 002: Budget and Expense Management -->
+    <include file="db/changelog/changes/003-create-budgets-table.xml"/>
+    <include file="db/changelog/changes/004-create-categories-table.xml"/>
+    <include file="db/changelog/changes/005-create-expenses-table.xml"/>
 
 </databaseChangeLog>

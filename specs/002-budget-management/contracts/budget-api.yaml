@@ -1,0 +1,861 @@
+openapi: 3.0.3
+info:
+  title: Home Budget Tracker API
+  description: REST API for household budget and expense management
+  version: 1.0.0
+  contact:
+    name: Home Budget Team
+
+servers:
+  - url: http://localhost:8081/api
+    description: Local development server
+  - url: http://homebudget-backend:8080/api
+    description: Docker internal network
+
+tags:
+  - name: Budgets
+    description: Budget management operations
+  - name: Expenses
+    description: Expense tracking operations
+  - name: Categories
+    description: Spending category management
+
+paths:
+  /budgets:
+    get:
+      tags: [Budgets]
+      summary: List all budgets
+      description: Retrieve all household budgets ordered by year and month (newest first)
+      operationId: getAllBudgets
+      responses:
+        '200':
+          description: List of budgets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetSummary'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Budgets]
+      summary: Create a new budget
+      description: Create a budget for a specific month (FR-001)
+      operationId: createBudget
+      parameters:
+        - $ref: '#/components/parameters/XHassUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetRequest'
+      responses:
+        '201':
+          description: Budget created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetDetail'
+        '400':
+          description: Invalid input (negative amount, invalid month, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Budget for this month already exists (FR-002)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /budgets/{id}:
+    get:
+      tags: [Budgets]
+      summary: Get budget details
+      description: Retrieve detailed information for a specific budget including expenses
+      operationId: getBudgetById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Budget details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Budgets]
+      summary: Update budget
+      description: Update budget amount or description (year/month cannot be changed) (FR-019)
+      operationId: updateBudget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/XHassUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBudgetRequest'
+      responses:
+        '200':
+          description: Budget updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Optimistic locking conflict (version mismatch)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Budgets]
+      summary: Delete budget
+      description: Delete budget (requires confirmation if expenses exist) (FR-022)
+      operationId: deleteBudget
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: confirm
+          in: query
+          description: Set to true to confirm cascade deletion of expenses
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '204':
+          description: Budget deleted successfully
+        '400':
+          description: Cannot delete budget with expenses without confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /expenses:
+    get:
+      tags: [Expenses]
+      summary: List expenses
+      description: Retrieve expenses with optional filtering by budget, category, date range, or user (FR-012)
+      operationId: getExpenses
+      parameters:
+        - name: budgetId
+          in: query
+          description: Filter by budget ID
+          schema:
+            type: integer
+            format: int64
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          schema:
+            type: integer
+            format: int64
+        - name: startDate
+          in: query
+          description: Filter expenses from this date (inclusive)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter expenses to this date (inclusive)
+          schema:
+            type: string
+            format: date
+        - name: createdBy
+          in: query
+          description: Filter by user who recorded expense
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Expenses]
+      summary: Record a new expense
+      description: Create an expense record (FR-005)
+      operationId: createExpense
+      parameters:
+        - $ref: '#/components/parameters/XHassUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '201':
+          description: Expense created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Budget or category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /expenses/{id}:
+    get:
+      tags: [Expenses]
+      summary: Get expense details
+      description: Retrieve detailed information for a specific expense
+      operationId: getExpenseById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Expense details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Expenses]
+      summary: Update expense
+      description: Update all expense fields (FR-020)
+      operationId: updateExpense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/XHassUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExpenseRequest'
+      responses:
+        '200':
+          description: Expense updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Optimistic locking conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Expenses]
+      summary: Delete expense
+      description: Remove an expense record (FR-021)
+      operationId: deleteExpense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Expense deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List all categories
+      description: Retrieve all spending categories
+      operationId: getAllCategories
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryDetail'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Categories]
+      summary: Create a new category
+      description: Create a spending category (FR-009)
+      operationId: createCategory
+      parameters:
+        - $ref: '#/components/parameters/XHassUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Category with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Get category details
+      description: Retrieve detailed information for a specific category
+      operationId: getCategoryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Categories]
+      summary: Update category
+      description: Update category name or icon (cannot update system categories)
+      operationId: updateCategory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDetail'
+        '400':
+          description: Cannot modify system category or invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Category name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Categories]
+      summary: Delete category
+      description: Delete category (prevented if expenses exist) (FR-011)
+      operationId: deleteCategory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Category deleted successfully
+        '400':
+          description: Cannot delete category with associated expenses or system category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /budgets/{id}/summary:
+    get:
+      tags: [Budgets]
+      summary: Get budget spending breakdown
+      description: Get category-based spending breakdown for a budget (FR-013)
+      operationId: getBudgetSummary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Budget spending breakdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetSummaryWithBreakdown'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  parameters:
+    XHassUser:
+      name: X-Hass-User
+      in: header
+      description: Username from Home Assistant authentication
+      required: true
+      schema:
+        type: string
+      example: john_doe
+
+  schemas:
+    CreateBudgetRequest:
+      type: object
+      required: [year, month, totalAmount]
+      properties:
+        year:
+          type: integer
+          minimum: 2000
+          maximum: 9999
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 10
+          description: '1=January, 12=December'
+        totalAmount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 3000.00
+          description: Planned spending limit in household currency
+        description:
+          type: string
+          maxLength: 500
+          example: 'Family budget for October'
+
+    UpdateBudgetRequest:
+      type: object
+      required: [totalAmount, version]
+      properties:
+        totalAmount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 3500.00
+        description:
+          type: string
+          maxLength: 500
+          example: 'Updated family budget'
+        version:
+          type: integer
+          format: int64
+          description: Version for optimistic locking
+
+    BudgetSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          example: 10
+        totalAmount:
+          type: number
+          format: double
+          example: 3000.00
+        description:
+          type: string
+          example: 'Family budget for October'
+        totalSpending:
+          type: number
+          format: double
+          example: 1250.50
+          description: Calculated sum of all expenses
+        spendingPercentage:
+          type: number
+          format: double
+          example: 41.68
+          description: '(totalSpending / totalAmount) * 100'
+        expenseCount:
+          type: integer
+          example: 15
+        createdBy:
+          type: string
+          example: 'john_doe'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-01T08:30:00Z'
+
+    BudgetDetail:
+      allOf:
+        - $ref: '#/components/schemas/BudgetSummary'
+        - type: object
+          properties:
+            updatedAt:
+              type: string
+              format: date-time
+              example: '2025-10-15T14:22:00Z'
+            version:
+              type: integer
+              format: int64
+              example: 2
+            expenses:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExpenseDetail'
+
+    CreateExpenseRequest:
+      type: object
+      required: [budgetId, amount, description, expenseDate]
+      properties:
+        budgetId:
+          type: integer
+          format: int64
+          example: 1
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 150.50
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: 'Weekly groceries at Whole Foods'
+        expenseDate:
+          type: string
+          format: date
+          example: '2025-10-15'
+        categoryId:
+          type: integer
+          format: int64
+          nullable: true
+          example: 3
+          description: 'Optional - defaults to "Uncategorized" if null'
+
+    UpdateExpenseRequest:
+      type: object
+      required: [budgetId, amount, description, expenseDate, version]
+      properties:
+        budgetId:
+          type: integer
+          format: int64
+          example: 1
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 175.00
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: 'Updated: Weekly groceries'
+        expenseDate:
+          type: string
+          format: date
+          example: '2025-10-16'
+        categoryId:
+          type: integer
+          format: int64
+          nullable: true
+          example: 3
+        version:
+          type: integer
+          format: int64
+          description: Version for optimistic locking
+
+    ExpenseDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 101
+        budgetId:
+          type: integer
+          format: int64
+          example: 1
+        amount:
+          type: number
+          format: double
+          example: 150.50
+        description:
+          type: string
+          example: 'Weekly groceries at Whole Foods'
+        expenseDate:
+          type: string
+          format: date
+          example: '2025-10-15'
+        category:
+          $ref: '#/components/schemas/CategorySummary'
+          nullable: true
+        createdBy:
+          type: string
+          example: 'jane_doe'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-10-15T18:45:00Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2025-10-15T18:45:00Z'
+        version:
+          type: integer
+          format: int64
+          example: 1
+        warnings:
+          type: array
+          items:
+            type: string
+          example: ['Expense date is outside budget month']
+          description: 'Business warnings (e.g., date mismatch per FR-018)'
+
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 'Groceries'
+        icon:
+          type: string
+          maxLength: 10
+          nullable: true
+          example: '🛒'
+
+    UpdateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 'Grocery Shopping'
+        icon:
+          type: string
+          maxLength: 10
+          nullable: true
+          example: '🛒'
+
+    CategorySummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 3
+        name:
+          type: string
+          example: 'Groceries'
+        icon:
+          type: string
+          nullable: true
+          example: '🛒'
+
+    CategoryDetail:
+      allOf:
+        - $ref: '#/components/schemas/CategorySummary'
+        - type: object
+          properties:
+            createdBy:
+              type: string
+              example: 'john_doe'
+            createdAt:
+              type: string
+              format: date-time
+              example: '2025-10-01T10:00:00Z'
+            isSystem:
+              type: boolean
+              example: false
+            expenseCount:
+              type: integer
+              example: 25
+              description: 'Number of expenses using this category'
+
+    BudgetSummaryWithBreakdown:
+      allOf:
+        - $ref: '#/components/schemas/BudgetSummary'
+        - type: object
+          properties:
+            categoryBreakdown:
+              type: array
+              items:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/CategorySummary'
+                  totalSpending:
+                    type: number
+                    format: double
+                    example: 450.75
+                  percentage:
+                    type: number
+                    format: double
+                    example: 15.03
+                    description: 'Percentage of budget spent in this category'
+                  expenseCount:
+                    type: integer
+                    example: 8
+
+    Error:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: 'Budget amount must be positive'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-10-23T10:30:00Z'
+        path:
+          type: string
+          example: '/api/budgets'
+        details:
+          type: array
+          items:
+            type: string
+          example: ['totalAmount: must be greater than 0']
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

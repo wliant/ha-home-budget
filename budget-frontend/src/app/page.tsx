@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Container,
   Box,
@@ -9,12 +10,15 @@ import {
   Grid,
   Card,
   CardContent,
+  CardActions,
   Chip,
   CircularProgress,
   Alert,
+  Button,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 
 interface HealthStatus {
   status: string;
@@ -23,6 +27,7 @@ interface HealthStatus {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [backendHealth, setBackendHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,30 +139,98 @@ export default function Home() {
           ) : null}
         </Paper>
 
-        {/* Welcome Message */}
-        <Paper elevation={2} sx={{ p: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Welcome to Your Budget Tracker
-          </Typography>
-          <Typography variant="body1" paragraph>
-            This application helps you manage your household budget and track expenses.
-            All members of your household can collaborate to:
-          </Typography>
-          <Box component="ul" sx={{ mt: 2 }}>
-            <Typography component="li" variant="body1" paragraph>
-              Create and manage budgets
-            </Typography>
-            <Typography component="li" variant="body1" paragraph>
-              Track expenses and categorize spending
-            </Typography>
-            <Typography component="li" variant="body1" paragraph>
-              Configure spending categories
-            </Typography>
-            <Typography component="li" variant="body1" paragraph>
-              View dashboard and spending analytics
-            </Typography>
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
+        {/* Features */}
+        <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
+          Features
+        </Typography>
+
+        <Grid container spacing={3}>
+          {/* Budgets Feature */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <AccountBalanceWalletIcon color="primary" fontSize="large" />
+                  <Typography variant="h6">
+                    Budgets
+                  </Typography>
+                </Box>
+                <Typography variant="body1" paragraph>
+                  Create and manage monthly budgets. Track your spending against your budget
+                  and see how much you have left in real-time.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Features:
+                </Typography>
+                <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+                  <Typography component="li" variant="body2" color="text.secondary">
+                    Create monthly budgets
+                  </Typography>
+                  <Typography component="li" variant="body2" color="text.secondary">
+                    View spending progress
+                  </Typography>
+                  <Typography component="li" variant="body2" color="text.secondary">
+                    Track expenses per budget
+                  </Typography>
+                </Box>
+              </CardContent>
+              <CardActions>
+                <Button
+                  size="medium"
+                  variant="contained"
+                  onClick={() => router.push('/budgets')}
+                  fullWidth
+                >
+                  View Budgets
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+
+          {/* Coming Soon Cards */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2} sx={{ opacity: 0.6 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Expenses
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Record and categorize expenses. Coming soon...
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card elevation={2} sx={{ opacity: 0.6 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Categories
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Manage spending categories. Coming soon...
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card elevation={2} sx={{ opacity: 0.6 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Dashboard
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  View insights and analytics. Coming soon...
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Info */}
+        <Paper elevation={1} sx={{ p: 3, mt: 4, bgcolor: 'background.default' }}>
+          <Typography variant="body2" color="text.secondary">
             Authenticated via Home Assistant (X-Hass-User header)
           </Typography>
         </Paper>

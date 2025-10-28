@@ -205,3 +205,9 @@ All bash scripts support:
 - Frontend (Next.js) → REST API → Backend (Spring Boot)
 - OpenAPI specifications in `contracts/` directory
 - Backend handles all business logic and data persistence
+
+## Active Technologies
+- MySQL 8.0 (via Docker Compose from Feature 001) (002-budget-management)
+
+## Recent Changes
+- 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)
