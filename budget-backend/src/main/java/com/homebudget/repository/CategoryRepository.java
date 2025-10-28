@@ -2,6 +2,8 @@ package com.homebudget.repository;
 
 import com.homebudget.model.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -53,4 +55,22 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @return list of categories
      */
     List<Category> findByCreatedByOrderByNameAsc(String createdBy);
+
+    /**
+     * Check if a category exists with the given name (case insensitive).
+     *
+     * @param name the category name
+     * @return true if category exists
+     */
+    boolean existsByNameIgnoreCase(String name);
+
+    /**
+     * Count expenses associated with a category.
+     * Used to check if category can be deleted.
+     *
+     * @param categoryId the category ID
+     * @return count of expenses
+     */
+    @Query("SELECT COUNT(e) FROM Expense e WHERE e.category.id = :categoryId")
+    long countExpensesByCategoryId(@Param("categoryId") Long categoryId);
 }

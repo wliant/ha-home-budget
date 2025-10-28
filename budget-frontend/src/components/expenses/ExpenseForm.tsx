@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -8,8 +8,10 @@ import {
   Paper,
   Typography,
   Alert,
+  MenuItem,
 } from '@mui/material';
 import { CreateExpenseRequest, UpdateExpenseRequest, getTodayISO } from '@/services/expenseService';
+import { categoryService, CategoryDTO } from '@/services/categoryService';
 
 /**
  * ExpenseForm component for creating/editing expenses
@@ -54,6 +56,20 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
+  const [categories, setCategories] = useState<CategoryDTO[]>([]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const data = await categoryService.getAllCategories();
+      setCategories(data);
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+    }
+  };
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -195,8 +211,24 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           sx={{ mb: 3 }}
         />
 
-        {/* Category - placeholder for US3 */}
-        {/* Will add category selector in User Story 3 */}
+        {/* Category Selector */}
+        <TextField
+          label="Category"
+          select
+          fullWidth
+          value={formData.categoryId || ''}
+          onChange={(e) => setFormData({ ...formData, categoryId: e.target.value ? parseInt(e.target.value) : null })}
+          sx={{ mb: 3 }}
+        >
+          <MenuItem value="">
+            <em>Uncategorized</em>
+          </MenuItem>
+          {categories.map((category) => (
+            <MenuItem key={category.id} value={category.id}>
+              {category.icon} {category.name}
+            </MenuItem>
+          ))}
+        </TextField>
 
         {/* Form Actions */}
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
