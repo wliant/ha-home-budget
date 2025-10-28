@@ -10,6 +10,11 @@ public class CategoryInUseException extends RuntimeException {
                 "Please reassign expenses to another category first.", categoryId, expenseCount));
     }
 
+    public CategoryInUseException(String categoryName, int expenseCount) {
+        super(String.format("Cannot delete category '%s' with %d associated expenses. " +
+                "Please reassign expenses to another category first.", categoryName, expenseCount));
+    }
+
     public CategoryInUseException(String message) {
         super(message);
     }
