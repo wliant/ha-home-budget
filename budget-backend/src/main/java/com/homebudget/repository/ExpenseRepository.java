@@ -26,12 +26,22 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByBudgetIdOrderByExpenseDateDesc(Long budgetId);
 
     /**
+     * Alias for findByBudgetIdOrderByExpenseDateDesc
+     */
+    List<Expense> findByBudgetId(Long budgetId);
+
+    /**
      * Find all expenses for a specific category.
      *
      * @param categoryId the category ID
      * @return list of expenses
      */
     List<Expense> findByCategoryIdOrderByExpenseDateDesc(Long categoryId);
+
+    /**
+     * Alias for findByCategoryIdOrderByExpenseDateDesc
+     */
+    List<Expense> findByCategoryId(Long categoryId);
 
     /**
      * Find expenses created by a specific user.
@@ -42,6 +52,11 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByCreatedByOrderByExpenseDateDesc(String createdBy);
 
     /**
+     * Alias for findByCreatedByOrderByExpenseDateDesc
+     */
+    List<Expense> findByCreatedBy(String createdBy);
+
+    /**
      * Find expenses within a date range.
      *
      * @param startDate start date (inclusive)
@@ -49,6 +64,38 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
      * @return list of expenses
      */
     List<Expense> findByExpenseDateBetweenOrderByExpenseDateDesc(LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Alias for findByExpenseDateBetweenOrderByExpenseDateDesc
+     */
+    List<Expense> findByExpenseDateBetween(LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Find all expenses ordered by date descending.
+     */
+    @Query("SELECT e FROM Expense e ORDER BY e.expenseDate DESC")
+    List<Expense> findAllOrderByExpenseDateDesc();
+
+    /**
+     * Find expenses by budget and category.
+     */
+    List<Expense> findByBudgetIdAndCategoryId(Long budgetId, Long categoryId);
+
+    /**
+     * Find expenses by budget and created by user.
+     */
+    List<Expense> findByBudgetIdAndCreatedBy(Long budgetId, String createdBy);
+
+    /**
+     * Find expenses by budget and date range.
+     */
+    List<Expense> findByBudgetIdAndExpenseDateBetween(Long budgetId, LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Find expenses by budget, category, date range, and user (all filters).
+     */
+    List<Expense> findByBudgetIdAndCategoryIdAndExpenseDateBetweenAndCreatedBy(
+            Long budgetId, Long categoryId, LocalDate startDate, LocalDate endDate, String createdBy);
 
     /**
      * Calculate total spending for a budget.

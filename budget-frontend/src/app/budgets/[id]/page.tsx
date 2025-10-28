@@ -18,7 +18,9 @@ import {
 import {
   ArrowBack as ArrowBackIcon,
   Edit as EditIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
+import ExpenseList from '@/components/expenses/ExpenseList';
 import {
   budgetService,
   BudgetSummaryDTO,
@@ -80,6 +82,25 @@ export default function BudgetDetailPage() {
 
   const handleEdit = () => {
     router.push(`/budgets/${budgetId}/edit`);
+  };
+
+  const handleAddExpense = () => {
+    router.push(`/expenses/new?budgetId=${budgetId}`);
+  };
+
+  const handleEditExpense = (expenseId: number) => {
+    router.push(`/expenses/${expenseId}/edit?budgetId=${budgetId}`);
+  };
+
+  const handleDeleteExpense = async (expenseId: number) => {
+    if (confirm('Are you sure you want to delete this expense?')) {
+      try {
+        // TODO: Implement delete functionality
+        await loadBudget();
+      } catch (err) {
+        console.error('Failed to delete expense:', err);
+      }
+    }
   };
 
   if (isLoading) {
@@ -237,53 +258,24 @@ export default function BudgetDetailPage() {
         {/* Expenses List */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Expenses
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Expenses
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddExpense}
+              >
+                Add Expense
+              </Button>
+            </Box>
 
-            {budget.expenses && budget.expenses.length > 0 ? (
-              <Box>
-                {budget.expenses.map((expense) => (
-                  <Box
-                    key={expense.id}
-                    sx={{
-                      py: 2,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      '&:last-child': { borderBottom: 'none' },
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body1">
-                        {expense.description || 'No description'}
-                      </Typography>
-                      <Typography variant="h6">
-                        {formatCurrency(expense.amount)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {new Date(expense.expenseDate).toLocaleDateString()}
-                      </Typography>
-                      {expense.category && (
-                        <Typography variant="body2" color="text.secondary">
-                          {expense.category.icon} {expense.category.name}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography variant="body1" color="text.secondary">
-                  No expenses recorded yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Start adding expenses to track your spending
-                </Typography>
-              </Box>
-            )}
+            <ExpenseList
+              expenses={budget.expenses || []}
+              onEdit={handleEditExpense}
+              onDelete={handleDeleteExpense}
+            />
           </Paper>
         </Grid>
       </Grid>

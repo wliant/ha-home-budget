@@ -34,6 +34,10 @@ public class ExpenseDTO {
 
     private CategoryDTO category;
 
+    // Convenience fields for category display (populated from Category entity)
+    private String categoryName;
+    private String categoryIcon;
+
     private String createdBy;
 
     private LocalDateTime createdAt;
@@ -162,5 +166,28 @@ public class ExpenseDTO {
 
     public void addWarning(String warning) {
         this.warnings.add(warning);
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public String getCategoryIcon() {
+        return categoryIcon;
+    }
+
+    public void setCategoryIcon(String categoryIcon) {
+        this.categoryIcon = categoryIcon;
+    }
+
+    /**
+     * Convenience method to set date mismatch warning.
+     */
+    public void setDateMismatchWarning(String warning) {
+        addWarning(warning);
     }
 }
