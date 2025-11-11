@@ -40,3 +40,8 @@ logging:
     com.homebudget: DEBUG
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
+
+# Application configuration
+app:
+  dev-mode: false
+  default-dev-user: ""

@@ -30,7 +30,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-homebudget}
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-budget_user}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-budget_password}
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
