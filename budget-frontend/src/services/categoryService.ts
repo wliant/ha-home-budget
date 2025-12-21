@@ -16,16 +16,22 @@ export interface CategoryDTO {
   version?: number;
   isSystem?: boolean;
   expenseCount?: number;
+  parentCategoryId?: number;
+  parentCategory?: CategoryDTO;
+  childCategories?: CategoryDTO[];
+  budgetCount?: number;
 }
 
 export interface CreateCategoryRequest {
   name: string;
   icon?: string;
+  parentCategoryId?: number;
 }
 
 export interface UpdateCategoryRequest {
   name: string;
   icon?: string;
+  parentCategoryId?: number;
 }
 
 export const categoryService = {
@@ -73,6 +79,14 @@ export const categoryService = {
    */
   getExpenseCount: async (id: number): Promise<number> => {
     const response = await api.get<number>(`/api/categories/${id}/expense-count`);
+    return response.data;
+  },
+
+  /**
+   * Get category hierarchy (root categories with children)
+   */
+  getCategoryHierarchy: async (): Promise<CategoryDTO[]> => {
+    const response = await api.get<CategoryDTO[]>('/api/categories/hierarchy');
     return response.data;
   },
 };

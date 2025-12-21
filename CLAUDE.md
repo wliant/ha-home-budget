@@ -208,6 +208,8 @@ All bash scripts support:
 
 ## Active Technologies
 - MySQL 8.0 (via Docker Compose from Feature 001) (002-budget-management)
+- Java 17 (backend), TypeScript/JavaScript (frontend) (004-hierarchical-category-budgets)
+- MySQL 8.0 database with JPA/Hibernate ORM (004-hierarchical-category-budgets)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

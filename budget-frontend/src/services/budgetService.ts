@@ -19,6 +19,8 @@ export interface BudgetDTO {
   createdAt?: string;
   updatedAt?: string;
   version?: number;
+  categoryId?: number;
+  category?: CategoryDTO;
 }
 
 export interface BudgetSummaryDTO {
@@ -35,16 +37,20 @@ export interface BudgetSummaryDTO {
   spendingPercentage: number;
   expenseCount: number;
   expenses?: ExpenseDTO[];
+  categoryId?: number;
+  category?: CategoryDTO;
 }
 
 export interface ExpenseDTO {
   id?: number;
   amount: number;
-  description?: string;
+  description: string;
   expenseDate: string; // ISO date string
   budgetId: number;
-  categoryId?: number;
+  categoryId?: number | null;
   category?: CategoryDTO;
+  categoryName?: string;
+  categoryIcon?: string;
   createdBy?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -58,6 +64,9 @@ export interface CategoryDTO {
   icon?: string;
   isSystem?: boolean;
   expenseCount?: number;
+  parentCategoryId?: number;
+  parentCategory?: CategoryDTO;
+  childCategories?: CategoryDTO[];
 }
 
 export interface CreateBudgetRequest {
@@ -65,6 +74,7 @@ export interface CreateBudgetRequest {
   month: number;
   totalAmount: number;
   description?: string;
+  categoryId: number;
 }
 
 export interface UpdateBudgetRequest {

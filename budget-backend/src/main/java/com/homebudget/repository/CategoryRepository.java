@@ -73,4 +73,39 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      */
     @Query("SELECT COUNT(e) FROM Expense e WHERE e.category.id = :categoryId")
     long countExpensesByCategoryId(@Param("categoryId") Long categoryId);
+
+    /**
+     * Find all root categories (categories without a parent).
+     *
+     * @return list of root categories
+     */
+    List<Category> findByParentCategoryIsNullOrderByNameAsc();
+
+    /**
+     * Find all child categories of a specific parent.
+     *
+     * @param parentCategoryId the parent category ID
+     * @return list of child categories
+     */
+    @Query("SELECT c FROM Category c WHERE c.parentCategory.id = :parentCategoryId ORDER BY c.name ASC")
+    List<Category> findByParentCategoryId(@Param("parentCategoryId") Long parentCategoryId);
+
+    /**
+     * Count child categories of a specific parent.
+     * Used to check if category has children before deletion.
+     *
+     * @param parentCategoryId the parent category ID
+     * @return count of child categories
+     */
+    long countByParentCategoryId(Long parentCategoryId);
+
+    /**
+     * Count budgets associated with a category.
+     * Used to check if category can be deleted or parent can be changed.
+     *
+     * @param categoryId the category ID
+     * @return count of budgets
+     */
+    @Query("SELECT COUNT(b) FROM Budget b WHERE b.category.id = :categoryId")
+    long countBudgetsByCategoryId(@Param("categoryId") Long categoryId);
 }

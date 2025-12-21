@@ -15,14 +15,16 @@ import java.util.List;
 /**
  * REST API Controller for category operations.
  *
+ * Implements User Story 1: Hierarchical Category Management
  * Implements User Story 3: Manage Spending Categories
  *
  * Endpoints:
- * - POST /api/categories - Create new category
+ * - POST /api/categories - Create new category (supports optional parentCategoryId)
  * - GET /api/categories - List all categories
+ * - GET /api/categories/hierarchy - Get category hierarchy with parent-child relationships
  * - GET /api/categories/{id} - Get category by ID
- * - PUT /api/categories/{id} - Update category
- * - DELETE /api/categories/{id} - Delete category
+ * - PUT /api/categories/{id} - Update category (supports parent changes)
+ * - DELETE /api/categories/{id} - Delete category (blocked if has children/budgets/expenses)
  *
  * Uses X-Hass-User header for user identification (provided by Home Assistant)
  */
@@ -39,8 +41,9 @@ public class CategoryController {
 
     /**
      * Create a new category.
+     * Supports hierarchical categories via optional parentCategoryId.
      *
-     * @param dto Category data (name, optional icon)
+     * @param dto Category data (name, optional icon, optional parentCategoryId)
      * @param username User creating category (from X-Hass-User header)
      * @return Created category with HTTP 201 status
      */
@@ -89,9 +92,10 @@ public class CategoryController {
 
     /**
      * Update an existing category.
+     * Supports changing parent category (blocked if category has budgets).
      *
      * @param id Category ID
-     * @param dto Updated category data
+     * @param dto Updated category data (name, icon, parentCategoryId)
      * @return Updated category
      */
     @PutMapping("/{id}")
@@ -109,7 +113,10 @@ public class CategoryController {
 
     /**
      * Delete a category.
-     * Will fail if category has associated expenses.
+     * Blocked if category has:
+     * - Child categories (must reassign/delete children first)
+     * - Associated budgets (must reassign budgets first)
+     * - Associated expenses (must reassign expenses first)
      *
      * @param id Category ID
      * @return HTTP 204 No Content on success
@@ -122,6 +129,23 @@ public class CategoryController {
 
         logger.info("Deleted category ID: {}", id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Get category hierarchy.
+     * Returns all root categories with their children in a tree structure.
+     * Useful for displaying categories in a hierarchical dropdown or tree view.
+     *
+     * @return List of root categories with nested children
+     */
+    @GetMapping("/hierarchy")
+    public ResponseEntity<List<CategoryDTO>> getCategoryHierarchy() {
+        logger.info("GET /api/categories/hierarchy - Getting category hierarchy");
+
+        List<CategoryDTO> hierarchy = categoryService.getCategoryHierarchy();
+
+        logger.info("Found {} root categories", hierarchy.size());
+        return ResponseEntity.ok(hierarchy);
     }
 
     /**

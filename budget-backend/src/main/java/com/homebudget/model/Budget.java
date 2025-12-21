@@ -16,9 +16,7 @@ import java.util.List;
  * Budgets track all expenses recorded against them and calculate spending totals.
  */
 @Entity
-@Table(name = "budgets", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_budgets_year_month", columnNames = {"year", "month"})
-})
+@Table(name = "budgets")
 public class Budget {
 
     @Id
@@ -58,6 +56,10 @@ public class Budget {
     @Version
     @Column(nullable = false)
     private Long version;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @OneToMany(mappedBy = "budget", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Expense> expenses = new ArrayList<>();
@@ -157,6 +159,14 @@ public class Budget {
 
     public void setVersion(Long version) {
         this.version = version;
+    }
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category category) {
+        this.category = category;
     }
 
     public List<Expense> getExpenses() {

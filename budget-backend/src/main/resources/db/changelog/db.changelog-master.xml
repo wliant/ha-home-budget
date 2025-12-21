@@ -28,4 +28,7 @@
     <include file="db/changelog/changes/004-create-categories-table.xml"/>
     <include file="db/changelog/changes/005-create-expenses-table.xml"/>
 
+    <!-- Feature 004: Hierarchical Category Budgets -->
+    <include file="db/changelog/changes/006-add-category-hierarchy.xml"/>
+
 </databaseChangeLog>

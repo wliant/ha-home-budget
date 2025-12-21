@@ -60,6 +60,15 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({
           {formatBudgetPeriod(budget.year, budget.month)}
         </Typography>
 
+        {/* Category */}
+        {budget.category && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {budget.category.icon && `${budget.category.icon} `}
+            {budget.category.name}
+            {budget.category.parentCategory && ` (${budget.category.parentCategory.name})`}
+          </Typography>
+        )}
+
         {/* Status Chip */}
         <Box sx={{ mb: 2 }}>
           <Chip

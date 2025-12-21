@@ -38,6 +38,11 @@ public class BudgetDTO {
 
     private Long version;
 
+    @NotNull(message = "Category ID is required")
+    private Long categoryId;
+
+    private CategoryDTO category;
+
     // Constructors
     public BudgetDTO() {
     }
@@ -126,5 +131,21 @@ public class BudgetDTO {
 
     public void setVersion(Long version) {
         this.version = version;
+    }
+
+    public Long getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public CategoryDTO getCategory() {
+        return category;
+    }
+
+    public void setCategory(CategoryDTO category) {
+        this.category = category;
     }
 }

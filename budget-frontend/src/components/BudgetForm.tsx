@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -9,8 +9,12 @@ import {
   Typography,
   Paper,
   Alert,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import { CreateBudgetRequest, getMonthName } from '@/services/budgetService';
+import { categoryService, CategoryDTO } from '@/services/categoryService';
 
 /**
  * BudgetForm component for creating and editing budgets.
@@ -43,11 +47,30 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
     month: initialValues?.month || currentMonth,
     totalAmount: initialValues?.totalAmount || 0,
     description: initialValues?.description || '',
+    categoryId: initialValues?.categoryId || 0,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
+  const [categories, setCategories] = useState<CategoryDTO[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  // Load categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await categoryService.getAllCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        setSubmitError('Failed to load categories. Please refresh the page.');
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+    loadCategories();
+  }, []);
 
   // Generate year options (current year and next 5 years)
   const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear + i);
@@ -60,6 +83,10 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
+
+    if (!formData.categoryId || formData.categoryId === 0) {
+      newErrors.categoryId = 'Please select a category';
+    }
 
     if (formData.totalAmount <= 0) {
       newErrors.totalAmount = 'Budget amount must be greater than 0';
@@ -169,6 +196,43 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
             ))}
           </TextField>
         </Box>
+
+        <FormControl fullWidth sx={{ mb: 2 }} error={!!errors.categoryId} required>
+          <InputLabel>Category</InputLabel>
+          <Select
+            value={formData.categoryId || ''}
+            onChange={(e) => {
+              setFormData({ ...formData, categoryId: Number(e.target.value) });
+              if (errors.categoryId) {
+                setErrors((prev) => {
+                  const newErrors = { ...prev };
+                  delete newErrors.categoryId;
+                  return newErrors;
+                });
+              }
+            }}
+            label="Category"
+            disabled={isEdit || isLoadingCategories}
+          >
+            {categories.length === 0 ? (
+              <MenuItem value="" disabled>
+                <em>No categories available. Please create a category first.</em>
+              </MenuItem>
+            ) : (
+              categories.map((category) => (
+                <MenuItem key={category.id} value={category.id}>
+                  {category.icon && `${category.icon} `}{category.name}
+                  {category.parentCategory && ` (${category.parentCategory.name})`}
+                </MenuItem>
+              ))
+            )}
+          </Select>
+          {errors.categoryId && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+              {errors.categoryId}
+            </Typography>
+          )}
+        </FormControl>
 
         <TextField
           label="Budget Amount"

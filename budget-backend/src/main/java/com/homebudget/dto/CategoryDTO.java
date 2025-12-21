@@ -2,6 +2,8 @@ package com.homebudget.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Data Transfer Object for Category entity.
@@ -23,6 +25,12 @@ public class CategoryDTO {
     private Boolean isSystem;
 
     private Long expenseCount;
+
+    private Long parentCategoryId;
+
+    private CategoryDTO parentCategory;
+
+    private List<CategoryDTO> children = new ArrayList<>();
 
     // Constructors
     public CategoryDTO() {
@@ -100,5 +108,29 @@ public class CategoryDTO {
 
     public void setExpenseCount(Long expenseCount) {
         this.expenseCount = expenseCount;
+    }
+
+    public Long getParentCategoryId() {
+        return parentCategoryId;
+    }
+
+    public void setParentCategoryId(Long parentCategoryId) {
+        this.parentCategoryId = parentCategoryId;
+    }
+
+    public CategoryDTO getParentCategory() {
+        return parentCategory;
+    }
+
+    public void setParentCategory(CategoryDTO parentCategory) {
+        this.parentCategory = parentCategory;
+    }
+
+    public List<CategoryDTO> getChildren() {
+        return children;
+    }
+
+    public void setChildren(List<CategoryDTO> children) {
+        this.children = children;
     }
 }

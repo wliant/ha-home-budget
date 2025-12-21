@@ -13,6 +13,9 @@ import java.util.List;
 /**
  * REST controller for Budget operations.
  * Handles HTTP requests for budget management.
+ *
+ * Implements User Story 2: Category-Based Budget Creation
+ * Implements User Story 3: Parent Budget Sum Validation
  */
 @RestController
 @RequestMapping("/api/budgets")
@@ -29,8 +32,13 @@ public class BudgetController {
 
     /**
      * Create a new budget.
+     * Requires categoryId. Validates:
+     * - Category exists
+     * - No duplicate for category/year/month
+     * - Parent budget exists (if child category)
+     * - Sum of child budgets equals parent (if parent category)
      *
-     * @param dto budget data
+     * @param dto budget data (must include categoryId, year, month, totalAmount)
      * @param username user from X-Hass-User header
      * @return created budget with HTTP 201 status
      */
@@ -69,7 +77,8 @@ public class BudgetController {
 
     /**
      * Update budget (amount and description only).
-     * Year and month are immutable.
+     * Year, month, and category are immutable.
+     * Validates parent/child budget sum constraints when amount changes.
      *
      * @param id budget ID
      * @param dto updated budget data

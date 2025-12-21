@@ -3,8 +3,10 @@ package com.homebudget.repository;
 import com.homebudget.model.Budget;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,4 +61,79 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
      */
     @Query("SELECT b FROM Budget b LEFT JOIN FETCH b.expenses WHERE b.year = :year AND b.month = :month")
     Optional<Budget> findByYearAndMonthWithExpenses(Integer year, Integer month);
+
+    /**
+     * Find budget by category, year, and month.
+     * Used for uniqueness validation.
+     *
+     * @param categoryId the category ID
+     * @param year the year
+     * @param month the month
+     * @return Optional containing the budget if found
+     */
+    @Query("SELECT b FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month = :month")
+    Optional<Budget> findByCategoryIdAndYearAndMonth(@Param("categoryId") Long categoryId,
+                                                       @Param("year") Integer year,
+                                                       @Param("month") Integer month);
+
+    /**
+     * Check if a budget exists for a specific category, year, and month.
+     *
+     * @param categoryId the category ID
+     * @param year the year
+     * @param month the month
+     * @return true if budget exists
+     */
+    @Query("SELECT COUNT(b) > 0 FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month = :month")
+    boolean existsByCategoryIdAndYearAndMonth(@Param("categoryId") Long categoryId,
+                                               @Param("year") Integer year,
+                                               @Param("month") Integer month);
+
+    /**
+     * Find all budgets for a specific category.
+     *
+     * @param categoryId the category ID
+     * @return list of budgets
+     */
+    List<Budget> findByCategoryIdOrderByYearDescMonthDesc(Long categoryId);
+
+    /**
+     * Find all budgets for a specific year and month.
+     * Used for period-based queries and reporting.
+     *
+     * @param year the year
+     * @param month the month
+     * @return list of budgets
+     */
+    List<Budget> findByYearAndMonthOrderByCategoryIdAsc(Integer year, Integer month);
+
+    /**
+     * Calculate sum of child category budgets for a specific parent category and period.
+     * Used for parent budget validation.
+     *
+     * @param parentCategoryId the parent category ID
+     * @param year the year
+     * @param month the month
+     * @return sum of child budgets, or null if no child budgets exist
+     */
+    @Query("SELECT SUM(b.totalAmount) FROM Budget b JOIN b.category c " +
+           "WHERE c.parentCategory.id = :parentCategoryId AND b.year = :year AND b.month = :month")
+    BigDecimal sumByParentCategoryAndPeriod(@Param("parentCategoryId") Long parentCategoryId,
+                                            @Param("year") Integer year,
+                                            @Param("month") Integer month);
+
+    /**
+     * Find all budgets where category has a specific parent.
+     * Used to get all child budgets for validation.
+     *
+     * @param parentCategoryId the parent category ID
+     * @param year the year
+     * @param month the month
+     * @return list of child budgets
+     */
+    @Query("SELECT b FROM Budget b JOIN b.category c " +
+           "WHERE c.parentCategory.id = :parentCategoryId AND b.year = :year AND b.month = :month")
+    List<Budget> findChildBudgets(@Param("parentCategoryId") Long parentCategoryId,
+                                   @Param("year") Integer year,
+                                   @Param("month") Integer month);
 }

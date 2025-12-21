@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Add parent_category_id to categories table for self-referencing hierarchy -->
+    <changeSet id="006-1" author="specify">
+        <addColumn tableName="categories">
+            <column name="parent_category_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add foreign key constraint for parent-child relationship -->
+    <changeSet id="006-2" author="specify">
+        <addForeignKeyConstraint
+                constraintName="fk_category_parent"
+                baseTableName="categories"
+                baseColumnNames="parent_category_id"
+                referencedTableName="categories"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+    </changeSet>
+
+    <!-- Add index for parent_category_id lookups -->
+    <changeSet id="006-3" author="specify">
+        <createIndex tableName="categories" indexName="idx_category_parent">
+            <column name="parent_category_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add category_id to budgets table -->
+    <changeSet id="006-4" author="specify">
+        <addColumn tableName="budgets">
+            <column name="category_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add foreign key constraint for budget-category relationship -->
+    <changeSet id="006-5" author="specify">
+        <addForeignKeyConstraint
+                constraintName="fk_budget_category"
+                baseTableName="budgets"
+                baseColumnNames="category_id"
+                referencedTableName="categories"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+    </changeSet>
+
+    <!-- Add index for category_id lookups -->
+    <changeSet id="006-6" author="specify">
+        <createIndex tableName="budgets" indexName="idx_budget_category">
+            <column name="category_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add unique index for (category_id, year, month) -->
+    <!-- Note: MySQL doesn't support partial indexes with WHERE clause like PostgreSQL -->
+    <!-- Using a regular unique index instead, which still enforces uniqueness -->
+    <changeSet id="006-7" author="specify">
+        <createIndex tableName="budgets" indexName="idx_budget_category_period" unique="true">
+            <column name="category_id"/>
+            <column name="year"/>
+            <column name="month"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
