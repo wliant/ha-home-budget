@@ -8,31 +8,21 @@ import {
   Box,
   Button,
   Grid,
-  Card,
-  CardContent,
-  CardActions,
   Alert,
   CircularProgress,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  Chip,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
 } from '@mui/icons-material';
-import { categoryService, CategoryDTO, COMMON_CATEGORY_ICONS } from '@/services/categoryService';
+import { categoryService } from '@/services/categoryService';
+import { CategoryDTO } from '@/types/category';
+import { CategoryCard } from './components/CategoryCard';
+import { CategoryDialog } from './components/CategoryDialog';
+import { CategorySearch } from './components/CategorySearch';
+import { useCategoryForm } from './hooks/useCategoryForm';
+import { useCategorySearch } from './hooks/useCategorySearch';
 
 /**
  * Categories management page - User Story 1: Hierarchical Category Management
@@ -45,13 +35,44 @@ export default function CategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', icon: '', parentCategoryId: undefined as number | undefined });
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
+  const [editingCategory, setEditingCategory] = useState<CategoryDTO | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>('hierarchy');
+
+  // Initialize view mode from localStorage
+  const [viewMode, setViewMode] = useState<'flat' | 'hierarchy'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('categoryViewMode');
+      return (stored === 'flat' || stored === 'hierarchy') ? stored : 'hierarchy';
+    }
+    return 'hierarchy';
+  });
+
+  // Category form hook for validation and state management
+  const categoryForm = useCategoryForm({
+    mode: dialogMode,
+    initialCategory: editingCategory,
+    existingCategories: categories,
+    allCategories: categories,
+  });
+
+  // Category search hook for filtering
+  const categorySearch = useCategorySearch({
+    categories,
+    hierarchy,
+    viewMode,
+  });
 
   useEffect(() => {
     loadCategories();
   }, []);
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('categoryViewMode', viewMode);
+    }
+  }, [viewMode]);
 
   const loadCategories = async () => {
     setIsLoading(true);
@@ -70,32 +91,68 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleCreate = async () => {
-    if (!formData.name.trim()) {
-      setError('Category name is required');
+  const handleOpenCreateDialog = () => {
+    setDialogMode('create');
+    setEditingCategory(undefined);
+    categoryForm.resetForm();
+    setDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (category: CategoryDTO) => {
+    setDialogMode('edit');
+    setEditingCategory(category);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingCategory(undefined);
+    categoryForm.resetForm();
+  };
+
+  const handleSubmit = async () => {
+    // Validate form
+    if (!categoryForm.validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await categoryService.createCategory({
-        name: formData.name.trim(),
-        icon: formData.icon || '',
-        parentCategoryId: formData.parentCategoryId,
-      });
-      setDialogOpen(false);
-      setFormData({ name: '', icon: '', parentCategoryId: undefined });
+      if (dialogMode === 'create') {
+        await categoryService.createCategory({
+          name: categoryForm.formState.name.trim(),
+          icon: categoryForm.formState.icon || '',
+          parentCategoryId: categoryForm.formState.parentCategoryId,
+        });
+      } else if (dialogMode === 'edit' && editingCategory?.id) {
+        await categoryService.updateCategory(editingCategory.id, {
+          name: categoryForm.formState.name.trim(),
+          icon: categoryForm.formState.icon || '',
+          parentCategoryId: categoryForm.formState.parentCategoryId,
+        });
+      }
+
+      handleCloseDialog();
       await loadCategories();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create category');
+      setError(
+        err.response?.data?.message ||
+        `Failed to ${dialogMode} category`
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Delete category "${name}"?`)) return;
+  const handleDeleteCategory = (category: CategoryDTO) => {
+    if (!category.id) return;
 
+    if (!confirm(`Delete category "${category.name}"?`)) return;
+
+    handleDelete(category.id, category.name);
+  };
+
+  const handleDelete = async (id: number, name: string) => {
     try {
       await categoryService.deleteCategory(id);
       await loadCategories();
@@ -107,45 +164,12 @@ export default function CategoriesPage() {
   // Render a single category card
   const renderCategoryCard = (category: CategoryDTO, isChild: boolean = false) => (
     <Grid item xs={12} sm={6} md={4} key={category.id}>
-      <Card sx={{ ml: isChild ? 2 : 0, borderLeft: isChild ? '4px solid #1976d2' : 'none' }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            {category.icon && (
-              <Typography variant="h4">{category.icon}</Typography>
-            )}
-            <Typography variant="h6">{category.name}</Typography>
-          </Box>
-          {category.parentCategory && (
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-              Parent: {category.parentCategory.icon} {category.parentCategory.name}
-            </Typography>
-          )}
-          <Typography variant="body2" color="text.secondary">
-            {category.expenseCount || 0} {category.expenseCount === 1 ? 'expense' : 'expenses'}
-          </Typography>
-          {category.childCategories && category.childCategories.length > 0 && (
-            <Typography variant="body2" color="primary" sx={{ mt: 0.5 }}>
-              {category.childCategories.length} {category.childCategories.length === 1 ? 'subcategory' : 'subcategories'}
-            </Typography>
-          )}
-          {category.createdBy && (
-            <Typography variant="caption" color="text.secondary" display="block">
-              Created by {category.createdBy}
-            </Typography>
-          )}
-        </CardContent>
-        <CardActions>
-          {category.id && (
-            <IconButton
-              size="small"
-              onClick={() => handleDelete(category.id!, category.name)}
-              color="error"
-            >
-              <DeleteIcon />
-            </IconButton>
-          )}
-        </CardActions>
-      </Card>
+      <CategoryCard
+        category={category}
+        isChild={isChild}
+        onEdit={handleOpenEditDialog}
+        onDelete={handleDeleteCategory}
+      />
     </Grid>
   );
 
@@ -165,7 +189,7 @@ export default function CategoriesPage() {
             <ToggleButton value="hierarchy">Hierarchy</ToggleButton>
             <ToggleButton value="flat">Flat</ToggleButton>
           </ToggleButtonGroup>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateDialog}>
             Add Category
           </Button>
         </Box>
@@ -175,6 +199,15 @@ export default function CategoriesPage() {
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
           {error}
         </Alert>
+      )}
+
+      {/* Search Bar */}
+      {!isLoading && categories.length > 0 && (
+        <CategorySearch
+          searchQuery={categorySearch.searchQuery}
+          onSearchChange={categorySearch.setSearchQuery}
+          onClearSearch={categorySearch.clearSearch}
+        />
       )}
 
       {isLoading ? (
@@ -189,13 +222,25 @@ export default function CategoriesPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Create your first category to organize expenses
           </Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateDialog}>
             Create First Category
+          </Button>
+        </Box>
+      ) : !categorySearch.hasResults ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No categories found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            No categories match &quot;{categorySearch.searchQuery}&quot;
+          </Typography>
+          <Button variant="outlined" onClick={categorySearch.clearSearch}>
+            Clear Search
           </Button>
         </Box>
       ) : viewMode === 'hierarchy' ? (
         <Grid container spacing={3}>
-          {hierarchy.map((parent) => (
+          {categorySearch.filteredHierarchy.map((parent) => (
             <React.Fragment key={parent.id}>
               {renderCategoryCard(parent, false)}
               {parent.childCategories?.map((child) => renderCategoryCard(child, true))}
@@ -204,74 +249,25 @@ export default function CategoriesPage() {
         </Grid>
       ) : (
         <Grid container spacing={3}>
-          {categories.map((category) => renderCategoryCard(category, false))}
+          {categorySearch.filteredCategories.map((category) => renderCategoryCard(category, false))}
         </Grid>
       )}
 
-      {/* Create Category Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create New Category</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Category Name"
-            fullWidth
-            required
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            sx={{ mt: 2, mb: 2 }}
-          />
-          <TextField
-            label="Icon (emoji)"
-            fullWidth
-            value={formData.icon}
-            onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-            placeholder="e.g., 🛒"
-            sx={{ mb: 2 }}
-          />
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Common icons:
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {COMMON_CATEGORY_ICONS.slice(0, 12).map((item) => (
-              <Chip
-                key={item.emoji}
-                label={`${item.emoji} ${item.label}`}
-                onClick={() => setFormData({ ...formData, icon: item.emoji })}
-                variant={formData.icon === item.emoji ? "filled" : "outlined"}
-              />
-            ))}
-          </Box>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Parent Category (Optional)</InputLabel>
-            <Select
-              value={formData.parentCategoryId || ''}
-              onChange={(e) => setFormData({ ...formData, parentCategoryId: e.target.value ? Number(e.target.value) : undefined })}
-              label="Parent Category (Optional)"
-            >
-              <MenuItem value="">
-                <em>None (Root Category)</em>
-              </MenuItem>
-              {hierarchy.map((parent) => (
-                <MenuItem key={parent.id} value={parent.id} disabled={parent.childCategories && parent.childCategories.length >= 1}>
-                  {parent.icon} {parent.name}
-                  {parent.childCategories && parent.childCategories.length >= 1 && ' (has children)'}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Categories support 2-level hierarchy. Parent categories cannot have their own parent.
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreate} variant="contained" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Create/Edit Category Dialog */}
+      <CategoryDialog
+        open={dialogOpen}
+        mode={dialogMode}
+        category={editingCategory}
+        allCategories={categories}
+        hierarchyRoots={hierarchy}
+        formState={categoryForm.formState}
+        isSubmitting={isSubmitting}
+        onClose={handleCloseDialog}
+        onSubmit={handleSubmit}
+        onNameChange={categoryForm.setName}
+        onIconChange={categoryForm.setIcon}
+        onParentChange={categoryForm.setParentCategoryId}
+      />
     </Container>
   );
 }

@@ -83,6 +83,14 @@ export const categoryService = {
   },
 
   /**
+   * Get budget count for category
+   */
+  getBudgetCount: async (id: number): Promise<number> => {
+    const response = await api.get<number>(`/api/categories/${id}/budget-count`);
+    return response.data;
+  },
+
+  /**
    * Get category hierarchy (root categories with children)
    */
   getCategoryHierarchy: async (): Promise<CategoryDTO[]> => {

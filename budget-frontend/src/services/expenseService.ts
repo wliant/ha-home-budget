@@ -132,7 +132,7 @@ export const getTodayISO = (): string => {
  * Check if expense has date mismatch warning
  */
 export const hasDateMismatchWarning = (expense: ExpenseDTO): boolean => {
-  return expense.warnings && expense.warnings.length > 0;
+  return !!(expense.warnings && expense.warnings.length > 0);
 };
 
 /**
