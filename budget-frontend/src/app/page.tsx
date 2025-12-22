@@ -8,17 +8,22 @@ import {
   Typography,
   Paper,
   Grid,
-  Card,
-  CardContent,
-  CardActions,
   Chip,
   CircularProgress,
   Alert,
-  Button,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import {
+  AccountBalanceWallet as WalletIcon,
+  Category as CategoryIcon,
+  Dashboard as DashboardIcon,
+  Receipt as ReceiptIcon,
+} from '@mui/icons-material';
+import { BudgetSummaryCard } from '@/components/home/BudgetSummaryCard';
+import { QuickActionsCard } from '@/components/home/QuickActionsCard';
+import { RecentActivityCard } from '@/components/home/RecentActivityCard';
+import { FeatureNavigationCard } from '@/components/home/FeatureNavigationCard';
 
 interface HealthStatus {
   status: string;
@@ -69,6 +74,65 @@ export default function Home() {
           </Typography>
         </Box>
 
+        {/* Dashboard Widgets */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Budget Summary (left) */}
+          <Grid item xs={12} md={6}>
+            <BudgetSummaryCard />
+          </Grid>
+
+          {/* Recent Activity (right) */}
+          <Grid item xs={12} md={6}>
+            <RecentActivityCard />
+          </Grid>
+
+          {/* Quick Actions (full width) */}
+          <Grid item xs={12}>
+            <QuickActionsCard />
+          </Grid>
+        </Grid>
+
+        {/* Features Navigation */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
+            Explore Features
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <FeatureNavigationCard
+                title="Budgets"
+                description="Create and manage monthly budgets for your household"
+                icon={<WalletIcon />}
+                path="/budgets"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FeatureNavigationCard
+                title="Categories"
+                description="Organize spending with hierarchical category budgets"
+                icon={<CategoryIcon />}
+                path="/categories"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FeatureNavigationCard
+                title="Dashboard"
+                description="View spending analytics and budget insights"
+                icon={<DashboardIcon />}
+                path="/dashboard"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FeatureNavigationCard
+                title="Expenses"
+                description="Record and track daily household expenses"
+                icon={<ReceiptIcon />}
+                path="/expenses/new"
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
         {/* Backend Health Status */}
         <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
           <Typography variant="h5" gutterBottom>
@@ -97,136 +161,41 @@ export default function Home() {
               </Box>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={4}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Status
-                      </Typography>
-                      <Chip
-                        label={backendHealth.status}
-                        color={backendHealth.status === 'UP' ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </CardContent>
-                  </Card>
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom variant="body2">
+                      Status
+                    </Typography>
+                    <Chip
+                      label={backendHealth.status}
+                      color={backendHealth.status === 'UP' ? 'success' : 'error'}
+                      size="small"
+                    />
+                  </Box>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Service
-                      </Typography>
-                      <Typography variant="body1">
-                        {backendHealth.service}
-                      </Typography>
-                    </CardContent>
-                  </Card>
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom variant="body2">
+                      Service
+                    </Typography>
+                    <Typography variant="body1">
+                      {backendHealth.service}
+                    </Typography>
+                  </Box>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography color="text.secondary" gutterBottom>
-                        Version
-                      </Typography>
-                      <Typography variant="body1">
-                        {backendHealth.version}
-                      </Typography>
-                    </CardContent>
-                  </Card>
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom variant="body2">
+                      Version
+                    </Typography>
+                    <Typography variant="body1">
+                      {backendHealth.version}
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </Box>
           ) : null}
         </Paper>
-
-        {/* Features */}
-        <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
-          Features
-        </Typography>
-
-        <Grid container spacing={3}>
-          {/* Budgets Feature */}
-          <Grid item xs={12} md={6}>
-            <Card elevation={2}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <AccountBalanceWalletIcon color="primary" fontSize="large" />
-                  <Typography variant="h6">
-                    Budgets
-                  </Typography>
-                </Box>
-                <Typography variant="body1" paragraph>
-                  Create and manage monthly budgets. Track your spending against your budget
-                  and see how much you have left in real-time.
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Features:
-                </Typography>
-                <Box component="ul" sx={{ mt: 1, pl: 2 }}>
-                  <Typography component="li" variant="body2" color="text.secondary">
-                    Create monthly budgets
-                  </Typography>
-                  <Typography component="li" variant="body2" color="text.secondary">
-                    View spending progress
-                  </Typography>
-                  <Typography component="li" variant="body2" color="text.secondary">
-                    Track expenses per budget
-                  </Typography>
-                </Box>
-              </CardContent>
-              <CardActions>
-                <Button
-                  size="medium"
-                  variant="contained"
-                  onClick={() => router.push('/budgets')}
-                  fullWidth
-                >
-                  View Budgets
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-
-          {/* Coming Soon Cards */}
-          <Grid item xs={12} md={6}>
-            <Card elevation={2} sx={{ opacity: 0.6 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Expenses
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Record and categorize expenses. Coming soon...
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card elevation={2} sx={{ opacity: 0.6 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Categories
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Manage spending categories. Coming soon...
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card elevation={2} sx={{ opacity: 0.6 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Dashboard
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  View insights and analytics. Coming soon...
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
 
         {/* Info */}
         <Paper elevation={1} sx={{ p: 3, mt: 4, bgcolor: 'background.default' }}>
