@@ -12,9 +12,6 @@ import {
   Alert,
   Box,
 } from '@mui/material';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { expenseService, getTodayISO } from '@/services/expenseService';
 import { budgetService } from '@/services/budgetService';
@@ -198,14 +195,6 @@ export default function NewExpensePage() {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Date change handler (T020)
-  const handleDateChange = (date: Date | null) => {
-    if (date) {
-      const isoDate = date.toISOString().split('T')[0];
-      updateField('expenseDate', isoDate);
-    }
-  };
-
   return (
     <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 } }}> {/* Responsive padding (T028) */}
       <Paper sx={{ p: { xs: 3, sm: 4 }, mt: { xs: 2, sm: 4 } }}> {/* Responsive spacing (T028) */}
@@ -232,26 +221,22 @@ export default function NewExpensePage() {
           </Alert>
         )}
 
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }} aria-label="Expense entry form"> {/* Accessibility (T034) */}
-            {/* DatePicker component (T019) */}
-            <DatePicker
-              label="Date"
-              value={new Date(formState.expenseDate)}
-              onChange={handleDateChange}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  required: true,
-                  error: !!formState.errors.date,
-                  helperText: formState.errors.date,
-                  margin: 'normal',
-                  inputProps: {
-                    'aria-label': 'Expense date', // Accessibility (T034)
-                  },
-                },
-              }}
-            />
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }} aria-label="Expense entry form"> {/* Accessibility (T034) */}
+          <TextField
+            fullWidth
+            type="date"
+            label="Date"
+            value={formState.expenseDate}
+            onChange={(e) => updateField('expenseDate', e.target.value)}
+            required
+            error={!!formState.errors.date}
+            helperText={formState.errors.date}
+            margin="normal"
+            InputLabelProps={{ shrink: true }}
+            inputProps={{
+              'aria-label': 'Expense date', // Accessibility (T034)
+            }}
+          />
 
           {/* Amount field (T008, T029) */}
           <TextField
@@ -316,8 +301,7 @@ export default function NewExpensePage() {
           >
             {formState.loading ? 'Creating...' : 'Create Expense'}
           </Button>
-          </Box>
-        </LocalizationProvider>
+        </Box>
       </Paper>
 
       {/* Success message (T014) */}
