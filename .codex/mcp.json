@@ -1,0 +1,11 @@
+{
+  "tools": [
+    {
+      "name": "browser",
+      "command": "npx",
+      "args": ["playwright-mcp"],
+      "transport": "stdio",
+      "description": "Controls a real Chromium browser for UI automation and verification"
+    }
+  ]
+}
