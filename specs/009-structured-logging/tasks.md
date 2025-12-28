@@ -24,12 +24,12 @@
 
 **Purpose**: Add logging dependencies and create base infrastructure
 
-- [ ] T001 Add Logstash Logback Encoder dependency (7.4) to budget-backend/pom.xml
-- [ ] T002 [P] Add Spring Boot AOP dependency to budget-backend/pom.xml
-- [ ] T003 [P] Add Spring Boot Actuator dependency to budget-backend/pom.xml
-- [ ] T004 Create logback-spring.xml configuration in budget-backend/src/main/resources/logback-spring.xml
-- [ ] T005 [P] Create LoggingConfig Java class in budget-backend/src/main/java/com/homebudget/config/LoggingConfig.java
-- [ ] T006 [P] Create test utility TestLogAppender in budget-backend/src/test/java/com/homebudget/util/TestLogAppender.java
+- [x] T001 Add Logstash Logback Encoder dependency (7.4) to budget-backend/pom.xml
+- [x] T002 [P] Add Spring Boot AOP dependency to budget-backend/pom.xml
+- [x] T003 [P] Add Spring Boot Actuator dependency to budget-backend/pom.xml
+- [x] T004 Create logback-spring.xml configuration in budget-backend/src/main/resources/logback-spring.xml
+- [x] T005 [P] Create LoggingConfig Java class in budget-backend/src/main/java/com/homebudget/config/LoggingConfig.java
+- [x] T006 [P] Create test utility TestLogAppender in budget-backend/src/test/java/com/homebudget/util/TestLogAppender.java
 
 ---
 
@@ -39,12 +39,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until correlation ID and user context extraction are complete
 
-- [ ] T007 Create CorrelationIdFilter servlet filter in budget-backend/src/main/java/com/homebudget/filter/CorrelationIdFilter.java
-- [ ] T008 Create LogContext MDC helper utility in budget-backend/src/main/java/com/homebudget/util/LogContext.java
-- [ ] T009 Register CorrelationIdFilter in LoggingConfig (ensure order before controllers)
-- [ ] T010 Add logging configuration properties to budget-backend/src/main/resources/application.properties
+- [x] T007 Create CorrelationIdFilter servlet filter in budget-backend/src/main/java/com/homebudget/filter/CorrelationIdFilter.java
+- [x] T008 Create LogContext MDC helper utility in budget-backend/src/main/java/com/homebudget/util/LogContext.java
+- [x] T009 Register CorrelationIdFilter in LoggingConfig (ensure order before controllers)
+- [x] T010 Add logging configuration properties to budget-backend/src/main/resources/application.yml
 
-**Checkpoint**: Correlation ID and user context infrastructure ready - user story logging can now proceed
+**Checkpoint**: ✅ Correlation ID and user context infrastructure ready - user story logging can now proceed
 
 ---
 
@@ -66,12 +66,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Configure Logstash JSON encoder in logback-spring.xml with custom fields (correlation_id, user_id, application_name, environment)
-- [ ] T017 [US1] Configure AsyncAppender in logback-spring.xml with queue size 10000 and discard strategy
-- [ ] T018 [US1] Add ISO-8601 timestamp pattern to logback-spring.xml
-- [ ] T019 [US1] Verify CorrelationIdFilter generates UUID and stores in MDC (from Phase 2, already implemented)
-- [ ] T020 [US1] Verify CorrelationIdFilter extracts X-Hass-User header and stores in MDC (from Phase 2, already implemented)
-- [ ] T021 [US1] Add correlation ID to HTTP response headers in CorrelationIdFilter
+- [x] T016 [US1] Configure Logstash JSON encoder in logback-spring.xml with custom fields (correlation_id, user_id, application_name, environment)
+- [x] T017 [US1] Configure AsyncAppender in logback-spring.xml with queue size 10000 and discard strategy
+- [x] T018 [US1] Add ISO-8601 timestamp pattern to logback-spring.xml
+- [x] T019 [US1] Verify CorrelationIdFilter generates UUID and stores in MDC (from Phase 2, already implemented)
+- [x] T020 [US1] Verify CorrelationIdFilter extracts X-Hass-User header and stores in MDC (from Phase 2, already implemented)
+- [x] T021 [US1] Add correlation ID to HTTP response headers in CorrelationIdFilter
 - [ ] T022 [US1] Test logging integration: Run LoggingIntegrationTest and verify all assertions pass
 
 **Checkpoint**: Structured JSON logging with correlation tracking is fully functional

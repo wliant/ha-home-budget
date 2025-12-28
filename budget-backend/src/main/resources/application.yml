@@ -37,9 +37,26 @@ management:
 
 logging:
   level:
-    com.homebudget: DEBUG
+    root: INFO
+    com.homebudget: INFO
+    org.springframework.boot: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate: WARN
+    com.zaxxer.hikari: WARN
+    liquibase: INFO
+
+  # Structured logging configuration
+  async:
+    queue-size: 10000
+
+  # Sensitive field patterns for data masking
+  sensitive-fields: password,token,secret,apiKey,authorization,creditCard
+
+  # Performance thresholds (milliseconds)
+  slow-request:
+    threshold-ms: 1000
+  slow-query:
+    threshold-ms: 100
 
 # Application configuration
 app:
