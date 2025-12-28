@@ -87,21 +87,60 @@ In a household with multiple members, each user wants to see who created each ex
 
 ### Functional Requirements
 
+#### Core Form Fields
+
 - **FR-001**: System MUST display an expense recording form with fields for date, amount, description, and category
 - **FR-002**: System MUST default the date field to today's date when the form loads
-- **FR-003**: System MUST allow users to edit the date field to select past or future dates
-- **FR-004**: System MUST provide a dropdown/selector populated with all existing categories
+- **FR-003**: System MUST allow users to edit the date field via a date picker component to select past or future dates
+- **FR-004**: System MUST provide a dropdown/selector populated with all existing categories, displaying category names with parent hierarchy notation
 - **FR-005**: System MUST require amount, description, and category fields before allowing submission
-- **FR-006**: System MUST accept description as free-form text input
-- **FR-007**: System MUST capture the creator's username from the X-Hass-User HTTP header
-- **FR-008**: System MUST save expenses with the creator's username, date, amount, description, and selected category
-- **FR-009**: System MUST validate that amount is a positive number
-- **FR-010**: System MUST validate that the selected category exists in the system
-- **FR-011**: System MUST associate the expense with the appropriate budget based on the expense date
-- **FR-012**: System MUST display a success message after successfully saving an expense
-- **FR-013**: System MUST display validation errors if required fields are missing or invalid
-- **FR-014**: System MUST navigate users to an appropriate view after successful creation
-- **FR-015**: System MUST handle the case where no X-Hass-User header is present (dev mode fallback or error)
+
+#### Input Constraints
+
+- **FR-006**: System MUST accept description as free-form text input with a maximum length of 500 characters
+- **FR-007**: System MUST display a character counter showing remaining characters for the description field
+- **FR-008**: System MUST validate that amount is a positive decimal number greater than 0, with maximum 2 decimal places
+- **FR-009**: System MUST format amount field to 2 decimal places when user completes input (on blur)
+
+#### User Attribution
+
+- **FR-010**: System MUST capture the creator's username from the X-Hass-User HTTP header
+- **FR-011**: System MUST display the current user context in the form header before submission
+- **FR-012**: System MUST save expenses with the creator's username, date, amount, description, and selected category
+
+#### Validation
+
+- **FR-013**: System MUST validate that the selected category exists in the system
+- **FR-014**: System MUST validate that a budget exists for the selected expense date
+- **FR-015**: System MUST display inline validation errors for individual fields (amount, description, category) when validation fails
+- **FR-016**: System MUST display a global error message when no budget is found for the selected date, preventing form submission
+
+#### Budget Association
+
+- **FR-017**: System MUST automatically associate the expense with the appropriate budget by matching the expense date against budget date ranges (where expenseDate >= startDate AND expenseDate <= endDate)
+- **FR-018**: System MUST display feedback to the user indicating which budget was auto-selected for the chosen date
+
+#### Success & Error Handling
+
+- **FR-019**: System MUST display a success message "Expense created for [username]!" after successfully saving an expense
+- **FR-020**: System MUST navigate users to the homepage after successful creation, with a 2-second delay after showing the success message
+- **FR-021**: System MUST display validation errors if required fields are missing or invalid
+- **FR-022**: System MUST handle backend errors (network failures, timeout, server errors) and display user-friendly error messages
+- **FR-023**: System MUST handle the case where no X-Hass-User header is present (dev mode fallback or error)
+
+#### User Experience Enhancements
+
+- **FR-024**: System MUST display loading states (spinner/progress indicator) during asynchronous operations (category loading, form submission)
+- **FR-025**: System MUST reset the form to default values after successful submission and before navigation
+- **FR-026**: System MUST disable the submit button while form submission is in progress or when validation fails
+- **FR-027**: System MUST support keyboard shortcut (Escape key) to cancel form entry and navigate to homepage
+
+#### Non-Functional Requirements
+
+- **NFR-001**: Form MUST be responsive and functional on mobile devices (min width 320px)
+- **NFR-002**: Form MUST include accessibility attributes (ARIA labels, keyboard navigation support, screen reader compatibility)
+- **NFR-003**: Form MUST load within 500 milliseconds on standard network connections
+- **NFR-004**: Category dropdown MUST display icons for each category (if icon is defined in category data)
 
 ### Key Entities
 
