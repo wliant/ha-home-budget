@@ -212,6 +212,8 @@ All bash scripts support:
 - MySQL 8.0 database with JPA/Hibernate ORM (004-hierarchical-category-budgets)
 - TypeScript 5.x (frontend), Java 17 (backend) + Next.js 14.x, Material-UI v5, Spring Boot 3.2.0, React 18.x (006-homepage-update)
 - MySQL 8.0 (existing database with budgets and expenses tables) (006-homepage-update)
+- TypeScript 5.x (frontend), Java 17 (existing backend) + Next.js 14.x, Material-UI v5, React 18.x (007-expense-recording)
+- MySQL 8.0 (via existing backend, no changes needed) (007-expense-recording)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)
