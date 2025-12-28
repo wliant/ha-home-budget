@@ -95,15 +95,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T029 [P] [US2] Create SensitiveDataMasker utility in budget-backend/src/main/java/com/homebudget/util/SensitiveDataMasker.java
-- [ ] T030 [US2] Implement regex-based sensitive field detection in SensitiveDataMasker (patterns: password, token, secret, apiKey, authorization)
-- [ ] T031 [US2] Implement masking replacement logic in SensitiveDataMasker (replace with "***MASKED***")
-- [ ] T032 [US2] Add sensitive-fields configuration property to application.properties
-- [ ] T033 [US2] Modify GlobalExceptionHandler in budget-backend/src/main/java/com/homebudget/exception/GlobalExceptionHandler.java
-- [ ] T034 [US2] Add structured ERROR logging to GlobalExceptionHandler exception methods with correlation_id, user_id, exception details
-- [ ] T035 [US2] Add WARN level logging for validation exceptions in GlobalExceptionHandler
-- [ ] T036 [US2] Add ERROR level logging for database exceptions in GlobalExceptionHandler
-- [ ] T037 [US2] Apply SensitiveDataMasker to exception messages before logging
+- [x] T029 [P] [US2] Create SensitiveDataMasker utility in budget-backend/src/main/java/com/homebudget/util/SensitiveDataMasker.java
+- [x] T030 [US2] Implement regex-based sensitive field detection in SensitiveDataMasker (patterns: password, token, secret, apiKey, authorization)
+- [x] T031 [US2] Implement masking replacement logic in SensitiveDataMasker (replace with "***MASKED***")
+- [x] T032 [US2] Add sensitive-fields configuration property to application.yml
+- [x] T033 [US2] Modify GlobalExceptionHandler in budget-backend/src/main/java/com/homebudget/exception/GlobalExceptionHandler.java
+- [x] T034 [US2] Add structured ERROR logging to GlobalExceptionHandler exception methods with correlation_id, user_id, exception details
+- [x] T035 [US2] Add WARN level logging for validation exceptions in GlobalExceptionHandler
+- [x] T036 [US2] Add ERROR level logging for database exceptions in GlobalExceptionHandler
+- [x] T037 [US2] Apply SensitiveDataMasker to exception messages before logging
 - [ ] T038 [US2] Test error logging: Run ErrorLoggingTest and SensitiveDataMaskingTest, verify all assertions pass
 
 **Checkpoint**: Comprehensive error logging with sensitive data masking is fully functional

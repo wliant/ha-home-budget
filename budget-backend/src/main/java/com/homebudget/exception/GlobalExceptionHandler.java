@@ -1,5 +1,10 @@
 package com.homebudget.exception;
 
+import com.homebudget.util.LogContext;
+import com.homebudget.util.SensitiveDataMasker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,10 +18,13 @@ import java.util.Map;
 
 /**
  * Global exception handler for all REST controllers.
- * Provides consistent error responses across the application.
+ * Provides consistent error responses and comprehensive structured error logging.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final SensitiveDataMasker masker = new SensitiveDataMasker();
 
     /**
      * Handle validation errors from @Valid annotations.
@@ -33,6 +41,10 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
+
+        // Log validation errors at WARN level (user input issue, not system error)
+        String maskedErrors = masker.mask(errors.toString());
+        logger.warn("Validation failed: {} field errors - {}", errors.size(), maskedErrors);
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
@@ -153,6 +165,31 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle database/data access exceptions.
+     *
+     * @param ex database exception
+     * @return HTTP 500
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleDatabaseException(DataAccessException ex) {
+        // Log database errors at ERROR level with full stack trace
+        String maskedMessage = masker.mask(ex.getMessage());
+        logger.error("Database error occurred: {} - Root cause: {}",
+                maskedMessage,
+                ex.getRootCause() != null ? ex.getRootCause().getMessage() : "unknown",
+                ex);
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Database error occurred",
+                Map.of("type", ex.getClass().getSimpleName()),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    /**
      * Handle generic exceptions.
      *
      * @param ex any unhandled exception
@@ -160,10 +197,18 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        // Log all unhandled exceptions at ERROR level with full stack trace and context
+        String maskedMessage = masker.mask(ex.getMessage());
+        logger.error("Unhandled exception: {} - Message: {} - Correlation: {}",
+                ex.getClass().getName(),
+                maskedMessage,
+                LogContext.getCorrelationId(),
+                ex);
+
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "An unexpected error occurred",
-                Map.of("details", ex.getMessage()),
+                Map.of("details", maskedMessage, "type", ex.getClass().getSimpleName()),
                 LocalDateTime.now()
         );
 
