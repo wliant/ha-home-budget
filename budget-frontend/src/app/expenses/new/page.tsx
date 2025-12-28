@@ -53,9 +53,14 @@ export default function NewExpensePage() {
     const selectBudget = async () => {
       try {
         const budgets = await budgetService.getAllBudgets();
-        const matchingBudgets = budgets.filter(
-          (b) => formState.expenseDate >= b.startDate && formState.expenseDate <= b.endDate
-        );
+        const matchingBudgets = budgets.filter((b) => {
+          // Calculate start and end dates from year and month
+          const startDate = `${b.year}-${String(b.month).padStart(2, '0')}-01`;
+          const lastDay = new Date(b.year, b.month, 0).getDate();
+          const endDate = `${b.year}-${String(b.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+          return formState.expenseDate >= startDate && formState.expenseDate <= endDate;
+        });
 
         if (matchingBudgets.length === 1) {
           setFormState((prev) => ({ ...prev, budgetId: matchingBudgets[0].id!, errorMessage: null }));
