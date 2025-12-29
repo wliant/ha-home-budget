@@ -38,27 +38,60 @@ management:
       enabled: true
 
 logging:
+  # Log Level Configuration
+  # ========================
+  # Log levels can be changed at runtime via Spring Boot Actuator without restarting the application:
+  #   GET  /actuator/loggers                    - List all loggers with current levels
+  #   GET  /actuator/loggers/{name}             - Get specific logger level
+  #   POST /actuator/loggers/{name}             - Change log level dynamically
+  #        Body: {"configuredLevel": "DEBUG"}
+  #
+  # Available log levels (in order): TRACE, DEBUG, INFO, WARN, ERROR, OFF
+  #
+  # Log Level Guidelines:
+  #   - TRACE: Very detailed tracing information (rarely used)
+  #   - DEBUG: Detailed information for troubleshooting (development/staging)
+  #   - INFO:  General informational messages (production default)
+  #   - WARN:  Warning messages for potentially harmful situations
+  #   - ERROR: Error events that might still allow application to continue
+  #
+  # Production Recommendation:
+  #   - Use INFO level for application logs (com.homebudget)
+  #   - Use WARN or ERROR for framework logs to reduce noise
+  #   - Enable DEBUG temporarily via Actuator for troubleshooting
+  #
+  # Development Recommendation:
+  #   - Use DEBUG level for application logs (see application-dev.properties)
+  #   - Use INFO level for frameworks to see important events
+
   level:
-    root: INFO
-    com.homebudget: INFO
-    org.springframework.boot: INFO
-    org.springframework.web: INFO
-    org.hibernate: WARN
-    com.zaxxer.hikari: WARN
-    liquibase: INFO
+    root: INFO                      # Default level for all loggers
+    com.homebudget: INFO            # Application logs (change to DEBUG for troubleshooting)
+    org.springframework.boot: INFO  # Spring Boot framework logs
+    org.springframework.web: INFO   # Spring Web (request handling, REST)
+    org.hibernate: WARN             # JPA/Hibernate (use DEBUG to see SQL queries)
+    com.zaxxer.hikari: WARN         # Database connection pool
+    liquibase: INFO                 # Database migrations
 
-  # Structured logging configuration
+  # Structured Logging Configuration
+  # =================================
+  # Async logging prevents I/O operations from blocking request threads
   async:
-    queue-size: 10000
+    queue-size: 10000  # Bounded queue size (prevents memory overflow under extreme load)
 
-  # Sensitive field patterns for data masking
+  # Sensitive Data Masking
+  # ======================
+  # Patterns for detecting and masking sensitive fields in logs
+  # Supports comma-separated list of field names (case-insensitive)
   sensitive-fields: password,token,secret,apiKey,authorization,creditCard
 
-  # Performance thresholds (milliseconds)
+  # Performance Thresholds (milliseconds)
+  # ======================================
+  # Slow operations are logged at WARN level for visibility
   slow-request:
-    threshold-ms: 1000
+    threshold-ms: 1000  # HTTP requests taking longer than 1 second
   slow-query:
-    threshold-ms: 100
+    threshold-ms: 100   # Service methods taking longer than 100ms
 
 # Application configuration
 app:

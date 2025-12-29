@@ -200,8 +200,8 @@
 - [x] T083 [US5] Configure global log level (logging.level.root=INFO) in application.yml
 - [x] T084 [US5] Configure package-specific log levels in application.yml (logging.level.com.homebudget=INFO)
 - [x] T085 [US5] Add profile-specific logging configuration in application-dev.properties (logging.level.com.homebudget=DEBUG)
-- [ ] T086 [US5] Add profile-specific logging configuration in application-prod.properties (logging.level.com.homebudget=INFO)
-- [ ] T087 [US5] Document log level management in application.yml comments
+- [x] T086 [US5] Add profile-specific logging configuration in application-prod.properties (logging.level.com.homebudget=INFO)
+- [x] T087 [US5] Document log level management in application.yml comments
 - [ ] T088 [US5] Test log level management: Run LogLevelManagementTest, verify all assertions pass
 
 **Checkpoint**: Runtime log level management is fully functional
