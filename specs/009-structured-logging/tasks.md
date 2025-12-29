@@ -160,13 +160,13 @@
 
 ### Implementation for User Story 4
 
-- [ ] T062 [P] [US4] Create HandlerInterceptor in budget-backend/src/main/java/com/homebudget/interceptor/LoggingInterceptor.java
-- [ ] T063 [US4] Implement preHandle method: Log request start with INFO level (http_method, http_path, correlation_id, user_id)
-- [ ] T064 [US4] Implement preHandle method: Store request start time in request attribute
-- [ ] T065 [US4] Implement afterCompletion method: Calculate request duration from start time
-- [ ] T066 [US4] Implement afterCompletion method: Log request completion with INFO level (http_status, duration_ms, correlation_id)
-- [ ] T067 [US4] Implement afterCompletion method: Log slow requests with WARN level if duration > 1000ms
-- [ ] T068 [US4] Register LoggingInterceptor in LoggingConfig (ensure excluded paths for actuator endpoints)
+- [x] T062 [P] [US4] Create HandlerInterceptor in budget-backend/src/main/java/com/homebudget/interceptor/LoggingInterceptor.java
+- [x] T063 [US4] Implement preHandle method: Log request start with INFO level (http_method, http_path, correlation_id, user_id)
+- [x] T064 [US4] Implement preHandle method: Store request start time in request attribute
+- [x] T065 [US4] Implement afterCompletion method: Calculate request duration from start time
+- [x] T066 [US4] Implement afterCompletion method: Log request completion with INFO level (http_status, duration_ms, correlation_id)
+- [x] T067 [US4] Implement afterCompletion method: Log slow requests with WARN level if duration > 1000ms
+- [x] T068 [US4] Register LoggingInterceptor in LoggingConfig (ensure excluded paths for actuator endpoints)
 - [ ] T069 [P] [US4] Create PerformanceLoggingAspect in budget-backend/src/main/java/com/homebudget/aspect/PerformanceLoggingAspect.java
 - [ ] T070 [US4] Define pointcut for all service layer methods (@Pointcut("execution(* com.homebudget.service..*.*(..))"))
 - [ ] T071 [US4] Implement @Around advice: Measure method execution time
@@ -196,12 +196,12 @@
 
 ### Implementation for User Story 5
 
-- [ ] T082 [US5] Enable Spring Boot Actuator loggers endpoint in application.properties (management.endpoints.web.exposure.include=health,loggers)
-- [ ] T083 [US5] Configure global log level (logging.level.root=INFO) in application.properties
-- [ ] T084 [US5] Configure package-specific log levels in application.properties (logging.level.com.homebudget=INFO)
-- [ ] T085 [US5] Add profile-specific logging configuration in application-dev.properties (logging.level.com.homebudget=DEBUG)
+- [x] T082 [US5] Enable Spring Boot Actuator loggers endpoint in application.yml (management.endpoints.web.exposure.include=health,info,loggers)
+- [x] T083 [US5] Configure global log level (logging.level.root=INFO) in application.yml
+- [x] T084 [US5] Configure package-specific log levels in application.yml (logging.level.com.homebudget=INFO)
+- [x] T085 [US5] Add profile-specific logging configuration in application-dev.properties (logging.level.com.homebudget=DEBUG)
 - [ ] T086 [US5] Add profile-specific logging configuration in application-prod.properties (logging.level.com.homebudget=INFO)
-- [ ] T087 [US5] Document log level management in application.properties comments
+- [ ] T087 [US5] Document log level management in application.yml comments
 - [ ] T088 [US5] Test log level management: Run LogLevelManagementTest, verify all assertions pass
 
 **Checkpoint**: Runtime log level management is fully functional

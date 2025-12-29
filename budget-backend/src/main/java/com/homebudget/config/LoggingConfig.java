@@ -1,11 +1,14 @@
 package com.homebudget.config;
 
 import com.homebudget.filter.CorrelationIdFilter;
+import com.homebudget.interceptor.LoggingInterceptor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.core.Ordered;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Configuration for structured logging infrastructure.
@@ -17,7 +20,7 @@ import org.springframework.core.Ordered;
  */
 @Configuration
 @EnableAspectJAutoProxy
-public class LoggingConfig {
+public class LoggingConfig implements WebMvcConfigurer {
 
     /**
      * Register CorrelationIdFilter to run before all other filters.
@@ -31,6 +34,14 @@ public class LoggingConfig {
         return registrationBean;
     }
 
-    // Interceptor registration will be added in Phase 6
-
+    /**
+     * Register LoggingInterceptor for request/response logging.
+     * Excludes actuator endpoints to avoid cluttering logs with health checks.
+     */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new LoggingInterceptor())
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/actuator/**");
+    }
 }

@@ -28,12 +28,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,loggers
   endpoint:
     health:
       show-details: always
       probes:
         enabled: true
+    loggers:
+      enabled: true
 
 logging:
   level:
