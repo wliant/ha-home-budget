@@ -167,12 +167,12 @@
 - [x] T066 [US4] Implement afterCompletion method: Log request completion with INFO level (http_status, duration_ms, correlation_id)
 - [x] T067 [US4] Implement afterCompletion method: Log slow requests with WARN level if duration > 1000ms
 - [x] T068 [US4] Register LoggingInterceptor in LoggingConfig (ensure excluded paths for actuator endpoints)
-- [ ] T069 [P] [US4] Create PerformanceLoggingAspect in budget-backend/src/main/java/com/homebudget/aspect/PerformanceLoggingAspect.java
-- [ ] T070 [US4] Define pointcut for all service layer methods (@Pointcut("execution(* com.homebudget.service..*.*(..))"))
-- [ ] T071 [US4] Implement @Around advice: Measure method execution time
-- [ ] T072 [US4] Implement @Around advice: Log at DEBUG level for all methods with duration
-- [ ] T073 [US4] Implement @Around advice: Log at WARN level for slow methods (>100ms)
-- [ ] T074 [US4] Include method name, masked arguments, duration in performance logs
+- [x] T069 [P] [US4] Create PerformanceLoggingAspect in budget-backend/src/main/java/com/homebudget/aspect/PerformanceLoggingAspect.java
+- [x] T070 [US4] Define pointcut for all service layer methods (@Pointcut("execution(* com.homebudget.service..*.*(..))"))
+- [x] T071 [US4] Implement @Around advice: Measure method execution time
+- [x] T072 [US4] Implement @Around advice: Log at DEBUG level for all methods with duration
+- [x] T073 [US4] Implement @Around advice: Log at WARN level for slow methods (>100ms)
+- [x] T074 [US4] Include method name, masked arguments, duration in performance logs
 - [ ] T075 [US4] Test request and performance logging: Run RequestLoggingTest and PerformanceLoggingTest, verify all assertions pass
 
 **Checkpoint**: Request tracing and performance logging is fully functional
