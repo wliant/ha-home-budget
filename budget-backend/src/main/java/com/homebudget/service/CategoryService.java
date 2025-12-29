@@ -256,19 +256,29 @@ public class CategoryService {
     private void validateCircularReference(Long categoryId, Long newParentId) {
         if (newParentId == null) return;
 
+        logger.debug("Validating circular reference: categoryId={}, newParentId={}", categoryId, newParentId);
+
         // Traverse up the parent chain from new parent
         Category current = categoryRepository.findById(newParentId).orElse(null);
         Set<Long> visited = new HashSet<>();
 
         while (current != null) {
+            logger.debug("Checking parent chain: current category ID={}, name='{}'",
+                    current.getId(), current.getName());
+
             if (current.getId().equals(categoryId)) {
+                logger.warn("Circular reference detected: categoryId={} found in parent chain of newParentId={}",
+                        categoryId, newParentId);
                 throw new CircularCategoryException(categoryId, newParentId);
             }
             if (!visited.add(current.getId())) {
+                logger.warn("Cycle detected in existing category data at categoryId={}", current.getId());
                 throw new CircularCategoryException("Cycle detected in existing category data");
             }
             current = current.getParentCategory();
         }
+
+        logger.debug("Circular reference validation passed: no cycle detected");
     }
 
     /**
@@ -276,9 +286,16 @@ public class CategoryService {
      * Parent must be a root category (no parent itself).
      */
     private void validateHierarchyDepth(Category parent) {
+        logger.debug("Validating hierarchy depth for parent category: ID={}, name='{}'",
+                parent.getId(), parent.getName());
+
         if (parent.getParentCategory() != null) {
+            logger.warn("Hierarchy depth violation: parent '{}' already has parent '{}'",
+                    parent.getName(), parent.getParentCategory().getName());
             throw new HierarchyDepthException(parent.getName(), parent.getParentCategory().getName());
         }
+
+        logger.debug("Hierarchy depth validation passed: parent is root category");
     }
 
     /**
@@ -296,12 +313,22 @@ public class CategoryService {
      * Cannot change parent if category has active budgets.
      */
     private void validateParentChange(Category category) {
+        logger.debug("Validating parent change for category: ID={}, name='{}'",
+                category.getId(), category.getName());
+
         long budgetCount = categoryRepository.countBudgetsByCategoryId(category.getId());
+
+        logger.debug("Category ID={} has {} active budgets", category.getId(), budgetCount);
+
         if (budgetCount > 0) {
+            logger.warn("Cannot change parent for category ID={}: {} active budgets exist",
+                    category.getId(), budgetCount);
             throw new CategoryInUseException(
                     String.format("Cannot change parent category: %d active budgets reference this category. " +
                             "Please reassign budgets first.", budgetCount));
         }
+
+        logger.debug("Parent change validation passed: no active budgets");
     }
 
     // ========== Helper Methods ==========

@@ -61,6 +61,9 @@ public class ExpenseService {
         Budget budget = budgetRepository.findById(dto.getBudgetId())
                 .orElseThrow(() -> new BudgetNotFoundException(dto.getBudgetId()));
 
+        logger.debug("Budget attribution: selected budgetId={}, period={}-{}, amount={}",
+                budget.getId(), budget.getYear(), budget.getMonth(), budget.getTotalAmount());
+
         // Create expense entity
         Expense expense = new Expense();
         expense.setAmount(dto.getAmount());
@@ -69,11 +72,15 @@ public class ExpenseService {
         expense.setBudget(budget);
         expense.setCreatedBy(username);
 
+        logger.debug("Expense details: amount={}, date={}, description='{}'",
+                dto.getAmount(), dto.getExpenseDate(), dto.getDescription());
+
         // Set category if provided
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new CategoryNotFoundException(dto.getCategoryId()));
             expense.setCategory(category);
+            logger.debug("Category assigned: ID={}, name='{}'", category.getId(), category.getName());
         }
 
         // Save expense
@@ -254,6 +261,9 @@ public class ExpenseService {
         YearMonth budgetMonth = YearMonth.of(budget.getYear(), budget.getMonth());
         YearMonth expenseMonth = YearMonth.from(dto.getExpenseDate());
 
+        logger.debug("Checking date match: expense date={} ({}), budget period={} ({})",
+                dto.getExpenseDate(), expenseMonth, budgetMonth, budgetMonth);
+
         if (!budgetMonth.equals(expenseMonth)) {
             String warning = String.format(
                 "Warning: Expense date %s does not fall within budget month %s",
@@ -262,6 +272,8 @@ public class ExpenseService {
             );
             dto.setDateMismatchWarning(warning);
             logger.warn("Date mismatch for expense ID {}: {}", dto.getId(), warning);
+        } else {
+            logger.debug("Date match confirmed: expense falls within budget period");
         }
     }
 }

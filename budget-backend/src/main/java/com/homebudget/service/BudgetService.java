@@ -11,6 +11,8 @@ import com.homebudget.model.Expense;
 import com.homebudget.repository.BudgetRepository;
 import com.homebudget.repository.CategoryRepository;
 import com.homebudget.repository.ExpenseRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class BudgetService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BudgetService.class);
 
     private final BudgetRepository budgetRepository;
     private final ExpenseRepository expenseRepository;
@@ -189,7 +193,13 @@ public class BudgetService {
      */
     @Transactional(readOnly = true)
     public BigDecimal calculateTotalSpending(Long budgetId) {
-        return expenseRepository.sumAmountByBudgetId(budgetId);
+        BigDecimal totalSpending = expenseRepository.sumAmountByBudgetId(budgetId);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Calculated total spending for budgetId={}: amount={}", budgetId, totalSpending);
+        }
+
+        return totalSpending;
     }
 
     /**
@@ -203,13 +213,21 @@ public class BudgetService {
         BigDecimal totalSpending = calculateTotalSpending(budget.getId());
 
         if (totalSpending.compareTo(BigDecimal.ZERO) == 0) {
+            logger.debug("Budget ID={} has zero spending", budget.getId());
             return BigDecimal.ZERO;
         }
 
-        return totalSpending
+        BigDecimal percentage = totalSpending
                 .divide(budget.getTotalAmount(), 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
                 .setScale(2, RoundingMode.HALF_UP);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Calculated spending percentage for budgetId={}: spent={}, budget={}, percentage={}%",
+                    budget.getId(), totalSpending, budget.getTotalAmount(), percentage);
+        }
+
+        return percentage;
     }
 
     /**
@@ -333,12 +351,17 @@ public class BudgetService {
     private void validateParentBudgetOnCreate(Category childCategory, Integer year, Integer month, BigDecimal childAmount) {
         Category parent = childCategory.getParentCategory();
 
+        logger.debug("Validating parent budget: child='{}', parent='{}', period={}-{}, childAmount={}",
+                childCategory.getName(), parent.getName(), year, month, childAmount);
+
         // Check if parent budget exists
         Budget parentBudget = budgetRepository.findByCategoryIdAndYearAndMonth(parent.getId(), year, month)
                 .orElseThrow(() -> new IllegalArgumentException(
                         String.format("Parent category '%s' must have a budget for %d-%02d before creating child budgets",
                                 parent.getName(), year, month)
                 ));
+
+        logger.debug("Found parent budget: ID={}, amount={}", parentBudget.getId(), parentBudget.getTotalAmount());
 
         // Calculate sum of all child budgets (including this new one)
         BigDecimal existingChildSum = budgetRepository.sumByParentCategoryAndPeriod(parent.getId(), year, month);
@@ -347,13 +370,20 @@ public class BudgetService {
         }
         BigDecimal newChildSum = existingChildSum.add(childAmount);
 
+        logger.debug("Budget calculation: existingChildSum={}, newChildAmount={}, newChildSum={}, parentAmount={}",
+                existingChildSum, childAmount, newChildSum, parentBudget.getTotalAmount());
+
         // Validate sum equals parent budget
         if (newChildSum.compareTo(parentBudget.getTotalAmount()) != 0) {
+            logger.warn("Parent budget validation failed: newChildSum={} != parentAmount={}",
+                    newChildSum, parentBudget.getTotalAmount());
             throw new ParentBudgetMismatchException(
                     String.format("Adding budget of %.2f to category '%s' would make total child budgets (%.2f) not equal parent budget (%.2f)",
                             childAmount, childCategory.getName(), newChildSum, parentBudget.getTotalAmount())
             );
         }
+
+        logger.debug("Parent budget validation passed");
     }
 
     /**
