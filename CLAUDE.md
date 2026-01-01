@@ -206,6 +206,42 @@ All bash scripts support:
 - OpenAPI specifications in `contracts/` directory
 - Backend handles all business logic and data persistence
 
+### Logging and Observability
+**Framework**: Logback (SLF4J) with Logstash JSON Encoder (Feature 009)
+
+**Key Features**:
+- **Structured JSON Logging**: All logs emitted as JSON with @timestamp, level, correlation_id, user_id
+- **Correlation ID Tracking**: UUID per request tracked across all log entries via MDC
+- **User Context**: X-Hass-User header value automatically captured in logs
+- **Error Logging**: Full stack traces with sensitive data masking (passwords, tokens, secrets)
+- **Debug Logging**: Business logic troubleshooting in service layer (CategoryService, BudgetService, ExpenseService)
+- **Performance Logging**: AOP-based method execution time tracking with slow method detection (>100ms)
+- **Runtime Log Level Management**: Change log levels via Spring Boot Actuator without restart
+
+**Log Level Configuration**:
+- **Development**: DEBUG level for com.homebudget.* (application-dev.properties)
+- **Production**: INFO level for com.homebudget.* (application-prod.properties)
+- **Runtime Changes**: Use Actuator endpoints `/actuator/loggers/{name}` (GET/POST)
+
+**Actuator Endpoints**:
+- `GET /actuator/loggers` - List all loggers with levels
+- `GET /actuator/loggers/{name}` - Get specific logger level
+- `POST /actuator/loggers/{name}` - Change level dynamically (Body: `{"configuredLevel": "DEBUG"}`)
+
+**Performance Thresholds**:
+- Slow HTTP requests: >1000ms (logged at WARN level)
+- Slow service methods: >100ms (logged at WARN level)
+- Async logging: 10,000 entry bounded queue
+
+**Best Practices**:
+- Use SLF4J parameterized logging: `logger.debug("Value: {}", value)` (lazy evaluation)
+- Add isDebugEnabled() guards for expensive debug operations
+- Never log sensitive data (passwords, tokens, secrets) - use SensitiveDataMasker
+- logger.info() for request/response, business events
+- logger.debug() for troubleshooting details
+- logger.warn() for recoverable issues, slow operations
+- logger.error() for exceptions with stack traces
+
 ## Active Technologies
 - MySQL 8.0 (via Docker Compose from Feature 001) (002-budget-management)
 - Java 17 (backend), TypeScript/JavaScript (frontend) (004-hierarchical-category-budgets)
