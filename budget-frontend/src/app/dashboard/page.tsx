@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Container,
   Typography,
@@ -23,7 +22,6 @@ import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency, ge
  */
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [currentBudget, setCurrentBudget] = useState<BudgetSummaryDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');

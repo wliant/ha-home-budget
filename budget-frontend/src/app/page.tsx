@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Container,
   Box,
@@ -32,7 +31,6 @@ interface HealthStatus {
 }
 
 export default function Home() {
-  const router = useRouter();
   const [backendHealth, setBackendHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

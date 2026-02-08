@@ -3,7 +3,6 @@ version: '3.8'
 services:
   mysql:
     image: mysql:8.0
-    container_name: homebudget-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-dev_root_password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-homebudget}
@@ -25,7 +24,6 @@ services:
     build:
       context: ./budget-backend
       dockerfile: Dockerfile
-    container_name: homebudget-backend
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-homebudget}
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-budget_user}
@@ -47,7 +45,6 @@ services:
     build:
       context: ./budget-frontend
       dockerfile: Dockerfile
-    container_name: homebudget-frontend
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       NODE_ENV: ${NODE_ENV:-development}

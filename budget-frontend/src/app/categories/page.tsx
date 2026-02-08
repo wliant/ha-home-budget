@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Container,
   Typography,
@@ -29,7 +28,6 @@ import { useCategorySearch } from './hooks/useCategorySearch';
  */
 
 export default function CategoriesPage() {
-  const router = useRouter();
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [hierarchy, setHierarchy] = useState<CategoryDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
