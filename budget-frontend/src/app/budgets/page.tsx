@@ -15,10 +15,17 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import type { SelectChangeEvent } from '@mui/material';
+import { Add as AddIcon, Clear as ClearIcon } from '@mui/icons-material';
 import BudgetCard from '@/components/BudgetCard';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod } from '@/services/budgetService';
+import { categoryService } from '@/services/categoryService';
+import type { CategoryDTO } from '@/services/categoryService';
 
 /**
  * Budgets list page - User Story 1: Create and View Budgets
@@ -39,10 +46,37 @@ export default function BudgetsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [budgetToDelete, setBudgetToDelete] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [categories, setCategories] = useState<CategoryDTO[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedSort, setSelectedSort] = useState<string>('');
+  const [selectedSortDirection, setSelectedSortDirection] = useState<'ASC' | 'DESC'>('DESC');
+
+  const statusOptions = [
+    { value: 'on-track', label: 'On track' },
+    { value: 'good', label: 'Good' },
+    { value: 'watch', label: 'Watch spending' },
+    { value: 'near', label: 'Near limit' },
+    { value: 'over', label: 'Over budget' },
+  ];
 
   // Load budgets on mount
   useEffect(() => {
     loadBudgets();
+  }, []);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const data = await categoryService.getCategoryHierarchy();
+        setCategories(data);
+      } catch (err: any) {
+        console.error('Failed to load categories:', err);
+      }
+    };
+    loadCategories();
   }, []);
 
   const loadBudgets = async () => {
@@ -52,6 +86,8 @@ export default function BudgetsPage() {
     try {
       const data = await budgetService.getAllBudgets();
       setBudgets(data);
+      const years = Array.from(new Set(data.map((budget) => budget.year))).sort((a, b) => b - a);
+      setAvailableYears(years);
     } catch (err: any) {
       console.error('Failed to load budgets:', err);
       setError('Failed to load budgets. Please try again.');
@@ -107,6 +143,133 @@ export default function BudgetsPage() {
 
   const deletingBudget = budgets.find((b) => b.id === budgetToDelete);
 
+  const getBudgetStatusKey = (percentage: number) => {
+    if (percentage < 50) return 'on-track';
+    if (percentage < 75) return 'good';
+    if (percentage < 90) return 'watch';
+    if (percentage < 100) return 'near';
+    return 'over';
+  };
+
+  const getCategoryChildren = (category: CategoryDTO): CategoryDTO[] => {
+    return category.childCategories ?? category.children ?? [];
+  };
+
+  const findCategoryById = (categoryList: CategoryDTO[], id: number): CategoryDTO | null => {
+    for (const category of categoryList) {
+      if (category.id === id) {
+        return category;
+      }
+      const childMatch = findCategoryById(getCategoryChildren(category), id);
+      if (childMatch) {
+        return childMatch;
+      }
+    }
+    return null;
+  };
+
+  const getDescendantIds = (category: CategoryDTO): number[] => {
+    const children = getCategoryChildren(category);
+    return children.flatMap((child) => [
+      child.id!,
+      ...getDescendantIds(child),
+    ]);
+  };
+
+  const filteredBudgets = budgets.filter((budget) => {
+    const yearMatches = selectedYear === '' || budget.year === Number(selectedYear);
+
+    const statusMatches =
+      selectedStatus === '' || getBudgetStatusKey(budget.spendingPercentage) === selectedStatus;
+
+    const categoryMatches = (() => {
+      if (selectedCategoryId === '') return true;
+      if (!budget.categoryId) return false;
+      const selectedId = Number(selectedCategoryId);
+      const selectedCategory = findCategoryById(categories, selectedId);
+      if (!selectedCategory) {
+        return budget.categoryId === selectedId;
+      }
+      const allowedIds = new Set<number>([selectedId, ...getDescendantIds(selectedCategory)]);
+      return allowedIds.has(budget.categoryId);
+    })();
+
+    return yearMatches && statusMatches && categoryMatches;
+  });
+
+  const getDateSortValue = (budget: BudgetSummaryDTO) => {
+    const monthValue = budget.month ?? 0;
+    return budget.year * 100 + monthValue;
+  };
+
+  const sortedBudgets = [...filteredBudgets].sort((a, b) => {
+    if (selectedSort === 'available') {
+      const diff = b.totalAmount - a.totalAmount;
+      if (diff !== 0) return selectedSortDirection === 'ASC' ? -diff : diff;
+    }
+
+    if (selectedSort === 'remaining') {
+      const remainingA = a.totalAmount - a.totalSpending;
+      const remainingB = b.totalAmount - b.totalSpending;
+      const diff = remainingB - remainingA;
+      if (diff !== 0) return selectedSortDirection === 'ASC' ? -diff : diff;
+    }
+
+    return getDateSortValue(b) - getDateSortValue(a);
+  });
+
+  const categoryOptions: { id: number; label: string }[] = [];
+  const buildCategoryOptions = (categoryList: CategoryDTO[], prefix: string) => {
+    categoryList.forEach((category) => {
+      if (category.id == null) return;
+      const iconPrefix = category.icon ? `${category.icon} ` : '';
+      categoryOptions.push({
+        id: category.id,
+        label: `${prefix}${iconPrefix}${category.name}`,
+      });
+      const children = getCategoryChildren(category);
+      if (children.length > 0) {
+        buildCategoryOptions(children, `${prefix}-- `);
+      }
+    });
+  };
+
+  buildCategoryOptions(categories, '');
+
+  const handleYearChange = (event: SelectChangeEvent<string>) => {
+    setSelectedYear(event.target.value);
+  };
+
+  const handleCategoryChange = (event: SelectChangeEvent<string>) => {
+    setSelectedCategoryId(event.target.value);
+  };
+
+  const handleStatusChange = (event: SelectChangeEvent<string>) => {
+    setSelectedStatus(event.target.value);
+  };
+
+  const handleSortChange = (event: SelectChangeEvent<string>) => {
+    setSelectedSort(event.target.value);
+  };
+
+  const handleSortDirectionChange = (event: SelectChangeEvent<string>) => {
+    setSelectedSortDirection(event.target.value as 'ASC' | 'DESC');
+  };
+
+  const handleClearFilters = () => {
+    setSelectedYear('');
+    setSelectedCategoryId('');
+    setSelectedStatus('');
+    setSelectedSort('');
+    setSelectedSortDirection('DESC');
+  };
+
+  const hasFilters =
+    selectedYear !== '' ||
+    selectedCategoryId !== '' ||
+    selectedStatus !== '' ||
+    selectedSort !== '';
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
@@ -156,10 +319,119 @@ export default function BudgetsPage() {
         </Box>
       )}
 
+      {/* Filters */}
+      {!isLoading && budgets.length > 0 && (
+        <Box sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 3,
+          alignItems: 'flex-start',
+          '& > *': {
+            minWidth: { xs: '100%', sm: 'auto' },
+          },
+        }}>
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <InputLabel id="budget-year-filter-label">Year</InputLabel>
+            <Select
+              labelId="budget-year-filter-label"
+              value={selectedYear}
+              onChange={handleYearChange}
+              label="Year"
+              displayEmpty
+            >
+              <MenuItem value="">All years</MenuItem>
+              {availableYears.map((year) => (
+                <MenuItem key={year} value={String(year)}>
+                  {year}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="budget-category-filter-label">Category</InputLabel>
+            <Select
+              labelId="budget-category-filter-label"
+              value={selectedCategoryId}
+              onChange={handleCategoryChange}
+              label="Category"
+              displayEmpty
+            >
+              <MenuItem value="">All categories</MenuItem>
+              {categoryOptions.map((option) => (
+                <MenuItem key={option.id} value={String(option.id)}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 170 }}>
+            <InputLabel id="budget-status-filter-label">Status</InputLabel>
+            <Select
+              labelId="budget-status-filter-label"
+              value={selectedStatus}
+              onChange={handleStatusChange}
+              label="Status"
+              displayEmpty
+            >
+              <MenuItem value="">All statuses</MenuItem>
+              {statusOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 190 }}>
+            <InputLabel id="budget-sort-label">Sort By</InputLabel>
+            <Select
+              labelId="budget-sort-label"
+              value={selectedSort}
+              onChange={handleSortChange}
+              label="Sort By"
+              displayEmpty
+            >
+              <MenuItem value="">Date (latest first)</MenuItem>
+              <MenuItem value="available">Available budget</MenuItem>
+              <MenuItem value="remaining">Remaining budget</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel id="budget-sort-direction-label">Direction</InputLabel>
+            <Select
+              labelId="budget-sort-direction-label"
+              value={selectedSortDirection}
+              onChange={handleSortDirectionChange}
+              label="Direction"
+              disabled={selectedSort === ''}
+            >
+              <MenuItem value="DESC">High to low</MenuItem>
+              <MenuItem value="ASC">Low to high</MenuItem>
+            </Select>
+          </FormControl>
+
+          {hasFilters && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              sx={{ height: 40 }}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </Box>
+      )}
+
       {/* Budgets Grid */}
       {!isLoading && budgets.length > 0 && (
         <Grid container spacing={3}>
-          {budgets.map((budget) => (
+          {sortedBudgets.map((budget) => (
             <Grid item xs={12} sm={6} md={4} key={budget.id}>
               <BudgetCard
                 budget={budget}
