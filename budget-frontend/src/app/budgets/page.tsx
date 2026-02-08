@@ -332,7 +332,9 @@ export default function BudgetsPage() {
           },
         }}>
           <FormControl size="small" sx={{ minWidth: 130 }}>
-            <InputLabel id="budget-year-filter-label">Year</InputLabel>
+            <InputLabel id="budget-year-filter-label" shrink>
+              Year
+            </InputLabel>
             <Select
               labelId="budget-year-filter-label"
               value={selectedYear}
@@ -350,7 +352,9 @@ export default function BudgetsPage() {
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="budget-category-filter-label">Category</InputLabel>
+            <InputLabel id="budget-category-filter-label" shrink>
+              Category
+            </InputLabel>
             <Select
               labelId="budget-category-filter-label"
               value={selectedCategoryId}
@@ -368,7 +372,9 @@ export default function BudgetsPage() {
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 170 }}>
-            <InputLabel id="budget-status-filter-label">Status</InputLabel>
+            <InputLabel id="budget-status-filter-label" shrink>
+              Status
+            </InputLabel>
             <Select
               labelId="budget-status-filter-label"
               value={selectedStatus}
@@ -386,7 +392,9 @@ export default function BudgetsPage() {
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 190 }}>
-            <InputLabel id="budget-sort-label">Sort By</InputLabel>
+            <InputLabel id="budget-sort-label" shrink>
+              Sort By
+            </InputLabel>
             <Select
               labelId="budget-sort-label"
               value={selectedSort}
@@ -401,7 +409,9 @@ export default function BudgetsPage() {
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel id="budget-sort-direction-label">Direction</InputLabel>
+            <InputLabel id="budget-sort-direction-label" shrink>
+              Direction
+            </InputLabel>
             <Select
               labelId="budget-sort-direction-label"
               value={selectedSortDirection}
