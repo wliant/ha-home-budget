@@ -21,7 +21,7 @@ import {
   Select,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Clear as ClearIcon } from '@mui/icons-material';
 import BudgetCard from '@/components/BudgetCard';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod } from '@/services/budgetService';
 import { categoryService } from '@/services/categoryService';
@@ -251,6 +251,19 @@ export default function BudgetsPage() {
     setSelectedSort(event.target.value);
   };
 
+  const handleClearFilters = () => {
+    setSelectedYear('');
+    setSelectedCategoryId('');
+    setSelectedStatus('');
+    setSelectedSort('');
+  };
+
+  const hasFilters =
+    selectedYear !== '' ||
+    selectedCategoryId !== '' ||
+    selectedStatus !== '' ||
+    selectedSort !== '';
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
@@ -380,6 +393,18 @@ export default function BudgetsPage() {
               <MenuItem value="remaining">Remaining budget</MenuItem>
             </Select>
           </FormControl>
+
+          {hasFilters && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              sx={{ height: 40 }}
+            >
+              Clear Filters
+            </Button>
+          )}
         </Box>
       )}
 
