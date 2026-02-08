@@ -51,6 +51,7 @@ export default function BudgetsPage() {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedSort, setSelectedSort] = useState<string>('');
 
   const statusOptions = [
     { value: 'on-track', label: 'On track' },
@@ -195,6 +196,27 @@ export default function BudgetsPage() {
     return yearMatches && statusMatches && categoryMatches;
   });
 
+  const getDateSortValue = (budget: BudgetSummaryDTO) => {
+    const monthValue = budget.month ?? 0;
+    return budget.year * 100 + monthValue;
+  };
+
+  const sortedBudgets = [...filteredBudgets].sort((a, b) => {
+    if (selectedSort === 'available') {
+      const diff = b.totalAmount - a.totalAmount;
+      if (diff !== 0) return diff;
+    }
+
+    if (selectedSort === 'remaining') {
+      const remainingA = a.totalAmount - a.totalSpending;
+      const remainingB = b.totalAmount - b.totalSpending;
+      const diff = remainingB - remainingA;
+      if (diff !== 0) return diff;
+    }
+
+    return getDateSortValue(b) - getDateSortValue(a);
+  });
+
   const categoryOptions: { id: number; label: string }[] = [];
   const buildCategoryOptions = (categoryList: CategoryDTO[], prefix: string) => {
     categoryList.forEach((category) => {
@@ -223,6 +245,10 @@ export default function BudgetsPage() {
 
   const handleStatusChange = (event: SelectChangeEvent<string>) => {
     setSelectedStatus(event.target.value);
+  };
+
+  const handleSortChange = (event: SelectChangeEvent<string>) => {
+    setSelectedSort(event.target.value);
   };
 
   return (
@@ -339,13 +365,28 @@ export default function BudgetsPage() {
               ))}
             </Select>
           </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 190 }}>
+            <InputLabel id="budget-sort-label">Sort By</InputLabel>
+            <Select
+              labelId="budget-sort-label"
+              value={selectedSort}
+              onChange={handleSortChange}
+              label="Sort By"
+              displayEmpty
+            >
+              <MenuItem value="">Date (latest first)</MenuItem>
+              <MenuItem value="available">Available budget</MenuItem>
+              <MenuItem value="remaining">Remaining budget</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
       )}
 
       {/* Budgets Grid */}
       {!isLoading && budgets.length > 0 && (
         <Grid container spacing={3}>
-          {filteredBudgets.map((budget) => (
+          {sortedBudgets.map((budget) => (
             <Grid item xs={12} sm={6} md={4} key={budget.id}>
               <BudgetCard
                 budget={budget}
