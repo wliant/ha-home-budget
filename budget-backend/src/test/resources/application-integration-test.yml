@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: home-budget-backend-integration-test
+
+  datasource:
+    # Overridden by @DynamicPropertySource in AbstractIntegrationTest
+    url: jdbc:mysql://localhost:3306/testdb
+    username: test
+    password: test
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  liquibase:
+    enabled: true
+
+logging:
+  level:
+    com.homebudget: DEBUG
+    org.springframework.web: INFO
+    org.testcontainers: INFO
