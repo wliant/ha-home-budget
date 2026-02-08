@@ -46,6 +46,30 @@ export interface ExpenseFilters {
   createdBy?: string;
 }
 
+export interface ExpenseListFilters {
+  year: number;
+  month?: number;
+  categoryId?: number;
+  minAmount?: number;
+  maxAmount?: number;
+  createdBy?: string;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  sortDirection?: 'ASC' | 'DESC';
+}
+
+export interface ExpenseListResponse {
+  content: ExpenseDTO[];
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+  totalAmount: number;
+  sortBy: string;
+  sortDirection: string;
+}
+
 export const expenseService = {
   /**
    * Get all expenses with optional filters
@@ -95,6 +119,43 @@ export const expenseService = {
    */
   deleteExpense: async (id: number): Promise<void> => {
     await api.delete(`/api/expenses/${id}`);
+  },
+
+  /**
+   * Get paginated, filtered, sorted expense list (Feature 011)
+   */
+  getExpenseList: async (filters: ExpenseListFilters): Promise<ExpenseListResponse> => {
+    const params = new URLSearchParams();
+    params.append('year', filters.year.toString());
+
+    if (filters.month != null) params.append('month', filters.month.toString());
+    if (filters.categoryId != null) params.append('categoryId', filters.categoryId.toString());
+    if (filters.minAmount != null) params.append('minAmount', filters.minAmount.toString());
+    if (filters.maxAmount != null) params.append('maxAmount', filters.maxAmount.toString());
+    if (filters.createdBy) params.append('createdBy', filters.createdBy);
+    if (filters.page != null) params.append('page', filters.page.toString());
+    if (filters.size != null) params.append('size', filters.size.toString());
+    if (filters.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters.sortDirection) params.append('sortDirection', filters.sortDirection);
+
+    const response = await api.get<ExpenseListResponse>(`/api/expenses/list?${params.toString()}`);
+    return response.data;
+  },
+
+  /**
+   * Get distinct years with expenses (Feature 011)
+   */
+  getExpenseYears: async (): Promise<number[]> => {
+    const response = await api.get<number[]>('/api/expenses/years');
+    return response.data;
+  },
+
+  /**
+   * Get distinct expense creators (Feature 011)
+   */
+  getExpenseCreators: async (): Promise<string[]> => {
+    const response = await api.get<string[]>('/api/expenses/creators');
+    return response.data;
   },
 };
 

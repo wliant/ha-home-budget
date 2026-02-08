@@ -1,6 +1,8 @@
 package com.homebudget.repository;
 
 import com.homebudget.model.Expense;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -145,6 +147,83 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                                  @Param("startDate") LocalDate startDate,
                                  @Param("endDate") LocalDate endDate,
                                  @Param("createdBy") String createdBy);
+
+    /**
+     * Paginated version of findByFilters with amount range support.
+     * Used by the expense list view endpoint.
+     *
+     * @param categoryId optional category filter
+     * @param startDate optional start date filter
+     * @param endDate optional end date filter
+     * @param minAmount optional minimum amount filter (inclusive)
+     * @param maxAmount optional maximum amount filter (inclusive)
+     * @param createdBy optional user filter
+     * @param pageable pagination and sorting parameters
+     * @return page of matching expenses
+     */
+    @Query("SELECT e FROM Expense e LEFT JOIN FETCH e.category WHERE " +
+            "(:categoryId IS NULL OR e.category.id = :categoryId) AND " +
+            "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
+            "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
+            "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
+            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+    Page<Expense> findByFiltersPageable(@Param("categoryId") Long categoryId,
+                                         @Param("startDate") LocalDate startDate,
+                                         @Param("endDate") LocalDate endDate,
+                                         @Param("minAmount") BigDecimal minAmount,
+                                         @Param("maxAmount") BigDecimal maxAmount,
+                                         @Param("createdBy") String createdBy,
+                                         Pageable pageable);
+
+    /**
+     * Count query for paginated findByFiltersPageable (required by Spring Data for LEFT JOIN FETCH).
+     */
+    @Query("SELECT COUNT(e) FROM Expense e WHERE " +
+            "(:categoryId IS NULL OR e.category.id = :categoryId) AND " +
+            "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
+            "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
+            "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
+            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+    long countByFiltersPageable(@Param("categoryId") Long categoryId,
+                                @Param("startDate") LocalDate startDate,
+                                @Param("endDate") LocalDate endDate,
+                                @Param("minAmount") BigDecimal minAmount,
+                                @Param("maxAmount") BigDecimal maxAmount,
+                                @Param("createdBy") String createdBy);
+
+    /**
+     * Aggregate summary for filtered expenses: returns total amount.
+     * Count is available from Page.getTotalElements().
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE " +
+            "(:categoryId IS NULL OR e.category.id = :categoryId) AND " +
+            "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
+            "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
+            "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
+            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+    BigDecimal getFilteredTotalAmount(@Param("categoryId") Long categoryId,
+                                      @Param("startDate") LocalDate startDate,
+                                      @Param("endDate") LocalDate endDate,
+                                      @Param("minAmount") BigDecimal minAmount,
+                                      @Param("maxAmount") BigDecimal maxAmount,
+                                      @Param("createdBy") String createdBy);
+
+    /**
+     * Get distinct years from expense dates, sorted descending.
+     * Used to populate the year filter dropdown.
+     */
+    @Query("SELECT DISTINCT YEAR(e.expenseDate) FROM Expense e ORDER BY 1 DESC")
+    List<Integer> findDistinctYears();
+
+    /**
+     * Get distinct creators, sorted ascending.
+     * Used to populate the created-by filter dropdown.
+     */
+    @Query("SELECT DISTINCT e.createdBy FROM Expense e ORDER BY e.createdBy ASC")
+    List<String> findDistinctCreators();
 
     /**
      * Get spending breakdown by category for a budget.

@@ -6,6 +6,7 @@ import {
   Category as CategoryIcon,
   Receipt as ReceiptIcon,
   CalendarMonth as CalendarIcon,
+  ListAlt as ListAltIcon,
 } from '@mui/icons-material';
 
 export type NavItem = {
@@ -50,6 +51,12 @@ export const navItems: NavItem[] = [
     href: '/categories',
     icon: <CategoryIcon />,
     match: (pathname) => pathname === '/categories',
+  },
+  {
+    label: 'Expenses',
+    href: '/expenses',
+    icon: <ListAltIcon />,
+    match: (pathname) => pathname === '/expenses',
   },
   {
     label: 'Record Expense',
@@ -106,10 +113,17 @@ const breadcrumbDefinitions: Array<{ regex: RegExp; crumbs: BreadcrumbItem[] }> 
     ],
   },
   {
+    regex: /^\/expenses$/,
+    crumbs: [
+      { label: 'Home', href: '/' },
+      { label: 'Expenses' },
+    ],
+  },
+  {
     regex: /^\/expenses\/new$/,
     crumbs: [
       { label: 'Home', href: '/' },
-      { label: 'Expenses', href: '/expenses/new' },
+      { label: 'Expenses', href: '/expenses' },
       { label: 'Record Expense' },
     ],
   },

@@ -1,6 +1,7 @@
 package com.homebudget.service;
 
 import com.homebudget.dto.ExpenseDTO;
+import com.homebudget.dto.ExpenseListResponse;
 import com.homebudget.exception.BudgetNotFoundException;
 import com.homebudget.exception.CategoryNotFoundException;
 import com.homebudget.exception.ExpenseNotFoundException;
@@ -13,9 +14,12 @@ import com.homebudget.repository.ExpenseRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -225,6 +229,97 @@ public class ExpenseService {
 
         expenseRepository.deleteById(id);
         logger.info("Deleted expense ID: {}", id);
+    }
+
+    /**
+     * Get paginated, filtered, sorted expense list with aggregate summary.
+     * Converts year/month to date range and delegates to repository.
+     *
+     * @param year required year filter
+     * @param month optional month filter (1-12)
+     * @param categoryId optional category filter
+     * @param minAmount optional minimum amount filter (inclusive)
+     * @param maxAmount optional maximum amount filter (inclusive)
+     * @param createdBy optional creator filter
+     * @param pageable pagination and sorting parameters
+     * @param sortBy sort field name for response metadata
+     * @param sortDirection sort direction for response metadata
+     * @return ExpenseListResponse with paginated content and summary
+     */
+    @Transactional(readOnly = true)
+    public ExpenseListResponse getExpenseList(int year, Integer month, Long categoryId,
+                                               BigDecimal minAmount, BigDecimal maxAmount,
+                                               String createdBy, Pageable pageable,
+                                               String sortBy, String sortDirection) {
+        logger.info("Getting expense list - year: {}, month: {}, categoryId: {}, amountRange: {}-{}, createdBy: {}",
+                year, month, categoryId, minAmount, maxAmount, createdBy);
+
+        // Convert year/month to date range
+        LocalDate startDate;
+        LocalDate endDate;
+        if (month != null) {
+            YearMonth ym = YearMonth.of(year, month);
+            startDate = ym.atDay(1);
+            endDate = ym.atEndOfMonth();
+        } else {
+            startDate = LocalDate.of(year, 1, 1);
+            endDate = LocalDate.of(year, 12, 31);
+        }
+
+        logger.debug("Date range: {} to {}", startDate, endDate);
+
+        // Get paginated results
+        Page<Expense> page = expenseRepository.findByFiltersPageable(
+                categoryId, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+
+        // Get aggregate total amount for all matching expenses
+        BigDecimal totalAmount = expenseRepository.getFilteredTotalAmount(
+                categoryId, startDate, endDate, minAmount, maxAmount, createdBy);
+
+        // Convert to DTOs
+        List<ExpenseDTO> content = page.getContent().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+
+        logger.info("Found {} expenses (page {} of {}), total amount: {}",
+                page.getTotalElements(), page.getNumber(), page.getTotalPages(), totalAmount);
+
+        return new ExpenseListResponse(
+                content,
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.getNumber(),
+                page.getSize(),
+                totalAmount,
+                sortBy,
+                sortDirection
+        );
+    }
+
+    /**
+     * Get distinct years that have expense data, sorted descending.
+     *
+     * @return list of years with expenses
+     */
+    @Transactional(readOnly = true)
+    public List<Integer> getDistinctYears() {
+        logger.info("Getting distinct expense years");
+        List<Integer> years = expenseRepository.findDistinctYears();
+        logger.info("Found {} distinct years", years.size());
+        return years;
+    }
+
+    /**
+     * Get distinct expense creators, sorted ascending.
+     *
+     * @return list of creator usernames
+     */
+    @Transactional(readOnly = true)
+    public List<String> getDistinctCreators() {
+        logger.info("Getting distinct expense creators");
+        List<String> creators = expenseRepository.findDistinctCreators();
+        logger.info("Found {} distinct creators", creators.size());
+        return creators;
     }
 
     /**
