@@ -1,0 +1,157 @@
+# API Contract Changes for Parent Category Budget Support
+# Feature: 012-parent-category-budgets
+# These are CHANGES to existing endpoints, not new endpoints.
+
+# ============================================================================
+# POST /api/budgets — Create Budget (MODIFIED)
+# ============================================================================
+# Change: Category can now be a parent category (previously only leaf allowed)
+# Change: New optional fields for parent category budget handling
+
+CreateBudgetRequest:
+  type: object
+  required:
+    - year
+    - totalAmount
+    - categoryId
+  properties:
+    year:
+      type: integer
+      minimum: 2000
+      maximum: 9999
+    month:
+      type: integer
+      minimum: 1
+      maximum: 12
+      nullable: true
+      description: "null = yearly budget"
+    totalAmount:
+      type: number
+      format: decimal
+      minimum: 0
+    description:
+      type: string
+      nullable: true
+    categoryId:
+      type: integer
+      description: "Can now be a parent category ID (previously only leaf categories allowed)"
+    autoCreateChildren:
+      type: boolean
+      default: false
+    createParentBudget:
+      type: boolean
+      default: false
+      description: "Existing: create yearly parent budget (month=null) for this category"
+    extendParentBudget:
+      type: boolean
+      default: false
+      description: "Existing: extend yearly parent budget if monthly sum exceeds it"
+    parentTotalAmount:
+      type: number
+      format: decimal
+      nullable: true
+      description: "Existing: amount for yearly parent budget"
+    # NEW FIELDS:
+    createParentCategoryBudget:
+      type: boolean
+      default: false
+      description: "NEW: create a budget for the parent category (category hierarchy) for the same period"
+    parentCategoryBudgetAmount:
+      type: number
+      format: decimal
+      nullable: true
+      description: "NEW: amount for the parent category budget"
+
+CreateBudgetResponse:
+  description: "Returns created budget DTO. If parent category budget was auto-incremented, includes parentCategoryBudgetUpdated info."
+  type: object
+  properties:
+    # ... existing BudgetDTO fields ...
+    parentCategoryBudgetUpdated:
+      type: object
+      nullable: true
+      description: "NEW: Present when parent category budget was auto-incremented"
+      properties:
+        parentCategoryName:
+          type: string
+        previousAmount:
+          type: number
+          format: decimal
+        newAmount:
+          type: number
+          format: decimal
+        year:
+          type: integer
+        month:
+          type: integer
+          nullable: true
+
+# ============================================================================
+# GET /api/budgets — List Budgets (MODIFIED response)
+# ============================================================================
+
+BudgetSummaryDTO:
+  type: object
+  properties:
+    # ... existing fields ...
+    # NEW FIELDS:
+    childrenBudgetSum:
+      type: number
+      format: decimal
+      nullable: true
+      description: "NEW: Sum of child category budgets for same period (only for parent categories)"
+    childrenSpending:
+      type: number
+      format: decimal
+      nullable: true
+      description: "NEW: Sum of spending across child category budgets (only for parent categories)"
+    isParentCategory:
+      type: boolean
+      description: "NEW: Whether this budget's category is a parent category"
+
+# ============================================================================
+# GET /api/budgets/validation — Budget Validation (MODIFIED response)
+# ============================================================================
+
+BudgetValidationDTO:
+  type: object
+  properties:
+    # ... existing fields (duplicate, parentBudgetExists, etc.) ...
+    # NEW FIELDS:
+    parentCategoryBudgetExists:
+      type: boolean
+      description: "NEW: Whether the selected category's parent category has a budget for this period"
+    parentCategoryBudgetId:
+      type: integer
+      nullable: true
+      description: "NEW: ID of parent category's budget (if exists)"
+    parentCategoryBudgetAmount:
+      type: number
+      format: decimal
+      nullable: true
+      description: "NEW: Amount of parent category's budget (if exists)"
+    parentCategoryName:
+      type: string
+      nullable: true
+      description: "NEW: Name of the parent category (for UI display)"
+
+# ============================================================================
+# GET /api/expenses/list — Expense List (MODIFIED behavior)
+# ============================================================================
+# Change: When categoryId is a parent category, the filter includes
+# expenses from all child categories as well.
+# No schema change — same parameters and response structure.
+# The backend expands categoryId to include child category IDs internally.
+
+ExpenseListFilterBehaviorChange:
+  description: |
+    When the `categoryId` parameter identifies a parent category (has children),
+    the filter is expanded server-side to include:
+    - Expenses with category_id = parent category ID
+    - Expenses with category_id = any child category ID of the parent
+
+    This applies to both:
+    - GET /api/expenses/list (paginated, filtered)
+    - GET /api/expenses (simple filtered list)
+
+    No request/response schema changes needed.

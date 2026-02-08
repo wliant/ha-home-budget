@@ -30,6 +30,11 @@ public class BudgetSummaryDTO {
     private Long categoryId;
     private CategoryDTO category;
 
+    // Parent category aggregation
+    private BigDecimal childrenBudgetSum;
+    private BigDecimal childrenSpending;
+    private Boolean isParentCategory;
+
     // For detail view
     private List<ExpenseDTO> expenses = new ArrayList<>();
 
@@ -174,5 +179,29 @@ public class BudgetSummaryDTO {
 
     public void setExpenses(List<ExpenseDTO> expenses) {
         this.expenses = expenses;
+    }
+
+    public BigDecimal getChildrenBudgetSum() {
+        return childrenBudgetSum;
+    }
+
+    public void setChildrenBudgetSum(BigDecimal childrenBudgetSum) {
+        this.childrenBudgetSum = childrenBudgetSum;
+    }
+
+    public BigDecimal getChildrenSpending() {
+        return childrenSpending;
+    }
+
+    public void setChildrenSpending(BigDecimal childrenSpending) {
+        this.childrenSpending = childrenSpending;
+    }
+
+    public Boolean getIsParentCategory() {
+        return isParentCategory;
+    }
+
+    public void setIsParentCategory(Boolean isParentCategory) {
+        this.isParentCategory = isParentCategory;
     }
 }

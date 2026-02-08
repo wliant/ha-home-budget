@@ -72,12 +72,6 @@ public class BudgetService {
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException(dto.getCategoryId()));
 
-        long childCategoryCount = categoryRepository.countByParentCategoryId(category.getId());
-        if (childCategoryCount > 0) {
-            throw new IllegalArgumentException(
-                    String.format("Category '%s' is a parent category. Please select a child category.", category.getName()));
-        }
-
         if (dto.getMonth() == null) {
             if (budgetRepository.existsParentBudget(dto.getCategoryId(), dto.getYear())) {
                 throw new DuplicateBudgetException(
@@ -176,7 +170,57 @@ public class BudgetService {
             alignParentBudgetWithMonthlySum(category.getId(), dto.getYear());
         }
 
-        return mapToBudgetDTO(saved);
+        BudgetDTO result = mapToBudgetDTO(saved);
+
+        // Handle parent category budget (category hierarchy)
+        if (category.getParentCategory() != null) {
+            Category parentCat = category.getParentCategory();
+            Long parentCatId = parentCat.getId();
+
+            // Look up parent category budget for the same period
+            Budget parentCatBudget;
+            if (dto.getMonth() != null) {
+                parentCatBudget = budgetRepository.findByCategoryIdAndYearAndMonth(parentCatId, dto.getYear(), dto.getMonth()).orElse(null);
+            } else {
+                parentCatBudget = budgetRepository.findParentBudget(parentCatId, dto.getYear()).orElse(null);
+            }
+
+            if (parentCatBudget != null) {
+                // Auto-increment existing parent category budget
+                BigDecimal previousAmount = parentCatBudget.getTotalAmount();
+                BigDecimal newAmount = previousAmount.add(dto.getTotalAmount());
+                parentCatBudget.setTotalAmount(newAmount);
+                budgetRepository.save(parentCatBudget);
+
+                result.setParentCategoryBudgetUpdated(new BudgetDTO.ParentCategoryBudgetUpdateInfo(
+                        parentCat.getName(), previousAmount, newAmount, dto.getYear(), dto.getMonth()));
+
+                logger.info("Auto-incremented parent category budget for '{}' from {} to {} for {}/{}",
+                        parentCat.getName(), previousAmount, newAmount, dto.getYear(), dto.getMonth());
+            } else if (Boolean.TRUE.equals(dto.getCreateParentCategoryBudget())) {
+                // Create new parent category budget
+                BigDecimal parentCatAmount = dto.getParentCategoryBudgetAmount() != null
+                        ? dto.getParentCategoryBudgetAmount()
+                        : dto.getTotalAmount();
+
+                Budget newParentCatBudget = new Budget();
+                newParentCatBudget.setYear(dto.getYear());
+                newParentCatBudget.setMonth(dto.getMonth());
+                newParentCatBudget.setTotalAmount(parentCatAmount);
+                newParentCatBudget.setDescription("Auto-created parent category budget");
+                newParentCatBudget.setCreatedBy(username);
+                newParentCatBudget.setCategory(parentCat);
+                budgetRepository.save(newParentCatBudget);
+
+                result.setParentCategoryBudgetUpdated(new BudgetDTO.ParentCategoryBudgetUpdateInfo(
+                        parentCat.getName(), BigDecimal.ZERO, parentCatAmount, dto.getYear(), dto.getMonth()));
+
+                logger.info("Created parent category budget for '{}' with amount {} for {}/{}",
+                        parentCat.getName(), parentCatAmount, dto.getYear(), dto.getMonth());
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -517,6 +561,30 @@ public class BudgetService {
 
             summary.setCategoryId(category.getId());
             summary.setCategory(categoryDTO);
+
+            // Parent category aggregation: include child category budgets and spending
+            long childCount = categoryRepository.countByParentCategoryId(category.getId());
+            if (childCount > 0 && budget.getMonth() != null) {
+                summary.setIsParentCategory(true);
+                BigDecimal childBudgetSum = defaultZero(
+                        budgetRepository.sumBudgetsByChildCategoriesAndPeriod(category.getId(), budget.getYear(), budget.getMonth()));
+                BigDecimal childSpending = defaultZero(
+                        expenseRepository.sumExpensesByParentCategoryBudgets(category.getId(), budget.getYear(), budget.getMonth()));
+                summary.setChildrenBudgetSum(childBudgetSum);
+                summary.setChildrenSpending(childSpending);
+                // Add child spending to total spending for display
+                summary.setTotalSpending(totalSpending.add(childSpending));
+                // Recalculate spending percentage with aggregated spending
+                BigDecimal aggregatedSpending = totalSpending.add(childSpending);
+                if (budget.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
+                    summary.setSpendingPercentage(aggregatedSpending
+                            .divide(budget.getTotalAmount(), 4, RoundingMode.HALF_UP)
+                            .multiply(BigDecimal.valueOf(100))
+                            .setScale(2, RoundingMode.HALF_UP));
+                }
+            } else {
+                summary.setIsParentCategory(childCount > 0);
+            }
         }
 
         return summary;
@@ -612,6 +680,32 @@ public class BudgetService {
         result.setMonthlyBudgetSum(monthlySum);
         result.setMonthlyBudgetsExist(budgetRepository.countMonthlyBudgetsForCategory(categoryId, year) > 0);
 
+        // Parent category budget info (category hierarchy)
+        if (category.getParentCategory() != null) {
+            Long parentCatId = category.getParentCategory().getId();
+            result.setParentCategoryName(category.getParentCategory().getName());
+
+            if (month != null) {
+                Budget parentCatBudget = budgetRepository.findByCategoryIdAndYearAndMonth(parentCatId, year, month).orElse(null);
+                if (parentCatBudget != null) {
+                    result.setParentCategoryBudgetExists(true);
+                    result.setParentCategoryBudgetId(parentCatBudget.getId());
+                    result.setParentCategoryBudgetAmount(parentCatBudget.getTotalAmount());
+                } else {
+                    result.setParentCategoryBudgetExists(false);
+                }
+            } else {
+                Budget parentCatBudget = budgetRepository.findParentBudget(parentCatId, year).orElse(null);
+                if (parentCatBudget != null) {
+                    result.setParentCategoryBudgetExists(true);
+                    result.setParentCategoryBudgetId(parentCatBudget.getId());
+                    result.setParentCategoryBudgetAmount(parentCatBudget.getTotalAmount());
+                } else {
+                    result.setParentCategoryBudgetExists(false);
+                }
+            }
+        }
+
         return result;
     }
 
@@ -630,11 +724,6 @@ public class BudgetService {
 
         List<Category> categories = categoryRepository.findAllByOrderByNameAsc();
         for (Category category : categories) {
-            long childCount = categoryRepository.countByParentCategoryId(category.getId());
-            if (childCount > 0) {
-                continue;
-            }
-
             YearlyCategoryBudgetDTO categoryDTO = new YearlyCategoryBudgetDTO();
             categoryDTO.setCategoryId(category.getId());
             categoryDTO.setCategoryName(category.getName());
@@ -689,6 +778,16 @@ public class BudgetService {
             BigDecimal yearlyBudgetAmount = parentBudget != null ? parentBudget.getTotalAmount() : monthlySum;
             BigDecimal parentSpending = parentBudget != null ? defaultZero(calculateTotalSpending(parentBudget.getId())) : BigDecimal.ZERO;
             yearlySpending = yearlySpending.add(parentSpending);
+
+            // For parent categories, aggregate child category spending
+            long childCount = categoryRepository.countByParentCategoryId(category.getId());
+            if (childCount > 0) {
+                for (int m = 1; m <= 12; m++) {
+                    BigDecimal childMonthSpending = defaultZero(
+                            expenseRepository.sumExpensesByParentCategoryBudgets(category.getId(), year, m));
+                    yearlySpending = yearlySpending.add(childMonthSpending);
+                }
+            }
 
             categoryDTO.setYearlyBudgetAmount(yearlyBudgetAmount);
             categoryDTO.setMonthlyBudgetSum(monthlySum);

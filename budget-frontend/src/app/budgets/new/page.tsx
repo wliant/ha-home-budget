@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import BudgetForm from '@/components/BudgetForm';
-import { budgetService, CreateBudgetRequest } from '@/services/budgetService';
+import { budgetService, CreateBudgetRequest, formatCurrency, getMonthName } from '@/services/budgetService';
 
 /**
  * New budget page - User Story 1: Create and View Budgets
@@ -26,16 +26,32 @@ export default function NewBudgetPage() {
   const router = useRouter();
   const [successMessage, setSuccessMessage] = React.useState<string>('');
 
+  const [parentCatUpdateMessage, setParentCatUpdateMessage] = React.useState<string>('');
+
   const handleSubmit = async (data: CreateBudgetRequest) => {
     try {
       const created = await budgetService.createBudget(data);
 
       setSuccessMessage('Budget created successfully!');
 
+      if (created.parentCategoryBudgetUpdated) {
+        const info = created.parentCategoryBudgetUpdated;
+        const period = info.month ? `${getMonthName(info.month)} ${info.year}` : `${info.year}`;
+        if (info.previousAmount > 0) {
+          setParentCatUpdateMessage(
+            `Budget for '${info.parentCategoryName}' has been updated from ${formatCurrency(info.previousAmount)} to ${formatCurrency(info.newAmount)} for ${period}.`
+          );
+        } else {
+          setParentCatUpdateMessage(
+            `Budget for '${info.parentCategoryName}' has been created with ${formatCurrency(info.newAmount)} for ${period}.`
+          );
+        }
+      }
+
       // Redirect to budgets list after a short delay
       setTimeout(() => {
         router.push('/budgets');
-      }, 1500);
+      }, 2500);
     } catch (error) {
       // Error handling is done in BudgetForm component
       throw error;
@@ -66,6 +82,13 @@ export default function NewBudgetPage() {
       {successMessage && (
         <Alert severity="success" sx={{ mb: 3 }}>
           {successMessage}
+        </Alert>
+      )}
+
+      {/* Parent Category Budget Update Message */}
+      {parentCatUpdateMessage && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          {parentCatUpdateMessage}
         </Alert>
       )}
 

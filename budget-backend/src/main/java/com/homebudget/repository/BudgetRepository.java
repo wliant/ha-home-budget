@@ -176,4 +176,15 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
     @Query("SELECT COUNT(b) FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NOT NULL")
     long countMonthlyBudgetsForCategory(@Param("categoryId") Long categoryId,
                                         @Param("year") Integer year);
+
+    /**
+     * Sum budget amounts for all child categories of a parent, for a given period.
+     * Used for "including children" subtotal display.
+     */
+    @Query("SELECT COALESCE(SUM(b.totalAmount), 0) FROM Budget b " +
+           "WHERE b.category.parentCategory.id = :parentCategoryId " +
+           "AND b.year = :year AND b.month = :month")
+    BigDecimal sumBudgetsByChildCategoriesAndPeriod(@Param("parentCategoryId") Long parentCategoryId,
+                                                     @Param("year") Integer year,
+                                                     @Param("month") Integer month);
 }

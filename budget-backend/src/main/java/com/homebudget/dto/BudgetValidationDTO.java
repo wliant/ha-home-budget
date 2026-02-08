@@ -15,6 +15,12 @@ public class BudgetValidationDTO {
     private BigDecimal monthlyBudgetSum;
     private boolean monthlyBudgetsExist;
 
+    // Parent category budget fields (category hierarchy)
+    private boolean parentCategoryBudgetExists;
+    private Long parentCategoryBudgetId;
+    private BigDecimal parentCategoryBudgetAmount;
+    private String parentCategoryName;
+
     public boolean isDuplicate() {
         return duplicate;
     }
@@ -69,5 +75,37 @@ public class BudgetValidationDTO {
 
     public void setMonthlyBudgetsExist(boolean monthlyBudgetsExist) {
         this.monthlyBudgetsExist = monthlyBudgetsExist;
+    }
+
+    public boolean isParentCategoryBudgetExists() {
+        return parentCategoryBudgetExists;
+    }
+
+    public void setParentCategoryBudgetExists(boolean parentCategoryBudgetExists) {
+        this.parentCategoryBudgetExists = parentCategoryBudgetExists;
+    }
+
+    public Long getParentCategoryBudgetId() {
+        return parentCategoryBudgetId;
+    }
+
+    public void setParentCategoryBudgetId(Long parentCategoryBudgetId) {
+        this.parentCategoryBudgetId = parentCategoryBudgetId;
+    }
+
+    public BigDecimal getParentCategoryBudgetAmount() {
+        return parentCategoryBudgetAmount;
+    }
+
+    public void setParentCategoryBudgetAmount(BigDecimal parentCategoryBudgetAmount) {
+        this.parentCategoryBudgetAmount = parentCategoryBudgetAmount;
+    }
+
+    public String getParentCategoryName() {
+        return parentCategoryName;
+    }
+
+    public void setParentCategoryName(String parentCategoryName) {
+        this.parentCategoryName = parentCategoryName;
     }
 }

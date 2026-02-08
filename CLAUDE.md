@@ -258,6 +258,8 @@ All bash scripts support:
 - MySQL 8.0 (via Testcontainers for integration/E2E), H2 in-memory (retained for existing unit tests) (010-backend-test-suite)
 - Java 17 (backend), TypeScript 5.x (frontend) + Spring Boot 3.2.0, Spring Data JPA, Next.js 14.x, Material-UI v5, Axios (011-expense-list-view)
 - MySQL 8.0 (existing database with expenses, budgets, categories tables) (011-expense-list-view)
+- Java 17 (backend), TypeScript 5.x (frontend) + Spring Boot 3.2.0, Spring Data JPA, Next.js 14.x, Material-UI v5, React 18.x, Axios (012-parent-category-budgets)
+- MySQL 8.0 (existing database with categories, budgets, expenses tables) (012-parent-category-budgets)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

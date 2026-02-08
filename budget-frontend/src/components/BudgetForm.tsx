@@ -16,6 +16,7 @@ import {
   Checkbox,
   FormHelperText,
   Divider,
+  ListSubheader,
 } from '@mui/material';
 import { CreateBudgetRequest, getMonthName, budgetService, BudgetValidationDTO } from '@/services/budgetService';
 import { categoryService, CategoryDTO } from '@/services/categoryService';
@@ -56,6 +57,8 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
     createParentBudget: false,
     extendParentBudget: false,
     parentTotalAmount: undefined,
+    createParentCategoryBudget: false,
+    parentCategoryBudgetAmount: undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -65,6 +68,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [validation, setValidation] = useState<BudgetValidationDTO | null>(null);
   const [parentAmountTouched, setParentAmountTouched] = useState(false);
+  const [parentCatAmountTouched, setParentCatAmountTouched] = useState(false);
 
   // Load categories on mount
   useEffect(() => {
@@ -91,20 +95,40 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
     label: getMonthName(i + 1),
   }));
 
-  const flattenLeafCategories = (nodes: CategoryDTO[]): CategoryDTO[] => {
-    const leaves: CategoryDTO[] = [];
+  const buildGroupedCategoryItems = (nodes: CategoryDTO[]): React.ReactNode[] => {
+    const items: React.ReactNode[] = [];
     nodes.forEach((node) => {
       const children = node.children || node.childCategories || [];
       if (children.length > 0) {
-        leaves.push(...flattenLeafCategories(children));
+        items.push(
+          <ListSubheader key={`header-${node.id}`} sx={{ lineHeight: '36px', backgroundColor: 'background.paper' }}>
+            {node.icon && `${node.icon} `}{node.name}
+          </ListSubheader>
+        );
+        items.push(
+          <MenuItem key={node.id} value={node.id} sx={{ pl: 3 }}>
+            {node.icon && `${node.icon} `}{node.name} (All)
+          </MenuItem>
+        );
+        children.forEach((child) => {
+          items.push(
+            <MenuItem key={child.id} value={child.id} sx={{ pl: 4 }}>
+              {child.icon && `${child.icon} `}{child.name}
+            </MenuItem>
+          );
+        });
       } else {
-        leaves.push(node);
+        items.push(
+          <MenuItem key={node.id} value={node.id}>
+            {node.icon && `${node.icon} `}{node.name}
+          </MenuItem>
+        );
       }
     });
-    return leaves;
+    return items;
   };
 
-  const leafCategories = flattenLeafCategories(categories);
+  const hasCategories = categories.length > 0;
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -131,6 +155,10 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
 
     if ((formData.createParentBudget || formData.extendParentBudget) && (!formData.parentTotalAmount || formData.parentTotalAmount <= 0)) {
       newErrors.parentTotalAmount = 'Parent budget amount must be greater than 0';
+    }
+
+    if (formData.createParentCategoryBudget && (!formData.parentCategoryBudgetAmount || formData.parentCategoryBudgetAmount <= 0)) {
+      newErrors.parentCategoryBudgetAmount = 'Parent category budget amount must be greater than 0';
     }
 
     setErrors(newErrors);
@@ -223,6 +251,29 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
     && validation.parentBudgetAmount !== undefined
     && formData.totalAmount + validation.monthlyBudgetSum > validation.parentBudgetAmount;
 
+  // Parent category budget: show checkbox when child category selected and no parent category budget exists
+  const selectedCategoryIsChild = validation?.parentCategoryName !== undefined && validation?.parentCategoryName !== null;
+  const shouldShowParentCatCreate = selectedCategoryIsChild && validation && !validation.parentCategoryBudgetExists;
+  const parentCatBudgetWillAutoIncrement = selectedCategoryIsChild && validation && validation.parentCategoryBudgetExists;
+
+  // Default the parent category budget checkbox to checked when it first appears
+  useEffect(() => {
+    if (shouldShowParentCatCreate && formData.createParentCategoryBudget === false) {
+      setFormData((prev) => ({
+        ...prev,
+        createParentCategoryBudget: true,
+        parentCategoryBudgetAmount: prev.totalAmount || 0,
+      }));
+      setParentCatAmountTouched(false);
+    }
+  }, [shouldShowParentCatCreate]);
+
+  useEffect(() => {
+    if (shouldShowParentCatCreate && formData.createParentCategoryBudget && !parentCatAmountTouched) {
+      setFormData((prev) => ({ ...prev, parentCategoryBudgetAmount: prev.totalAmount || 0 }));
+    }
+  }, [shouldShowParentCatCreate, formData.createParentCategoryBudget, formData.totalAmount, parentCatAmountTouched]);
+
   useEffect(() => {
     if (shouldShowParentCreate && !formData.parentTotalAmount) {
       if (!parentAmountTouched) {
@@ -294,6 +345,8 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
                 createParentBudget: false,
                 extendParentBudget: false,
                 parentTotalAmount: undefined,
+                createParentCategoryBudget: false,
+                parentCategoryBudgetAmount: undefined,
               }));
               setParentAmountTouched(false);
             }}
@@ -316,7 +369,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
           <Select
             value={formData.categoryId || ''}
             onChange={(e) => {
-              setFormData({ ...formData, categoryId: Number(e.target.value) });
+              setFormData({ ...formData, categoryId: Number(e.target.value), createParentCategoryBudget: false, parentCategoryBudgetAmount: undefined });
               if (errors.categoryId) {
                 setErrors((prev) => {
                   const newErrors = { ...prev };
@@ -328,17 +381,12 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
             label="Category"
             disabled={isEdit || isLoadingCategories}
           >
-            {leafCategories.length === 0 ? (
+            {!hasCategories ? (
               <MenuItem value="" disabled>
                 <em>No categories available. Please create a category first.</em>
               </MenuItem>
             ) : (
-              leafCategories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.icon && `${category.icon} `}{category.name}
-                  {category.parentCategory && ` (${category.parentCategory.name})`}
-                </MenuItem>
-              ))
+              buildGroupedCategoryItems(categories)
             )}
           </Select>
           {errors.categoryId && (
@@ -451,6 +499,52 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
                   />
                 )}
               </Box>
+            )}
+
+            {shouldShowParentCatCreate && (
+              <Box sx={{ mb: 2 }}>
+                <FormControlLabel
+                  control={(
+                    <Checkbox
+                      checked={formData.createParentCategoryBudget ?? true}
+                      onChange={(e) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          createParentCategoryBudget: e.target.checked,
+                          parentCategoryBudgetAmount: e.target.checked ? (prev.parentCategoryBudgetAmount ?? prev.totalAmount || 0) : undefined,
+                        }));
+                        setParentCatAmountTouched(false);
+                      }}
+                    />
+                  )}
+                  label={`Also create budget for parent category '${validation?.parentCategoryName}'`}
+                />
+                {formData.createParentCategoryBudget && (
+                  <TextField
+                    label={`Parent Category '${validation?.parentCategoryName}' Budget Amount`}
+                    type="number"
+                    value={formData.parentCategoryBudgetAmount ?? ''}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        parentCategoryBudgetAmount: parseFloat(e.target.value) || 0,
+                      }));
+                      setParentCatAmountTouched(true);
+                    }}
+                    error={!!errors.parentCategoryBudgetAmount}
+                    helperText={errors.parentCategoryBudgetAmount || 'Budget amount for the parent category'}
+                    fullWidth
+                    inputProps={{ min: 0, step: 0.01 }}
+                    sx={{ mt: 1 }}
+                  />
+                )}
+              </Box>
+            )}
+
+            {parentCatBudgetWillAutoIncrement && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Budget for &apos;{validation?.parentCategoryName}&apos; will be automatically increased by the child budget amount.
+              </Alert>
             )}
 
             {errors.parentBudget && (

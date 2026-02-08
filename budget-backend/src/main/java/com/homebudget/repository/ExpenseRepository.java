@@ -235,4 +235,68 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "WHERE e.budget.id = :budgetId " +
             "GROUP BY e.category.id")
     List<Object[]> getCategoryBreakdown(@Param("budgetId") Long budgetId);
+
+    /**
+     * Sum expense amounts across all budgets whose category's parent is the given parentCategoryId,
+     * for a given year and month.
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e " +
+            "WHERE e.budget.category.parentCategory.id = :parentCategoryId " +
+            "AND e.budget.year = :year AND e.budget.month = :month")
+    BigDecimal sumExpensesByParentCategoryBudgets(@Param("parentCategoryId") Long parentCategoryId,
+                                                   @Param("year") Integer year,
+                                                   @Param("month") Integer month);
+
+    /**
+     * Paginated expense query filtering by multiple category IDs.
+     * Used when filtering by a parent category (includes parent + all child category IDs).
+     */
+    @Query("SELECT e FROM Expense e LEFT JOIN FETCH e.category WHERE " +
+            "e.category.id IN :categoryIds AND " +
+            "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
+            "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
+            "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
+            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+    Page<Expense> findByFiltersPageableWithCategoryIds(@Param("categoryIds") List<Long> categoryIds,
+                                                        @Param("startDate") LocalDate startDate,
+                                                        @Param("endDate") LocalDate endDate,
+                                                        @Param("minAmount") BigDecimal minAmount,
+                                                        @Param("maxAmount") BigDecimal maxAmount,
+                                                        @Param("createdBy") String createdBy,
+                                                        Pageable pageable);
+
+    /**
+     * Count query for findByFiltersPageableWithCategoryIds.
+     */
+    @Query("SELECT COUNT(e) FROM Expense e WHERE " +
+            "e.category.id IN :categoryIds AND " +
+            "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
+            "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
+            "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
+            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+    long countByFiltersPageableWithCategoryIds(@Param("categoryIds") List<Long> categoryIds,
+                                                @Param("startDate") LocalDate startDate,
+                                                @Param("endDate") LocalDate endDate,
+                                                @Param("minAmount") BigDecimal minAmount,
+                                                @Param("maxAmount") BigDecimal maxAmount,
+                                                @Param("createdBy") String createdBy);
+
+    /**
+     * Aggregate total amount for expenses filtered by multiple category IDs.
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE " +
+            "e.category.id IN :categoryIds AND " +
+            "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
+            "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
+            "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
+            "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
+            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+    BigDecimal getFilteredTotalAmountWithCategoryIds(@Param("categoryIds") List<Long> categoryIds,
+                                                      @Param("startDate") LocalDate startDate,
+                                                      @Param("endDate") LocalDate endDate,
+                                                      @Param("minAmount") BigDecimal minAmount,
+                                                      @Param("maxAmount") BigDecimal maxAmount,
+                                                      @Param("createdBy") String createdBy);
 }

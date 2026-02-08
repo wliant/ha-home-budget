@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -128,7 +129,15 @@ public class ExpenseService {
         } else if (budgetId != null) {
             expenses = expenseRepository.findByBudgetId(budgetId);
         } else if (categoryId != null) {
-            expenses = expenseRepository.findByCategoryId(categoryId);
+            List<Long> expandedIds = expandCategoryIds(categoryId);
+            if (expandedIds != null) {
+                expenses = new ArrayList<>();
+                for (Long catId : expandedIds) {
+                    expenses.addAll(expenseRepository.findByCategoryId(catId));
+                }
+            } else {
+                expenses = expenseRepository.findByCategoryId(categoryId);
+            }
         } else if (startDate != null && endDate != null) {
             expenses = expenseRepository.findByExpenseDateBetween(startDate, endDate);
         } else if (createdBy != null) {
@@ -264,13 +273,23 @@ public class ExpenseService {
 
         logger.debug("Date range: {} to {}", startDate, endDate);
 
-        // Get paginated results
-        Page<Expense> page = expenseRepository.findByFiltersPageable(
-                categoryId, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+        // Expand category filter to include child categories if parent category selected
+        List<Long> expandedCategoryIds = expandCategoryIds(categoryId);
 
-        // Get aggregate total amount for all matching expenses
-        BigDecimal totalAmount = expenseRepository.getFilteredTotalAmount(
-                categoryId, startDate, endDate, minAmount, maxAmount, createdBy);
+        // Get paginated results
+        Page<Expense> page;
+        BigDecimal totalAmount;
+        if (expandedCategoryIds != null) {
+            page = expenseRepository.findByFiltersPageableWithCategoryIds(
+                    expandedCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+            totalAmount = expenseRepository.getFilteredTotalAmountWithCategoryIds(
+                    expandedCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy);
+        } else {
+            page = expenseRepository.findByFiltersPageable(
+                    categoryId, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+            totalAmount = expenseRepository.getFilteredTotalAmount(
+                    categoryId, startDate, endDate, minAmount, maxAmount, createdBy);
+        }
 
         // Convert to DTOs
         List<ExpenseDTO> content = page.getContent().stream()
@@ -367,6 +386,29 @@ public class ExpenseService {
 
         return budgetRepository.findById(dto.getBudgetId())
                 .orElseThrow(() -> new BudgetNotFoundException(dto.getBudgetId()));
+    }
+
+    /**
+     * If the given categoryId is a parent category (has children), expand to a list
+     * containing the parent + all child category IDs. Returns null if not a parent category
+     * or categoryId is null.
+     */
+    private List<Long> expandCategoryIds(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        long childCount = categoryRepository.countByParentCategoryId(categoryId);
+        if (childCount == 0) {
+            return null;
+        }
+        List<Long> ids = new ArrayList<>();
+        ids.add(categoryId);
+        List<Category> children = categoryRepository.findByParentCategoryId(categoryId);
+        for (Category child : children) {
+            ids.add(child.getId());
+        }
+        logger.debug("Expanded category filter: parent={} -> {} category IDs", categoryId, ids.size());
+        return ids;
     }
 
     /**

@@ -9,6 +9,14 @@ import api from './api';
 // Type Definitions
 // ============================================================================
 
+export interface ParentCategoryBudgetUpdateInfo {
+  parentCategoryName: string;
+  previousAmount: number;
+  newAmount: number;
+  year: number;
+  month?: number | null;
+}
+
 export interface BudgetDTO {
   id?: number;
   year: number;
@@ -25,6 +33,7 @@ export interface BudgetDTO {
   createParentBudget?: boolean;
   extendParentBudget?: boolean;
   parentTotalAmount?: number;
+  parentCategoryBudgetUpdated?: ParentCategoryBudgetUpdateInfo;
 }
 
 export interface BudgetSummaryDTO {
@@ -43,6 +52,9 @@ export interface BudgetSummaryDTO {
   expenses?: ExpenseDTO[];
   categoryId?: number;
   category?: CategoryDTO;
+  childrenBudgetSum?: number;
+  childrenSpending?: number;
+  isParentCategory?: boolean;
 }
 
 export interface ExpenseDTO {
@@ -84,6 +96,8 @@ export interface CreateBudgetRequest {
   createParentBudget?: boolean;
   extendParentBudget?: boolean;
   parentTotalAmount?: number;
+  createParentCategoryBudget?: boolean;
+  parentCategoryBudgetAmount?: number;
 }
 
 export interface UpdateBudgetRequest {
@@ -99,6 +113,10 @@ export interface BudgetValidationDTO {
   parentBudgetAmount?: number;
   monthlyBudgetSum: number;
   monthlyBudgetsExist: boolean;
+  parentCategoryBudgetExists: boolean;
+  parentCategoryBudgetId?: number;
+  parentCategoryBudgetAmount?: number;
+  parentCategoryName?: string;
 }
 
 export interface YearlyMonthlyBudgetDTO {

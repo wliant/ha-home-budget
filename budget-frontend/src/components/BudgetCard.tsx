@@ -86,6 +86,11 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({
           <Typography variant="h5" component="div">
             {formatCurrency(budget.totalAmount)}
           </Typography>
+          {budget.isParentCategory && budget.childrenBudgetSum != null && budget.childrenBudgetSum > 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Including children: {formatCurrency(budget.totalAmount + budget.childrenBudgetSum)}
+            </Typography>
+          )}
         </Box>
 
         {/* Spending Info */}
