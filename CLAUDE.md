@@ -254,6 +254,8 @@ All bash scripts support:
 - Test results stored in Markdown files; Test data managed in MySQL 8.0 database (reset before each major test suite) (008-comprehensive-functional-testing)
 - Java 17 (existing Spring Boot backend) + Logback (SLF4J implementation), Logstash Logback Encoder for JSON formatting, Spring Boot AOP for request interception (009-structured-logging)
 - N/A (logs written to stdout, consumed by external aggregation) (009-structured-logging)
+- Java 17 + Spring Boot 3.2.0, spring-boot-starter-test (JUnit 5, Mockito, AssertJ), Testcontainers (MySQL module), Maven Failsafe Plugin (010-backend-test-suite)
+- MySQL 8.0 (via Testcontainers for integration/E2E), H2 in-memory (retained for existing unit tests) (010-backend-test-suite)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)
