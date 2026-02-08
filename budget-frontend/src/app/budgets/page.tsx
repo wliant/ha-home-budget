@@ -52,6 +52,7 @@ export default function BudgetsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedSort, setSelectedSort] = useState<string>('');
+  const [selectedSortDirection, setSelectedSortDirection] = useState<'ASC' | 'DESC'>('DESC');
 
   const statusOptions = [
     { value: 'on-track', label: 'On track' },
@@ -204,14 +205,14 @@ export default function BudgetsPage() {
   const sortedBudgets = [...filteredBudgets].sort((a, b) => {
     if (selectedSort === 'available') {
       const diff = b.totalAmount - a.totalAmount;
-      if (diff !== 0) return diff;
+      if (diff !== 0) return selectedSortDirection === 'ASC' ? -diff : diff;
     }
 
     if (selectedSort === 'remaining') {
       const remainingA = a.totalAmount - a.totalSpending;
       const remainingB = b.totalAmount - b.totalSpending;
       const diff = remainingB - remainingA;
-      if (diff !== 0) return diff;
+      if (diff !== 0) return selectedSortDirection === 'ASC' ? -diff : diff;
     }
 
     return getDateSortValue(b) - getDateSortValue(a);
@@ -251,11 +252,16 @@ export default function BudgetsPage() {
     setSelectedSort(event.target.value);
   };
 
+  const handleSortDirectionChange = (event: SelectChangeEvent<string>) => {
+    setSelectedSortDirection(event.target.value as 'ASC' | 'DESC');
+  };
+
   const handleClearFilters = () => {
     setSelectedYear('');
     setSelectedCategoryId('');
     setSelectedStatus('');
     setSelectedSort('');
+    setSelectedSortDirection('DESC');
   };
 
   const hasFilters =
@@ -391,6 +397,20 @@ export default function BudgetsPage() {
               <MenuItem value="">Date (latest first)</MenuItem>
               <MenuItem value="available">Available budget</MenuItem>
               <MenuItem value="remaining">Remaining budget</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel id="budget-sort-direction-label">Direction</InputLabel>
+            <Select
+              labelId="budget-sort-direction-label"
+              value={selectedSortDirection}
+              onChange={handleSortDirectionChange}
+              label="Direction"
+              disabled={selectedSort === ''}
+            >
+              <MenuItem value="DESC">High to low</MenuItem>
+              <MenuItem value="ASC">Low to high</MenuItem>
             </Select>
           </FormControl>
 
