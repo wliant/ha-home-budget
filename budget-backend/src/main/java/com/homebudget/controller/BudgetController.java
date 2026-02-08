@@ -2,6 +2,8 @@ package com.homebudget.controller;
 
 import com.homebudget.dto.BudgetDTO;
 import com.homebudget.dto.BudgetSummaryDTO;
+import com.homebudget.dto.BudgetValidationDTO;
+import com.homebudget.dto.YearlyBudgetViewDTO;
 import com.homebudget.service.BudgetService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -117,5 +119,27 @@ public class BudgetController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(budget);
+    }
+
+    /**
+     * Budget validation hints for create budget UI.
+     */
+    @GetMapping("/validation")
+    public ResponseEntity<BudgetValidationDTO> getBudgetValidation(
+            @RequestParam Long categoryId,
+            @RequestParam Integer year,
+            @RequestParam(required = false) Integer month) {
+        BudgetValidationDTO validation = budgetService.getBudgetValidation(categoryId, year, month);
+        return ResponseEntity.ok(validation);
+    }
+
+    /**
+     * Yearly budget view for a given year.
+     */
+    @GetMapping("/yearly")
+    public ResponseEntity<YearlyBudgetViewDTO> getYearlyBudgetView(
+            @RequestParam Integer year) {
+        YearlyBudgetViewDTO view = budgetService.getYearlyBudgetView(year);
+        return ResponseEntity.ok(view);
     }
 }

@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import BudgetCard from '@/components/BudgetCard';
-import { budgetService, BudgetSummaryDTO } from '@/services/budgetService';
+import { budgetService, BudgetSummaryDTO, formatBudgetPeriod } from '@/services/budgetService';
 
 /**
  * Budgets list page - User Story 1: Create and View Budgets
@@ -185,7 +185,7 @@ export default function BudgetsPage() {
         <DialogContent>
           <DialogContentText id="delete-dialog-description">
             Are you sure you want to delete the budget for{' '}
-            {deletingBudget && `${deletingBudget.year}-${String(deletingBudget.month).padStart(2, '0')}`}?
+            {deletingBudget && formatBudgetPeriod(deletingBudget.year, deletingBudget.month)}?
             {deletingBudget && deletingBudget.expenseCount > 0 && (
               <>
                 <br /><br />

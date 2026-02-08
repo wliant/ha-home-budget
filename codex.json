@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "read": true,
+    "write": true,
+    "exec": {
+      "allow": [
+        "docker",
+        "docker-compose",
+        "kubectl",
+        "npm",
+        "npx",
+        "python3",
+        "curl",
+        "git"
+      ]
+    },
+    "autoApprove": true
+  }
+}

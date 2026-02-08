@@ -10,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Budget entity representing a household's monthly spending plan.
+ * Budget entity representing a household's spending plan.
  *
- * Each budget is for a specific month and year with a target spending amount.
+ * Budgets can be monthly (month set) or yearly (month null).
  * Budgets track all expenses recorded against them and calculate spending totals.
  */
 @Entity
@@ -29,10 +29,9 @@ public class Budget {
     @Column(nullable = false)
     private Integer year;
 
-    @NotNull
     @Min(1)
     @Max(12)
-    @Column(nullable = false)
+    @Column
     private Integer month;
 
     @NotNull

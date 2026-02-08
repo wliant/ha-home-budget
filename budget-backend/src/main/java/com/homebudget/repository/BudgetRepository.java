@@ -77,6 +77,20 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
                                                        @Param("month") Integer month);
 
     /**
+     * Find parent (yearly) budget by category and year (month is null).
+     */
+    @Query("SELECT b FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NULL")
+    Optional<Budget> findParentBudget(@Param("categoryId") Long categoryId,
+                                      @Param("year") Integer year);
+
+    /**
+     * Check if a parent (yearly) budget exists for category and year.
+     */
+    @Query("SELECT COUNT(b) > 0 FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NULL")
+    boolean existsParentBudget(@Param("categoryId") Long categoryId,
+                               @Param("year") Integer year);
+
+    /**
      * Check if a budget exists for a specific category, year, and month.
      *
      * @param categoryId the category ID
@@ -136,4 +150,23 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
     List<Budget> findChildBudgets(@Param("parentCategoryId") Long parentCategoryId,
                                    @Param("year") Integer year,
                                    @Param("month") Integer month);
+
+    /**
+     * Find all budgets for a specific year (including yearly budgets where month is null).
+     */
+    List<Budget> findByYear(Integer year);
+
+    /**
+     * Sum all monthly budgets for a category in a given year.
+     */
+    @Query("SELECT SUM(b.totalAmount) FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NOT NULL")
+    BigDecimal sumMonthlyBudgetsForCategory(@Param("categoryId") Long categoryId,
+                                            @Param("year") Integer year);
+
+    /**
+     * Count monthly budgets for a category in a given year.
+     */
+    @Query("SELECT COUNT(b) FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NOT NULL")
+    long countMonthlyBudgetsForCategory(@Param("categoryId") Long categoryId,
+                                        @Param("year") Integer year);
 }

@@ -12,7 +12,7 @@ import api from './api';
 export interface BudgetDTO {
   id?: number;
   year: number;
-  month: number; // 1-12
+  month?: number | null; // 1-12 or null for yearly
   totalAmount: number;
   description?: string;
   createdBy?: string;
@@ -21,12 +21,16 @@ export interface BudgetDTO {
   version?: number;
   categoryId?: number;
   category?: CategoryDTO;
+  autoCreateChildren?: boolean;
+  createParentBudget?: boolean;
+  extendParentBudget?: boolean;
+  parentTotalAmount?: number;
 }
 
 export interface BudgetSummaryDTO {
   id: number;
   year: number;
-  month: number;
+  month?: number | null;
   totalAmount: number;
   description?: string;
   createdBy: string;
@@ -67,19 +71,63 @@ export interface CategoryDTO {
   parentCategoryId?: number;
   parentCategory?: CategoryDTO;
   childCategories?: CategoryDTO[];
+  children?: CategoryDTO[];
 }
 
 export interface CreateBudgetRequest {
   year: number;
-  month: number;
+  month?: number | null;
   totalAmount: number;
   description?: string;
   categoryId: number;
+  autoCreateChildren?: boolean;
+  createParentBudget?: boolean;
+  extendParentBudget?: boolean;
+  parentTotalAmount?: number;
 }
 
 export interface UpdateBudgetRequest {
   totalAmount: number;
   description?: string;
+}
+
+export interface BudgetValidationDTO {
+  duplicate: boolean;
+  duplicateMessage?: string;
+  parentBudgetExists: boolean;
+  parentBudgetId?: number;
+  parentBudgetAmount?: number;
+  monthlyBudgetSum: number;
+  monthlyBudgetsExist: boolean;
+}
+
+export interface YearlyMonthlyBudgetDTO {
+  month: number;
+  budgetAmount: number;
+  spending: number;
+  remaining: number;
+  hasBudget: boolean;
+}
+
+export interface YearlyCategoryBudgetDTO {
+  categoryId: number;
+  categoryName: string;
+  categoryIcon?: string;
+  parentCategoryId?: number;
+  parentCategoryName?: string;
+  yearlyBudgetAmount: number;
+  monthlyBudgetSum: number;
+  yearlySpending: number;
+  yearlyRemaining: number;
+  months: YearlyMonthlyBudgetDTO[];
+}
+
+export interface YearlyBudgetViewDTO {
+  year: number;
+  totalBudget: number;
+  totalSpending: number;
+  totalRemaining: number;
+  categories: YearlyCategoryBudgetDTO[];
 }
 
 // ============================================================================
@@ -134,6 +182,20 @@ export const budgetService = {
     const response = await api.get<BudgetSummaryDTO>('/api/budgets/current');
     return response.data;
   },
+
+  getBudgetValidation: async (categoryId: number, year: number, month?: number | null): Promise<BudgetValidationDTO> => {
+    const params = new URLSearchParams({ categoryId: String(categoryId), year: String(year) });
+    if (month) {
+      params.append('month', String(month));
+    }
+    const response = await api.get<BudgetValidationDTO>(`/api/budgets/validation?${params.toString()}`);
+    return response.data;
+  },
+
+  getYearlyBudgetView: async (year: number): Promise<YearlyBudgetViewDTO> => {
+    const response = await api.get<YearlyBudgetViewDTO>(`/api/budgets/yearly?year=${year}`);
+    return response.data;
+  },
 };
 
 // ============================================================================
@@ -164,7 +226,10 @@ export const getMonthName = (month: number): string => {
 /**
  * Format budget period (e.g., "January 2025").
  */
-export const formatBudgetPeriod = (year: number, month: number): string => {
+export const formatBudgetPeriod = (year: number, month?: number | null): string => {
+  if (!month) {
+    return `${year} (Yearly)`;
+  }
   return `${getMonthName(month)} ${year}`;
 };
 

@@ -93,6 +93,36 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle parent budget validation errors.
+     */
+    @ExceptionHandler(ParentBudgetMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleParentBudgetMismatch(ParentBudgetMismatchException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Handle illegal argument errors (bad user input).
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
      * Handle expense not found errors.
      *
      * @param ex expense not found exception

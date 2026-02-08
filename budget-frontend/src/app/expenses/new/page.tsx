@@ -51,6 +51,9 @@ export default function NewExpensePage() {
       try {
         const budgets = await budgetService.getAllBudgets();
         const matchingBudgets = budgets.filter((b) => {
+          if (!b.month) {
+            return false;
+          }
           // Calculate start and end dates from year and month
           const startDate = `${b.year}-${String(b.month).padStart(2, '0')}-01`;
           const lastDay = new Date(b.year, b.month, 0).getDate();

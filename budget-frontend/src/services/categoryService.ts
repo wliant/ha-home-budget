@@ -19,6 +19,7 @@ export interface CategoryDTO {
   parentCategoryId?: number;
   parentCategory?: CategoryDTO;
   childCategories?: CategoryDTO[];
+  children?: CategoryDTO[];
   budgetCount?: number;
 }
 

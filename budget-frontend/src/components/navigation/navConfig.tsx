@@ -5,6 +5,7 @@ import {
   AccountBalanceWallet as WalletIcon,
   Category as CategoryIcon,
   Receipt as ReceiptIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 
 export type NavItem = {
@@ -36,7 +37,13 @@ export const navItems: NavItem[] = [
     label: 'Budgets',
     href: '/budgets',
     icon: <WalletIcon />,
-    match: (pathname) => pathname === '/budgets' || pathname.startsWith('/budgets/'),
+    match: (pathname) => pathname === '/budgets' || /^\/budgets\/\d+/.test(pathname) || pathname === '/budgets/new',
+  },
+  {
+    label: 'Yearly View',
+    href: '/budgets/yearly',
+    icon: <CalendarIcon />,
+    match: (pathname) => pathname === '/budgets/yearly',
   },
   {
     label: 'Categories',
@@ -73,6 +80,14 @@ const breadcrumbDefinitions: Array<{ regex: RegExp; crumbs: BreadcrumbItem[] }> 
       { label: 'Home', href: '/' },
       { label: 'Budgets', href: '/budgets' },
       { label: 'New Budget' },
+    ],
+  },
+  {
+    regex: /^\/budgets\/yearly$/,
+    crumbs: [
+      { label: 'Home', href: '/' },
+      { label: 'Budgets', href: '/budgets' },
+      { label: 'Yearly View' },
     ],
   },
   {

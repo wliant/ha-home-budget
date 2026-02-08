@@ -31,4 +31,7 @@
     <!-- Feature 004: Hierarchical Category Budgets -->
     <include file="db/changelog/changes/006-add-category-hierarchy.xml"/>
 
+    <!-- Feature 007: Yearly Budgets -->
+    <include file="db/changelog/changes/007-update-budgets-yearly-parent.xml"/>
+
 </databaseChangeLog>

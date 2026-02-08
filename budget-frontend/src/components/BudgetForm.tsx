@@ -12,8 +12,12 @@ import {
   FormControl,
   InputLabel,
   Select,
+  FormControlLabel,
+  Checkbox,
+  FormHelperText,
+  Divider,
 } from '@mui/material';
-import { CreateBudgetRequest, getMonthName } from '@/services/budgetService';
+import { CreateBudgetRequest, getMonthName, budgetService, BudgetValidationDTO } from '@/services/budgetService';
 import { categoryService, CategoryDTO } from '@/services/categoryService';
 
 /**
@@ -44,10 +48,14 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
 
   const [formData, setFormData] = useState<CreateBudgetRequest>({
     year: initialValues?.year || currentYear,
-    month: initialValues?.month || currentMonth,
+    month: initialValues?.month ?? currentMonth,
     totalAmount: initialValues?.totalAmount || 0,
     description: initialValues?.description || '',
     categoryId: initialValues?.categoryId || 0,
+    autoCreateChildren: false,
+    createParentBudget: false,
+    extendParentBudget: false,
+    parentTotalAmount: undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -55,12 +63,14 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
   const [submitError, setSubmitError] = useState<string>('');
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [validation, setValidation] = useState<BudgetValidationDTO | null>(null);
+  const [parentAmountTouched, setParentAmountTouched] = useState(false);
 
   // Load categories on mount
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const data = await categoryService.getAllCategories();
+        const data = await categoryService.getCategoryHierarchy();
         setCategories(data);
       } catch (error) {
         console.error('Failed to load categories:', error);
@@ -81,6 +91,21 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
     label: getMonthName(i + 1),
   }));
 
+  const flattenLeafCategories = (nodes: CategoryDTO[]): CategoryDTO[] => {
+    const leaves: CategoryDTO[] = [];
+    nodes.forEach((node) => {
+      const children = node.children || node.childCategories || [];
+      if (children.length > 0) {
+        leaves.push(...flattenLeafCategories(children));
+      } else {
+        leaves.push(node);
+      }
+    });
+    return leaves;
+  };
+
+  const leafCategories = flattenLeafCategories(categories);
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -94,6 +119,18 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
 
     if (formData.totalAmount > 999999.99) {
       newErrors.totalAmount = 'Budget amount must be less than $999,999.99';
+    }
+
+    if (formData.month && validation && !validation.parentBudgetExists && !formData.createParentBudget) {
+      newErrors.parentBudget = 'Parent yearly budget is required for monthly budgets';
+    }
+
+    if (formData.month && shouldShowParentExtend && !formData.extendParentBudget) {
+      newErrors.parentBudget = 'Monthly budgets exceed parent yearly budget. Extend parent budget or reduce amount.';
+    }
+
+    if ((formData.createParentBudget || formData.extendParentBudget) && (!formData.parentTotalAmount || formData.parentTotalAmount <= 0)) {
+      newErrors.parentTotalAmount = 'Parent budget amount must be greater than 0';
     }
 
     setErrors(newErrors);
@@ -140,6 +177,9 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
       // Handle different error types
       if (error.response?.status === 409) {
         setSubmitError('A budget already exists for this month');
+      } else if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+        setSubmitError(error.response.data.message || 'Validation failed');
       } else if (error.response?.data?.message) {
         setSubmitError(error.response.data.message);
       } else {
@@ -149,6 +189,67 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    const shouldValidate = formData.categoryId && formData.year;
+    if (!shouldValidate) {
+      setValidation(null);
+      return;
+    }
+
+    const loadValidation = async () => {
+      try {
+        const response = await budgetService.getBudgetValidation(
+          formData.categoryId,
+          formData.year,
+          formData.month ?? null
+        );
+        setValidation(response);
+      } catch (error) {
+        console.error('Failed to validate budget:', error);
+      } finally {
+        // no-op
+      }
+    };
+
+    loadValidation();
+  }, [formData.categoryId, formData.year, formData.month]);
+
+  const shouldShowParentCreate = !!formData.month && validation && !validation.parentBudgetExists;
+  const shouldShowParentExtend = !!formData.month
+    && validation
+    && validation.parentBudgetExists
+    && formData.totalAmount > 0
+    && validation.parentBudgetAmount !== undefined
+    && formData.totalAmount + validation.monthlyBudgetSum > validation.parentBudgetAmount;
+
+  useEffect(() => {
+    if (shouldShowParentCreate && !formData.parentTotalAmount) {
+      if (!parentAmountTouched) {
+        setFormData((prev) => ({ ...prev, parentTotalAmount: prev.totalAmount || 0 }));
+      }
+    }
+  }, [shouldShowParentCreate, formData.totalAmount, formData.parentTotalAmount, parentAmountTouched]);
+
+  useEffect(() => {
+    if (shouldShowParentExtend && validation?.parentBudgetAmount !== undefined && !formData.parentTotalAmount) {
+      if (!parentAmountTouched) {
+        setFormData((prev) => ({ ...prev, parentTotalAmount: validation.parentBudgetAmount }));
+      }
+    }
+  }, [shouldShowParentExtend, validation, formData.parentTotalAmount, parentAmountTouched]);
+
+  useEffect(() => {
+    if (formData.createParentBudget && !parentAmountTouched) {
+      setFormData((prev) => ({ ...prev, parentTotalAmount: prev.totalAmount || 0 }));
+    }
+  }, [formData.createParentBudget, formData.totalAmount, parentAmountTouched]);
+
+  useEffect(() => {
+    if (formData.extendParentBudget && validation?.parentBudgetAmount !== undefined && !parentAmountTouched) {
+      setFormData((prev) => ({ ...prev, parentTotalAmount: validation.parentBudgetAmount }));
+    }
+  }, [formData.extendParentBudget, validation, parentAmountTouched]);
 
   return (
     <Paper elevation={2} sx={{ p: 3 }}>
@@ -182,13 +283,26 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
 
           <TextField
             select
-            label="Month"
-            value={formData.month}
-            onChange={handleChange('month')}
+            label="Month (Optional)"
+            value={formData.month ?? ''}
+            onChange={(event) => {
+              const value = event.target.value;
+              setFormData((prev) => ({
+                ...prev,
+                month: value === '' ? null : Number(value),
+                autoCreateChildren: false,
+                createParentBudget: false,
+                extendParentBudget: false,
+                parentTotalAmount: undefined,
+              }));
+              setParentAmountTouched(false);
+            }}
             disabled={isEdit}
             fullWidth
-            required
           >
+            <MenuItem value="">
+              <em>Yearly (no month)</em>
+            </MenuItem>
             {monthOptions.map((month) => (
               <MenuItem key={month.value} value={month.value}>
                 {month.label}
@@ -214,12 +328,12 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
             label="Category"
             disabled={isEdit || isLoadingCategories}
           >
-            {categories.length === 0 ? (
+            {leafCategories.length === 0 ? (
               <MenuItem value="" disabled>
                 <em>No categories available. Please create a category first.</em>
               </MenuItem>
             ) : (
-              categories.map((category) => (
+              leafCategories.map((category) => (
                 <MenuItem key={category.id} value={category.id}>
                   {category.icon && `${category.icon} `}{category.name}
                   {category.parentCategory && ` (${category.parentCategory.name})`}
@@ -240,7 +354,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
           value={formData.totalAmount || ''}
           onChange={handleChange('totalAmount')}
           error={!!errors.totalAmount}
-          helperText={errors.totalAmount || 'Enter your total budget for this month'}
+          helperText={errors.totalAmount || (formData.month ? 'Enter your total budget for this month' : 'Enter your total budget for this year')}
           fullWidth
           required
           inputProps={{
@@ -249,6 +363,121 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
           }}
           sx={{ mb: 2 }}
         />
+
+        {validation?.duplicate && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {validation.duplicateMessage || 'A budget already exists for this period.'}
+          </Alert>
+        )}
+
+        {formData.month ? (
+          <>
+            <Divider sx={{ mb: 2 }} />
+            {shouldShowParentCreate && (
+              <Box sx={{ mb: 2 }}>
+                <FormControlLabel
+                  control={(
+                    <Checkbox
+                      checked={!!formData.createParentBudget}
+                      onChange={(e) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          createParentBudget: e.target.checked,
+                          parentTotalAmount: e.target.checked ? (prev.parentTotalAmount ?? prev.totalAmount || 0) : undefined,
+                        }));
+                        setParentAmountTouched(false);
+                      }}
+                    />
+                  )}
+                  label="Create a yearly parent budget for this category"
+                />
+                {formData.createParentBudget && (
+                  <TextField
+                    label="Parent Yearly Budget Amount"
+                    type="number"
+                    value={formData.parentTotalAmount ?? ''}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        parentTotalAmount: parseFloat(e.target.value) || 0,
+                      }));
+                      setParentAmountTouched(true);
+                    }}
+                    error={!!errors.parentTotalAmount}
+                    helperText={errors.parentTotalAmount || 'Defaults to the monthly budget amount'}
+                    fullWidth
+                    inputProps={{ min: 0, step: 0.01 }}
+                    sx={{ mt: 1 }}
+                  />
+                )}
+              </Box>
+            )}
+
+            {shouldShowParentExtend && (
+              <Box sx={{ mb: 2 }}>
+                <FormControlLabel
+                  control={(
+                    <Checkbox
+                      checked={!!formData.extendParentBudget}
+                      onChange={(e) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          extendParentBudget: e.target.checked,
+                          parentTotalAmount: e.target.checked ? (prev.parentTotalAmount ?? validation.parentBudgetAmount) : undefined,
+                        }));
+                        setParentAmountTouched(false);
+                      }}
+                    />
+                  )}
+                  label="Extend the yearly parent budget"
+                />
+                {formData.extendParentBudget && (
+                  <TextField
+                    label="Updated Parent Yearly Budget Amount"
+                    type="number"
+                    value={formData.parentTotalAmount ?? ''}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        parentTotalAmount: parseFloat(e.target.value) || 0,
+                      }));
+                      setParentAmountTouched(true);
+                    }}
+                    error={!!errors.parentTotalAmount}
+                    helperText={errors.parentTotalAmount || 'Set a new yearly budget total'}
+                    fullWidth
+                    inputProps={{ min: 0, step: 0.01 }}
+                    sx={{ mt: 1 }}
+                  />
+                )}
+              </Box>
+            )}
+
+            {errors.parentBudget && (
+              <FormHelperText error sx={{ mb: 2 }}>
+                {errors.parentBudget}
+              </FormHelperText>
+            )}
+          </>
+        ) : (
+          <Box sx={{ mb: 2 }}>
+            <FormControlLabel
+              control={(
+                <Checkbox
+                  checked={!!formData.autoCreateChildren}
+                  onChange={(e) => setFormData((prev) => ({
+                    ...prev,
+                    autoCreateChildren: e.target.checked,
+                  }))}
+                />
+              )}
+              label="Automatically create monthly budgets for all 12 months"
+            />
+            <FormHelperText>
+              Monthly budgets will be created with evenly distributed amounts.
+            </FormHelperText>
+          </Box>
+        )}
 
         <TextField
           label="Description (Optional)"

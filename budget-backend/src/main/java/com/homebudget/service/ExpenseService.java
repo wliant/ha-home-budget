@@ -258,6 +258,9 @@ public class ExpenseService {
      * Implements FR-018: Warn users when expense dates don't fall within budget's month
      */
     private void checkDateMismatch(ExpenseDTO dto, Budget budget) {
+        if (budget.getMonth() == null) {
+            return;
+        }
         YearMonth budgetMonth = YearMonth.of(budget.getYear(), budget.getMonth());
         YearMonth expenseMonth = YearMonth.from(dto.getExpenseDate());
 

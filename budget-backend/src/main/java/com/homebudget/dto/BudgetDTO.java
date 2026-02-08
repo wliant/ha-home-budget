@@ -19,7 +19,6 @@ public class BudgetDTO {
     @Max(value = 9999, message = "Year must be 9999 or earlier")
     private Integer year;
 
-    @NotNull(message = "Month is required")
     @Min(value = 1, message = "Month must be between 1 and 12")
     @Max(value = 12, message = "Month must be between 1 and 12")
     private Integer month;
@@ -42,6 +41,12 @@ public class BudgetDTO {
     private Long categoryId;
 
     private CategoryDTO category;
+
+    // Creation options (optional)
+    private Boolean autoCreateChildren;
+    private Boolean createParentBudget;
+    private Boolean extendParentBudget;
+    private BigDecimal parentTotalAmount;
 
     // Constructors
     public BudgetDTO() {
@@ -147,5 +152,37 @@ public class BudgetDTO {
 
     public void setCategory(CategoryDTO category) {
         this.category = category;
+    }
+
+    public Boolean getAutoCreateChildren() {
+        return autoCreateChildren;
+    }
+
+    public void setAutoCreateChildren(Boolean autoCreateChildren) {
+        this.autoCreateChildren = autoCreateChildren;
+    }
+
+    public Boolean getCreateParentBudget() {
+        return createParentBudget;
+    }
+
+    public void setCreateParentBudget(Boolean createParentBudget) {
+        this.createParentBudget = createParentBudget;
+    }
+
+    public Boolean getExtendParentBudget() {
+        return extendParentBudget;
+    }
+
+    public void setExtendParentBudget(Boolean extendParentBudget) {
+        this.extendParentBudget = extendParentBudget;
+    }
+
+    public BigDecimal getParentTotalAmount() {
+        return parentTotalAmount;
+    }
+
+    public void setParentTotalAmount(BigDecimal parentTotalAmount) {
+        this.parentTotalAmount = parentTotalAmount;
     }
 }

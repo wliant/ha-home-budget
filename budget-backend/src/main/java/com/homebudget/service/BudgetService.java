@@ -2,6 +2,10 @@ package com.homebudget.service;
 
 import com.homebudget.dto.BudgetDTO;
 import com.homebudget.dto.BudgetSummaryDTO;
+import com.homebudget.dto.BudgetValidationDTO;
+import com.homebudget.dto.YearlyBudgetViewDTO;
+import com.homebudget.dto.YearlyCategoryBudgetDTO;
+import com.homebudget.dto.YearlyMonthlyBudgetDTO;
 import com.homebudget.dto.ExpenseDTO;
 import com.homebudget.dto.CategoryDTO;
 import com.homebudget.exception.*;
@@ -66,7 +70,38 @@ public class BudgetService {
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException(dto.getCategoryId()));
 
-        // Check for duplicate budget (category + year + month uniqueness)
+        long childCategoryCount = categoryRepository.countByParentCategoryId(category.getId());
+        if (childCategoryCount > 0) {
+            throw new IllegalArgumentException(
+                    String.format("Category '%s' is a parent category. Please select a child category.", category.getName()));
+        }
+
+        if (dto.getMonth() == null) {
+            if (budgetRepository.existsParentBudget(dto.getCategoryId(), dto.getYear())) {
+                throw new DuplicateBudgetException(
+                        String.format("Yearly budget already exists for category '%s' in %d",
+                                category.getName(), dto.getYear())
+                );
+            }
+
+            Budget parentBudget = buildBudgetEntity(dto, username, category);
+            parentBudget.setMonth(null);
+            Budget savedParent = budgetRepository.save(parentBudget);
+
+            if (Boolean.TRUE.equals(dto.getAutoCreateChildren())) {
+                long existingMonthly = budgetRepository.countMonthlyBudgetsForCategory(dto.getCategoryId(), dto.getYear());
+                if (existingMonthly > 0) {
+                    throw new DuplicateBudgetException(
+                            String.format("Monthly budgets already exist for category '%s' in %d",
+                                    category.getName(), dto.getYear())
+                    );
+                }
+                createMonthlyBudgetsForYear(category, dto.getYear(), dto.getTotalAmount(), username);
+            }
+
+            return mapToBudgetDTO(savedParent);
+        }
+
         if (budgetRepository.existsByCategoryIdAndYearAndMonth(dto.getCategoryId(), dto.getYear(), dto.getMonth())) {
             throw new DuplicateBudgetException(
                     String.format("Budget already exists for category '%s' in %d-%02d",
@@ -74,24 +109,63 @@ public class BudgetService {
             );
         }
 
-        // If this is a child category, validate parent budget
-        if (category.getParentCategory() != null) {
-            validateParentBudgetOnCreate(category, dto.getYear(), dto.getMonth(), dto.getTotalAmount());
+        Budget parentBudget = budgetRepository.findParentBudget(dto.getCategoryId(), dto.getYear()).orElse(null);
+        BigDecimal parentAmount = parentBudget != null ? parentBudget.getTotalAmount() : null;
+
+        if (parentBudget == null && !Boolean.TRUE.equals(dto.getCreateParentBudget())) {
+            throw new ParentBudgetMismatchException(
+                    String.format("Parent yearly budget is required for category '%s' in %d",
+                            category.getName(), dto.getYear())
+            );
         }
 
-        // If this is a parent category, validate child budget sum
-        if (category.getParentCategory() == null) {
-            validateChildBudgetSumOnCreate(category.getId(), dto.getYear(), dto.getMonth(), dto.getTotalAmount());
+        BigDecimal monthlySum = defaultZero(budgetRepository.sumMonthlyBudgetsForCategory(dto.getCategoryId(), dto.getYear()));
+        BigDecimal newSum = monthlySum.add(dto.getTotalAmount());
+
+        if (parentBudget == null && Boolean.TRUE.equals(dto.getCreateParentBudget())) {
+            BigDecimal requestedParentAmount = dto.getParentTotalAmount() != null
+                    ? dto.getParentTotalAmount()
+                    : dto.getTotalAmount();
+            if (newSum.compareTo(requestedParentAmount) > 0) {
+                throw new ParentBudgetMismatchException(
+                        String.format("Parent yearly budget %.2f is less than required total %.2f",
+                                requestedParentAmount, newSum)
+                );
+            }
+            Budget newParent = buildBudgetEntity(dto, username, category);
+            newParent.setMonth(null);
+            newParent.setTotalAmount(requestedParentAmount);
+            parentBudget = budgetRepository.save(newParent);
+            parentAmount = parentBudget.getTotalAmount();
         }
 
-        Budget budget = new Budget();
-        budget.setYear(dto.getYear());
-        budget.setMonth(dto.getMonth());
-        budget.setTotalAmount(dto.getTotalAmount());
-        budget.setDescription(dto.getDescription());
-        budget.setCreatedBy(username);
-        budget.setCategory(category);
+        if (parentAmount == null) {
+            throw new ParentBudgetMismatchException("Parent budget amount is required for monthly budgets");
+        }
 
+        if (newSum.compareTo(parentAmount) > 0) {
+            if (Boolean.TRUE.equals(dto.getExtendParentBudget())) {
+                BigDecimal requestedParentAmount = dto.getParentTotalAmount();
+                if (requestedParentAmount == null) {
+                    throw new ParentBudgetMismatchException("Parent budget amount is required to extend parent budget");
+                }
+                if (requestedParentAmount.compareTo(newSum) < 0) {
+                    throw new ParentBudgetMismatchException(
+                            String.format("Parent budget amount %.2f is less than required total %.2f",
+                                    requestedParentAmount, newSum)
+                    );
+                }
+                parentBudget.setTotalAmount(requestedParentAmount);
+                budgetRepository.save(parentBudget);
+            } else {
+                throw new ParentBudgetMismatchException(
+                        String.format("Total monthly budgets (%.2f) exceed parent yearly budget (%.2f)",
+                                newSum, parentAmount)
+                );
+            }
+        }
+
+        Budget budget = buildBudgetEntity(dto, username, category);
         Budget saved = budgetRepository.save(budget);
         return mapToBudgetDTO(saved);
     }
@@ -148,18 +222,31 @@ public class BudgetService {
 
         Category category = budget.getCategory();
 
-        // If amount is changing, validate parent/child budget constraints
+        // If amount is changing, validate yearly parent/child budget constraints
         if (dto.getTotalAmount().compareTo(budget.getTotalAmount()) != 0) {
-            // If this is a child category, validate parent budget
-            if (category != null && category.getParentCategory() != null) {
-                validateParentBudgetOnUpdate(id, category, budget.getYear(), budget.getMonth(),
-                        dto.getTotalAmount(), budget.getTotalAmount());
-            }
-
-            // If this is a parent category, validate child budget sum
-            if (category != null && category.getParentCategory() == null) {
-                validateChildBudgetSumOnUpdate(id, category.getId(), budget.getYear(), budget.getMonth(),
-                        dto.getTotalAmount());
+            if (budget.getMonth() == null) {
+                BigDecimal monthlySum = defaultZero(
+                        budgetRepository.sumMonthlyBudgetsForCategory(category.getId(), budget.getYear()));
+                if (dto.getTotalAmount().compareTo(monthlySum) < 0) {
+                    throw new ParentBudgetMismatchException(
+                            String.format("Cannot update yearly budget to %.2f: sum of monthly budgets is %.2f",
+                                    dto.getTotalAmount(), monthlySum)
+                    );
+                }
+            } else {
+                Budget parentBudget = budgetRepository.findParentBudget(category.getId(), budget.getYear())
+                        .orElseThrow(() -> new ParentBudgetMismatchException(
+                                String.format("Parent yearly budget is required for category '%s' in %d",
+                                        category.getName(), budget.getYear())));
+                BigDecimal monthlySum = defaultZero(
+                        budgetRepository.sumMonthlyBudgetsForCategory(category.getId(), budget.getYear()));
+                BigDecimal newSum = monthlySum.subtract(budget.getTotalAmount()).add(dto.getTotalAmount());
+                if (newSum.compareTo(parentBudget.getTotalAmount()) > 0) {
+                    throw new ParentBudgetMismatchException(
+                            String.format("Total monthly budgets (%.2f) exceed parent yearly budget (%.2f)",
+                                    newSum, parentBudget.getTotalAmount())
+                    );
+                }
             }
         }
 
@@ -241,6 +328,39 @@ public class BudgetService {
         return expenseRepository.countByBudgetId(budgetId) > 0;
     }
 
+    private Budget buildBudgetEntity(BudgetDTO dto, String username, Category category) {
+        Budget budget = new Budget();
+        budget.setYear(dto.getYear());
+        budget.setMonth(dto.getMonth());
+        budget.setTotalAmount(dto.getTotalAmount());
+        budget.setDescription(dto.getDescription());
+        budget.setCreatedBy(username);
+        budget.setCategory(category);
+        return budget;
+    }
+
+    private void createMonthlyBudgetsForYear(Category category, Integer year, BigDecimal yearlyAmount, String username) {
+        BigDecimal monthlyBase = yearlyAmount
+                .divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        BigDecimal totalAllocated = monthlyBase.multiply(new BigDecimal("11"));
+        BigDecimal lastMonthAmount = yearlyAmount.subtract(totalAllocated);
+
+        for (int month = 1; month <= 12; month++) {
+            Budget monthly = new Budget();
+            monthly.setYear(year);
+            monthly.setMonth(month);
+            monthly.setTotalAmount(month == 12 ? lastMonthAmount : monthlyBase);
+            monthly.setDescription("Auto-generated from yearly budget");
+            monthly.setCreatedBy(username);
+            monthly.setCategory(category);
+            budgetRepository.save(monthly);
+        }
+    }
+
+    private BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
     // Mapping methods
 
     private BudgetDTO mapToBudgetDTO(Budget budget) {
@@ -316,6 +436,139 @@ public class BudgetService {
                 .orElse(null);
     }
 
+    /**
+     * Return validation hints for budget creation UI.
+     */
+    @Transactional(readOnly = true)
+    public BudgetValidationDTO getBudgetValidation(Long categoryId, Integer year, Integer month) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+
+        BudgetValidationDTO result = new BudgetValidationDTO();
+
+        if (month == null) {
+            boolean duplicate = budgetRepository.existsParentBudget(categoryId, year);
+            result.setDuplicate(duplicate);
+            if (duplicate) {
+                result.setDuplicateMessage(String.format(
+                        "Yearly budget already exists for category '%s' in %d", category.getName(), year));
+            }
+        } else {
+            boolean duplicate = budgetRepository.existsByCategoryIdAndYearAndMonth(categoryId, year, month);
+            result.setDuplicate(duplicate);
+            if (duplicate) {
+                result.setDuplicateMessage(String.format(
+                        "Budget already exists for category '%s' in %d-%02d", category.getName(), year, month));
+            }
+        }
+
+        Budget parentBudget = budgetRepository.findParentBudget(categoryId, year).orElse(null);
+        result.setParentBudgetExists(parentBudget != null);
+        if (parentBudget != null) {
+            result.setParentBudgetId(parentBudget.getId());
+            result.setParentBudgetAmount(parentBudget.getTotalAmount());
+        }
+
+        BigDecimal monthlySum = defaultZero(budgetRepository.sumMonthlyBudgetsForCategory(categoryId, year));
+        result.setMonthlyBudgetSum(monthlySum);
+        result.setMonthlyBudgetsExist(budgetRepository.countMonthlyBudgetsForCategory(categoryId, year) > 0);
+
+        return result;
+    }
+
+    /**
+     * Get yearly budget view for all categories and months.
+     */
+    @Transactional(readOnly = true)
+    public YearlyBudgetViewDTO getYearlyBudgetView(Integer year) {
+        List<Budget> budgets = budgetRepository.findByYear(year);
+
+        YearlyBudgetViewDTO view = new YearlyBudgetViewDTO();
+        view.setYear(year);
+
+        BigDecimal totalBudget = BigDecimal.ZERO;
+        BigDecimal totalSpending = BigDecimal.ZERO;
+
+        List<Category> categories = categoryRepository.findAllByOrderByNameAsc();
+        for (Category category : categories) {
+            long childCount = categoryRepository.countByParentCategoryId(category.getId());
+            if (childCount > 0) {
+                continue;
+            }
+
+            YearlyCategoryBudgetDTO categoryDTO = new YearlyCategoryBudgetDTO();
+            categoryDTO.setCategoryId(category.getId());
+            categoryDTO.setCategoryName(category.getName());
+            categoryDTO.setCategoryIcon(category.getIcon());
+            if (category.getParentCategory() != null) {
+                categoryDTO.setParentCategoryId(category.getParentCategory().getId());
+                categoryDTO.setParentCategoryName(category.getParentCategory().getName());
+            }
+
+            Budget parentBudget = budgets.stream()
+                    .filter(b -> b.getCategory() != null
+                            && b.getCategory().getId().equals(category.getId())
+                            && b.getMonth() == null)
+                    .findFirst()
+                    .orElse(null);
+
+            BigDecimal monthlySum = BigDecimal.ZERO;
+            BigDecimal yearlySpending = BigDecimal.ZERO;
+
+            for (int month = 1; month <= 12; month++) {
+                final int monthValue = month;
+                Budget monthlyBudget = budgets.stream()
+                        .filter(b -> b.getCategory() != null
+                                && b.getCategory().getId().equals(category.getId())
+                                && b.getMonth() != null
+                                && b.getMonth() == monthValue)
+                        .findFirst()
+                        .orElse(null);
+
+                YearlyMonthlyBudgetDTO monthDTO = new YearlyMonthlyBudgetDTO();
+                monthDTO.setMonth(monthValue);
+
+                if (monthlyBudget != null) {
+                    BigDecimal spending = defaultZero(calculateTotalSpending(monthlyBudget.getId()));
+                    monthDTO.setBudgetAmount(monthlyBudget.getTotalAmount());
+                    monthDTO.setSpending(spending);
+                    monthDTO.setRemaining(monthlyBudget.getTotalAmount().subtract(spending));
+                    monthDTO.setHasBudget(true);
+
+                    monthlySum = monthlySum.add(monthlyBudget.getTotalAmount());
+                    yearlySpending = yearlySpending.add(spending);
+                } else {
+                    monthDTO.setBudgetAmount(BigDecimal.ZERO);
+                    monthDTO.setSpending(BigDecimal.ZERO);
+                    monthDTO.setRemaining(BigDecimal.ZERO);
+                    monthDTO.setHasBudget(false);
+                }
+
+                categoryDTO.getMonths().add(monthDTO);
+            }
+
+            BigDecimal yearlyBudgetAmount = parentBudget != null ? parentBudget.getTotalAmount() : monthlySum;
+            BigDecimal parentSpending = parentBudget != null ? defaultZero(calculateTotalSpending(parentBudget.getId())) : BigDecimal.ZERO;
+            yearlySpending = yearlySpending.add(parentSpending);
+
+            categoryDTO.setYearlyBudgetAmount(yearlyBudgetAmount);
+            categoryDTO.setMonthlyBudgetSum(monthlySum);
+            categoryDTO.setYearlySpending(yearlySpending);
+            categoryDTO.setYearlyRemaining(yearlyBudgetAmount.subtract(yearlySpending));
+
+            totalBudget = totalBudget.add(yearlyBudgetAmount);
+            totalSpending = totalSpending.add(yearlySpending);
+
+            view.getCategories().add(categoryDTO);
+        }
+
+        view.setTotalBudget(totalBudget);
+        view.setTotalSpending(totalSpending);
+        view.setTotalRemaining(totalBudget.subtract(totalSpending));
+
+        return view;
+    }
+
     private ExpenseDTO mapToExpenseDTO(Expense expense) {
         ExpenseDTO dto = new ExpenseDTO();
         dto.setId(expense.getId());
@@ -342,121 +595,5 @@ public class BudgetService {
         return dto;
     }
 
-    // ========== Parent Budget Validation Methods ==========
-
-    /**
-     * Validate parent budget when creating a child budget.
-     * Ensures parent budget exists and sum of all child budgets equals parent.
-     */
-    private void validateParentBudgetOnCreate(Category childCategory, Integer year, Integer month, BigDecimal childAmount) {
-        Category parent = childCategory.getParentCategory();
-
-        logger.debug("Validating parent budget: child='{}', parent='{}', period={}-{}, childAmount={}",
-                childCategory.getName(), parent.getName(), year, month, childAmount);
-
-        // Check if parent budget exists
-        Budget parentBudget = budgetRepository.findByCategoryIdAndYearAndMonth(parent.getId(), year, month)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        String.format("Parent category '%s' must have a budget for %d-%02d before creating child budgets",
-                                parent.getName(), year, month)
-                ));
-
-        logger.debug("Found parent budget: ID={}, amount={}", parentBudget.getId(), parentBudget.getTotalAmount());
-
-        // Calculate sum of all child budgets (including this new one)
-        BigDecimal existingChildSum = budgetRepository.sumByParentCategoryAndPeriod(parent.getId(), year, month);
-        if (existingChildSum == null) {
-            existingChildSum = BigDecimal.ZERO;
-        }
-        BigDecimal newChildSum = existingChildSum.add(childAmount);
-
-        logger.debug("Budget calculation: existingChildSum={}, newChildAmount={}, newChildSum={}, parentAmount={}",
-                existingChildSum, childAmount, newChildSum, parentBudget.getTotalAmount());
-
-        // Validate sum equals parent budget
-        if (newChildSum.compareTo(parentBudget.getTotalAmount()) != 0) {
-            logger.warn("Parent budget validation failed: newChildSum={} != parentAmount={}",
-                    newChildSum, parentBudget.getTotalAmount());
-            throw new ParentBudgetMismatchException(
-                    String.format("Adding budget of %.2f to category '%s' would make total child budgets (%.2f) not equal parent budget (%.2f)",
-                            childAmount, childCategory.getName(), newChildSum, parentBudget.getTotalAmount())
-            );
-        }
-
-        logger.debug("Parent budget validation passed");
-    }
-
-    /**
-     * Validate parent budget when updating a child budget amount.
-     */
-    private void validateParentBudgetOnUpdate(Long budgetId, Category childCategory, Integer year, Integer month,
-                                              BigDecimal newAmount, BigDecimal oldAmount) {
-        Category parent = childCategory.getParentCategory();
-
-        // Get parent budget
-        Budget parentBudget = budgetRepository.findByCategoryIdAndYearAndMonth(parent.getId(), year, month)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        String.format("Parent category '%s' budget not found for %d-%02d",
-                                parent.getName(), year, month)
-                ));
-
-        // Calculate current sum of child budgets (excluding this budget)
-        BigDecimal otherChildSum = BigDecimal.ZERO;
-        List<Budget> childBudgets = budgetRepository.findChildBudgets(parent.getId(), year, month);
-        for (Budget child : childBudgets) {
-            if (!child.getId().equals(budgetId)) {
-                otherChildSum = otherChildSum.add(child.getTotalAmount());
-            }
-        }
-
-        // Add the new amount for this budget
-        BigDecimal newChildSum = otherChildSum.add(newAmount);
-
-        // Validate sum equals parent budget
-        if (newChildSum.compareTo(parentBudget.getTotalAmount()) != 0) {
-            throw new ParentBudgetMismatchException(
-                    String.format("Updating budget from %.2f to %.2f would make total child budgets (%.2f) not equal parent budget (%.2f)",
-                            oldAmount, newAmount, newChildSum, parentBudget.getTotalAmount())
-            );
-        }
-    }
-
-    /**
-     * Validate child budget sum when creating a parent budget.
-     * Ensures sum of existing child budgets equals the parent budget being created.
-     */
-    private void validateChildBudgetSumOnCreate(Long parentCategoryId, Integer year, Integer month, BigDecimal parentAmount) {
-        // Calculate sum of existing child budgets
-        BigDecimal childSum = budgetRepository.sumByParentCategoryAndPeriod(parentCategoryId, year, month);
-
-        // If there are child budgets, validate they equal parent
-        if (childSum != null && childSum.compareTo(BigDecimal.ZERO) > 0) {
-            if (childSum.compareTo(parentAmount) != 0) {
-                throw new ParentBudgetMismatchException(
-                        String.format("Parent budget amount (%.2f) must equal sum of existing child budgets (%.2f)",
-                                parentAmount, childSum)
-                );
-            }
-        }
-    }
-
-    /**
-     * Validate child budget sum when updating a parent budget amount.
-     * Ensures sum of child budgets equals the new parent budget amount.
-     */
-    private void validateChildBudgetSumOnUpdate(Long budgetId, Long parentCategoryId, Integer year, Integer month,
-                                                BigDecimal newParentAmount) {
-        // Calculate sum of child budgets
-        BigDecimal childSum = budgetRepository.sumByParentCategoryAndPeriod(parentCategoryId, year, month);
-
-        // If there are child budgets, validate they equal new parent amount
-        if (childSum != null && childSum.compareTo(BigDecimal.ZERO) > 0) {
-            if (childSum.compareTo(newParentAmount) != 0) {
-                throw new ParentBudgetMismatchException(
-                        String.format("Cannot update parent budget to %.2f: sum of child budgets is %.2f",
-                                newParentAmount, childSum)
-                );
-            }
-        }
-    }
+    // Legacy category parent/child budget validation removed in favor of yearly parent budgets.
 }
