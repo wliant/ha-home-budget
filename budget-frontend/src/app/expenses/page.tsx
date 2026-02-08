@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Box, Typography, CircularProgress } from '@mui/material';
+import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import ExpenseListTable from '@/components/expenses/ExpenseListTable';
 import ExpenseFilters from '@/components/expenses/ExpenseFilters';
 import { expenseService } from '@/services/expenseService';
@@ -58,25 +58,27 @@ export default function ExpensesPage() {
   };
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        Expenses
-      </Typography>
-      <ExpenseFilters filters={filters} onFilterChange={handleFilterChange} />
-      {loading && !data && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
-      <ExpenseListTable
-        data={data}
-        loading={loading}
-        page={page}
-        onPageChange={handlePageChange}
-        sortBy={filters.sortBy || 'expenseDate'}
-        sortDirection={filters.sortDirection || 'DESC'}
-        onSortChange={handleSortChange}
-      />
-    </Box>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box>
+        <Typography variant="h5" sx={{ mb: 3 }}>
+          Expenses
+        </Typography>
+        <ExpenseFilters filters={filters} onFilterChange={handleFilterChange} />
+        {loading && !data && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        )}
+        <ExpenseListTable
+          data={data}
+          loading={loading}
+          page={page}
+          onPageChange={handlePageChange}
+          sortBy={filters.sortBy || 'expenseDate'}
+          sortDirection={filters.sortDirection || 'DESC'}
+          onSortChange={handleSortChange}
+        />
+      </Box>
+    </Container>
   );
 }

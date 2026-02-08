@@ -169,7 +169,9 @@ export default function ExpenseFilters({
       </FormControl>
 
       <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel id="month-filter-label">Month</InputLabel>
+        <InputLabel id="month-filter-label" shrink>
+          Month
+        </InputLabel>
         <Select
           labelId="month-filter-label"
           value={filters.month != null ? String(filters.month) : ''}
@@ -187,7 +189,9 @@ export default function ExpenseFilters({
       </FormControl>
 
       <FormControl size="small" sx={{ minWidth: 150 }}>
-        <InputLabel id="category-filter-label">Category</InputLabel>
+        <InputLabel id="category-filter-label" shrink>
+          Category
+        </InputLabel>
         <Select
           labelId="category-filter-label"
           value={filters.categoryId != null ? String(filters.categoryId) : ''}
@@ -228,7 +232,9 @@ export default function ExpenseFilters({
       />
 
       <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel id="created-by-filter-label">Created By</InputLabel>
+        <InputLabel id="created-by-filter-label" shrink>
+          Created By
+        </InputLabel>
         <Select
           labelId="created-by-filter-label"
           value={filters.createdBy ?? ''}
