@@ -26,6 +26,10 @@ public class BudgetSummaryDTO {
     private BigDecimal spendingPercentage;
     private Long expenseCount;
 
+    // Category context (for filtering and display)
+    private Long categoryId;
+    private CategoryDTO category;
+
     // For detail view
     private List<ExpenseDTO> expenses = new ArrayList<>();
 
@@ -146,6 +150,22 @@ public class BudgetSummaryDTO {
 
     public void setExpenseCount(Long expenseCount) {
         this.expenseCount = expenseCount;
+    }
+
+    public Long getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public CategoryDTO getCategory() {
+        return category;
+    }
+
+    public void setCategory(CategoryDTO category) {
+        this.category = category;
     }
 
     public List<ExpenseDTO> getExpenses() {

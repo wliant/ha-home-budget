@@ -157,6 +157,13 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
     List<Budget> findByYear(Integer year);
 
     /**
+     * Find all monthly budgets for a category in a specific year.
+     */
+    @Query("SELECT b FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NOT NULL")
+    List<Budget> findMonthlyBudgetsForCategory(@Param("categoryId") Long categoryId,
+                                               @Param("year") Integer year);
+
+    /**
      * Sum all monthly budgets for a category in a given year.
      */
     @Query("SELECT SUM(b.totalAmount) FROM Budget b WHERE b.category.id = :categoryId AND b.year = :year AND b.month IS NOT NULL")

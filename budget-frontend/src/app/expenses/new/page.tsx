@@ -48,35 +48,56 @@ export default function NewExpensePage() {
   // Budget auto-selection logic (T010)
   useEffect(() => {
     const selectBudget = async () => {
+      if (!formState.expenseDate) {
+        return;
+      }
+
+      if (!formState.categoryId) {
+        setFormState((prev) => ({
+          ...prev,
+          budgetId: null,
+          errorMessage: null,
+        }));
+        return;
+      }
+
       try {
         const budgets = await budgetService.getAllBudgets();
-        const matchingBudgets = budgets.filter((b) => {
-          if (!b.month) {
-            return false;
-          }
-          // Calculate start and end dates from year and month
-          const startDate = `${b.year}-${String(b.month).padStart(2, '0')}-01`;
-          const lastDay = new Date(b.year, b.month, 0).getDate();
-          const endDate = `${b.year}-${String(b.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        const expenseDate = new Date(formState.expenseDate);
+        const year = expenseDate.getFullYear();
+        const month = expenseDate.getMonth() + 1;
 
-          return formState.expenseDate >= startDate && formState.expenseDate <= endDate;
-        });
+        const categoryBudgets = budgets.filter((b) => b.categoryId === formState.categoryId);
+        const monthlyBudget = categoryBudgets.find(
+          (b) => b.year === year && b.month === month,
+        );
+        const yearlyBudget = categoryBudgets.find(
+          (b) => b.year === year && !b.month,
+        );
 
-        if (matchingBudgets.length === 1) {
-          setFormState((prev) => ({ ...prev, budgetId: matchingBudgets[0].id!, errorMessage: null }));
-        } else if (matchingBudgets.length === 0) {
+        if (monthlyBudget) {
           setFormState((prev) => ({
             ...prev,
-            budgetId: null,
-            errorMessage: `No budget found for ${formState.expenseDate}. Please create a budget first.`,
+            budgetId: monthlyBudget.id!,
+            errorMessage: null,
           }));
-        } else {
-          setFormState((prev) => ({
-            ...prev,
-            budgetId: null,
-            errorMessage: `Multiple budgets found for ${formState.expenseDate}. Please contact administrator.`,
-          }));
+          return;
         }
+
+        if (yearlyBudget) {
+          setFormState((prev) => ({
+            ...prev,
+            budgetId: yearlyBudget.id!,
+            errorMessage: null,
+          }));
+          return;
+        }
+
+        setFormState((prev) => ({
+          ...prev,
+          budgetId: null,
+          errorMessage: `No budget found for ${formState.expenseDate}. Please create a budget first.`,
+        }));
       } catch (err) {
         console.error('Failed to fetch budgets:', err);
         setFormState((prev) => ({
@@ -88,7 +109,7 @@ export default function NewExpensePage() {
     };
 
     selectBudget();
-  }, [formState.expenseDate]);
+  }, [formState.expenseDate, formState.categoryId]);
 
   // Client-side form validation (T011)
   const validateForm = (): boolean => {

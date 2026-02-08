@@ -61,9 +61,7 @@ public class ExpenseService {
     public ExpenseDTO createExpense(ExpenseDTO dto, String username) {
         logger.info("Creating expense for budget ID: {}, user: {}", dto.getBudgetId(), username);
 
-        // Validate budget exists
-        Budget budget = budgetRepository.findById(dto.getBudgetId())
-                .orElseThrow(() -> new BudgetNotFoundException(dto.getBudgetId()));
+        Budget budget = resolveBudgetForExpense(dto);
 
         logger.debug("Budget attribution: selected budgetId={}, period={}-{}, amount={}",
                 budget.getId(), budget.getYear(), budget.getMonth(), budget.getTotalAmount());
@@ -185,11 +183,9 @@ public class ExpenseService {
         expense.setDescription(dto.getDescription());
         expense.setExpenseDate(dto.getExpenseDate());
 
-        // Update budget if changed
-        if (!expense.getBudget().getId().equals(dto.getBudgetId())) {
-            Budget newBudget = budgetRepository.findById(dto.getBudgetId())
-                    .orElseThrow(() -> new BudgetNotFoundException(dto.getBudgetId()));
-            expense.setBudget(newBudget);
+        Budget targetBudget = resolveBudgetForExpense(dto);
+        if (!expense.getBudget().getId().equals(targetBudget.getId())) {
+            expense.setBudget(targetBudget);
         }
 
         // Update category if changed
@@ -345,6 +341,32 @@ public class ExpenseService {
         }
 
         return dto;
+    }
+
+    private Budget resolveBudgetForExpense(ExpenseDTO dto) {
+        if (dto.getCategoryId() != null && dto.getExpenseDate() != null) {
+            int year = dto.getExpenseDate().getYear();
+            int month = dto.getExpenseDate().getMonthValue();
+
+            Budget monthly = budgetRepository.findByCategoryIdAndYearAndMonth(dto.getCategoryId(), year, month)
+                    .orElse(null);
+            if (monthly != null) {
+                return monthly;
+            }
+
+            Budget parent = budgetRepository.findParentBudget(dto.getCategoryId(), year)
+                    .orElse(null);
+            if (parent != null) {
+                return parent;
+            }
+        }
+
+        if (dto.getBudgetId() == null) {
+            throw new IllegalArgumentException("Budget ID is required for expense creation");
+        }
+
+        return budgetRepository.findById(dto.getBudgetId())
+                .orElseThrow(() -> new BudgetNotFoundException(dto.getBudgetId()));
     }
 
     /**

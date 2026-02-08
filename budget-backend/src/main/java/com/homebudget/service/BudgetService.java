@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -167,6 +169,13 @@ public class BudgetService {
 
         Budget budget = buildBudgetEntity(dto, username, category);
         Budget saved = budgetRepository.save(budget);
+
+        if (dto.getMonth() != null) {
+            ensureMonthlyBudgetsForRemainingMonths(category, dto.getYear(), dto.getMonth(), dto.getTotalAmount(), username);
+            reassignParentExpensesToMonthlyBudgets(category, dto.getYear(), dto.getTotalAmount(), username);
+            alignParentBudgetWithMonthlySum(category.getId(), dto.getYear());
+        }
+
         return mapToBudgetDTO(saved);
     }
 
@@ -357,6 +366,77 @@ public class BudgetService {
         }
     }
 
+    private void ensureMonthlyBudgetsForRemainingMonths(Category category, Integer year, Integer startMonth,
+                                                        BigDecimal monthlyAmount, String username) {
+        for (int month = startMonth; month <= 12; month++) {
+            if (budgetRepository.existsByCategoryIdAndYearAndMonth(category.getId(), year, month)) {
+                continue;
+            }
+            Budget monthly = buildMonthlyBudget(category, year, month, monthlyAmount, username,
+                    "Auto-generated monthly budget");
+            budgetRepository.save(monthly);
+        }
+    }
+
+    private void alignParentBudgetWithMonthlySum(Long categoryId, Integer year) {
+        Budget parent = budgetRepository.findParentBudget(categoryId, year).orElse(null);
+        if (parent == null) {
+            return;
+        }
+        BigDecimal monthlySum = defaultZero(budgetRepository.sumMonthlyBudgetsForCategory(categoryId, year));
+        if (parent.getTotalAmount().compareTo(monthlySum) < 0) {
+            parent.setTotalAmount(monthlySum);
+            budgetRepository.save(parent);
+        }
+    }
+
+    private void reassignParentExpensesToMonthlyBudgets(Category category, Integer year,
+                                                        BigDecimal monthlyAmount, String username) {
+        Budget parent = budgetRepository.findParentBudget(category.getId(), year).orElse(null);
+        if (parent == null) {
+            return;
+        }
+
+        List<Expense> parentExpenses = expenseRepository.findByBudgetId(parent.getId());
+        if (parentExpenses.isEmpty()) {
+            return;
+        }
+
+        List<Budget> monthlyBudgets = budgetRepository.findMonthlyBudgetsForCategory(category.getId(), year);
+        Map<Integer, Budget> monthToBudget = new HashMap<>();
+        for (Budget budget : monthlyBudgets) {
+            if (budget.getMonth() != null) {
+                monthToBudget.put(budget.getMonth(), budget);
+            }
+        }
+
+        for (Expense expense : parentExpenses) {
+            int expenseMonth = expense.getExpenseDate().getMonthValue();
+            Budget monthly = monthToBudget.get(expenseMonth);
+            if (monthly == null) {
+                monthly = buildMonthlyBudget(category, year, expenseMonth, monthlyAmount, username,
+                        "Auto-generated from existing expenses");
+                monthly = budgetRepository.save(monthly);
+                monthToBudget.put(expenseMonth, monthly);
+            }
+            expense.setBudget(monthly);
+        }
+
+        expenseRepository.saveAll(parentExpenses);
+    }
+
+    private Budget buildMonthlyBudget(Category category, Integer year, Integer month, BigDecimal amount,
+                                      String username, String description) {
+        Budget budget = new Budget();
+        budget.setYear(year);
+        budget.setMonth(month);
+        budget.setTotalAmount(amount);
+        budget.setDescription(description);
+        budget.setCreatedBy(username);
+        budget.setCategory(category);
+        return budget;
+    }
+
     private BigDecimal defaultZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
@@ -405,7 +485,7 @@ public class BudgetService {
         BigDecimal spendingPercentage = calculateSpendingPercentage(budget);
         Long expenseCount = expenseRepository.countByBudgetId(budget.getId());
 
-        return new BudgetSummaryDTO(
+        BudgetSummaryDTO summary = new BudgetSummaryDTO(
                 budget.getId(),
                 budget.getYear(),
                 budget.getMonth(),
@@ -419,6 +499,27 @@ public class BudgetService {
                 spendingPercentage,
                 expenseCount
         );
+
+        if (budget.getCategory() != null) {
+            Category category = budget.getCategory();
+            CategoryDTO categoryDTO = new CategoryDTO();
+            categoryDTO.setId(category.getId());
+            categoryDTO.setName(category.getName());
+            categoryDTO.setIcon(category.getIcon());
+
+            if (category.getParentCategory() != null) {
+                CategoryDTO parentDTO = new CategoryDTO();
+                parentDTO.setId(category.getParentCategory().getId());
+                parentDTO.setName(category.getParentCategory().getName());
+                categoryDTO.setParentCategory(parentDTO);
+                categoryDTO.setParentCategoryId(category.getParentCategory().getId());
+            }
+
+            summary.setCategoryId(category.getId());
+            summary.setCategory(categoryDTO);
+        }
+
+        return summary;
     }
 
     /**
@@ -431,9 +532,47 @@ public class BudgetService {
         int year = now.getYear();
         int month = now.getMonthValue();
 
-        return budgetRepository.findByYearAndMonth(year, month)
-                .map(this::mapToBudgetSummary)
-                .orElse(null);
+        List<Budget> budgets = budgetRepository.findByYearAndMonthOrderByCategoryIdAsc(year, month);
+        if (budgets.isEmpty()) {
+            return null;
+        }
+
+        BigDecimal totalAmount = budgets.stream()
+                .map(Budget::getTotalAmount)
+                .filter(amount -> amount != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalSpending = budgets.stream()
+                .map(budget -> defaultZero(expenseRepository.sumAmountByBudgetId(budget.getId())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Long expenseCount = budgets.stream()
+                .map(budget -> expenseRepository.countByBudgetId(budget.getId()))
+                .reduce(0L, Long::sum);
+
+        BigDecimal spendingPercentage = BigDecimal.ZERO;
+        if (totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            spendingPercentage = totalSpending
+                    .divide(totalAmount, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+        }
+
+        BudgetSummaryDTO summary = new BudgetSummaryDTO(
+                null,
+                year,
+                month,
+                totalAmount,
+                "All categories",
+                "system",
+                null,
+                null,
+                null,
+                totalSpending,
+                spendingPercentage,
+                expenseCount
+        );
+
+        return summary;
     }
 
     /**
