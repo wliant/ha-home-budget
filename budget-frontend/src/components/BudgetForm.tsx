@@ -431,7 +431,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
                         setFormData((prev) => ({
                           ...prev,
                           createParentBudget: e.target.checked,
-                          parentTotalAmount: e.target.checked ? (prev.parentTotalAmount ?? prev.totalAmount || 0) : undefined,
+                          parentTotalAmount: e.target.checked ? (prev.parentTotalAmount ?? (prev.totalAmount || 0)) : undefined,
                         }));
                         setParentAmountTouched(false);
                       }}
@@ -511,7 +511,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
                         setFormData((prev) => ({
                           ...prev,
                           createParentCategoryBudget: e.target.checked,
-                          parentCategoryBudgetAmount: e.target.checked ? (prev.parentCategoryBudgetAmount ?? prev.totalAmount || 0) : undefined,
+                          parentCategoryBudgetAmount: e.target.checked ? (prev.parentCategoryBudgetAmount ?? (prev.totalAmount || 0)) : undefined,
                         }));
                         setParentCatAmountTouched(false);
                       }}

@@ -49,10 +49,26 @@ export default function BudgetsPage() {
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedSort, setSelectedSort] = useState<string>('');
   const [selectedSortDirection, setSelectedSortDirection] = useState<'ASC' | 'DESC'>('DESC');
+
+  const monthOptions = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
 
   const statusOptions = [
     { value: 'on-track', label: 'On track' },
@@ -179,6 +195,8 @@ export default function BudgetsPage() {
   const filteredBudgets = budgets.filter((budget) => {
     const yearMatches = selectedYear === '' || budget.year === Number(selectedYear);
 
+    const monthMatches = selectedMonth === '' || budget.month === Number(selectedMonth);
+
     const statusMatches =
       selectedStatus === '' || getBudgetStatusKey(budget.spendingPercentage) === selectedStatus;
 
@@ -194,7 +212,7 @@ export default function BudgetsPage() {
       return allowedIds.has(budget.categoryId);
     })();
 
-    return yearMatches && statusMatches && categoryMatches;
+    return yearMatches && monthMatches && statusMatches && categoryMatches;
   });
 
   const getDateSortValue = (budget: BudgetSummaryDTO) => {
@@ -240,6 +258,10 @@ export default function BudgetsPage() {
     setSelectedYear(event.target.value);
   };
 
+  const handleMonthChange = (event: SelectChangeEvent<string>) => {
+    setSelectedMonth(event.target.value);
+  };
+
   const handleCategoryChange = (event: SelectChangeEvent<string>) => {
     setSelectedCategoryId(event.target.value);
   };
@@ -258,6 +280,7 @@ export default function BudgetsPage() {
 
   const handleClearFilters = () => {
     setSelectedYear('');
+    setSelectedMonth('');
     setSelectedCategoryId('');
     setSelectedStatus('');
     setSelectedSort('');
@@ -266,6 +289,7 @@ export default function BudgetsPage() {
 
   const hasFilters =
     selectedYear !== '' ||
+    selectedMonth !== '' ||
     selectedCategoryId !== '' ||
     selectedStatus !== '' ||
     selectedSort !== '';
@@ -346,6 +370,26 @@ export default function BudgetsPage() {
               {availableYears.map((year) => (
                 <MenuItem key={year} value={String(year)}>
                   {year}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel id="budget-month-filter-label" shrink>
+              Month
+            </InputLabel>
+            <Select
+              labelId="budget-month-filter-label"
+              value={selectedMonth}
+              onChange={handleMonthChange}
+              label="Month"
+              displayEmpty
+            >
+              <MenuItem value="">All months</MenuItem>
+              {monthOptions.map((option) => (
+                <MenuItem key={option.value} value={String(option.value)}>
+                  {option.label}
                 </MenuItem>
               ))}
             </Select>

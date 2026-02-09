@@ -597,9 +597,15 @@ public class BudgetService {
     @Transactional(readOnly = true)
     public BudgetSummaryDTO getCurrentMonthBudget() {
         LocalDate now = LocalDate.now();
-        int year = now.getYear();
-        int month = now.getMonthValue();
+        return getMonthBudgetSummary(now.getYear(), now.getMonthValue());
+    }
 
+    /**
+     * Get budget summary for a specific month.
+     * Aggregates all budgets for the given year/month into a single summary.
+     */
+    @Transactional(readOnly = true)
+    public BudgetSummaryDTO getMonthBudgetSummary(int year, int month) {
         List<Budget> budgets = budgetRepository.findByYearAndMonthOrderByCategoryIdAsc(year, month);
         if (budgets.isEmpty()) {
             return null;

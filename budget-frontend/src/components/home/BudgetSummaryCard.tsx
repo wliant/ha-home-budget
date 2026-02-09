@@ -153,7 +153,7 @@ export function BudgetSummaryCard() {
   const remaining = budgetData.totalAmount - budgetData.totalSpending;
   const statusColor = getStatusColor(budgetData.spendingPercentage);
   const statusText = getStatusText(budgetData.spendingPercentage);
-  const period = formatPeriod(budgetData.month, budgetData.year);
+  const period = formatPeriod(budgetData.month ?? 0, budgetData.year);
 
   return (
     <Card>

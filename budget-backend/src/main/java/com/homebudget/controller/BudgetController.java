@@ -122,6 +122,21 @@ public class BudgetController {
     }
 
     /**
+     * Get budget summary for a specific month.
+     * Used for dashboard multi-month display.
+     */
+    @GetMapping("/monthly-summary")
+    public ResponseEntity<BudgetSummaryDTO> getMonthlyBudgetSummary(
+            @RequestParam Integer year,
+            @RequestParam Integer month) {
+        BudgetSummaryDTO budget = budgetService.getMonthBudgetSummary(year, month);
+        if (budget == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(budget);
+    }
+
+    /**
      * Budget validation hints for create budget UI.
      */
     @GetMapping("/validation")

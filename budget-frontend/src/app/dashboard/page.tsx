@@ -18,30 +18,56 @@ import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency, ge
 /**
  * Dashboard page - User Story 4: Budget Dashboard and Insights
  *
- * Simplified dashboard showing current month budget progress
+ * Shows budget progress for the current month and 2 previous months.
  */
 
+interface MonthEntry {
+  year: number;
+  month: number;
+}
+
+function getPast3Months(): MonthEntry[] {
+  const now = new Date();
+  const months: MonthEntry[] = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
+  }
+  return months;
+}
+
 export default function DashboardPage() {
-  const [currentBudget, setCurrentBudget] = useState<BudgetSummaryDTO | null>(null);
+  const [monthlyBudgets, setMonthlyBudgets] = useState<(BudgetSummaryDTO | null)[]>([]);
+  const [months] = useState<MonthEntry[]>(getPast3Months);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    loadCurrentBudget();
+    loadBudgets();
   }, []);
 
-  const loadCurrentBudget = async () => {
+  const loadBudgets = async () => {
     setIsLoading(true);
     try {
-      const response = await budgetService.getCurrentMonthBudget();
-      setCurrentBudget(response);
-    } catch (err: any) {
-      console.error('Failed to load current budget:', err);
-      if (err.response?.status === 404) {
-        setError('No budget found for current month');
-      } else {
-        setError('Failed to load dashboard data');
+      const results = await Promise.all(
+        months.map(async ({ year, month }) => {
+          try {
+            return await budgetService.getMonthlyBudgetSummary(year, month);
+          } catch (err: any) {
+            if (err.response?.status === 404) {
+              return null;
+            }
+            throw err;
+          }
+        })
+      );
+      setMonthlyBudgets(results);
+      if (results.every((r) => r === null)) {
+        setError('No budgets found for the past 3 months');
       }
+    } catch (err: any) {
+      console.error('Failed to load budgets:', err);
+      setError('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -63,73 +89,84 @@ export default function DashboardPage() {
         Dashboard
       </Typography>
 
-      {error && !currentBudget && (
+      {error && monthlyBudgets.every((b) => b === null) && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          {error}. Create a budget for this month to see dashboard insights.
+          {error}. Create a budget to see dashboard insights.
         </Alert>
       )}
 
-      {currentBudget && (
-        <Grid container spacing={3}>
-          {/* Current Month Budget */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Current Month: {formatBudgetPeriod(currentBudget.year, currentBudget.month)}
-                </Typography>
+      <Grid container spacing={3}>
+        {months.map((entry, index) => {
+          const budget = monthlyBudgets[index];
+          if (!budget) return null;
 
-                <Box sx={{ mb: 2 }}>
-                  <Chip
-                    label={getSpendingStatusText(currentBudget.spendingPercentage)}
-                    color={getSpendingStatusColor(currentBudget.spendingPercentage) as any}
-                  />
-                </Box>
+          const remaining = budget.totalAmount - budget.totalSpending;
+          const isCurrentMonth = index === 0;
 
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2" color="text.secondary">Budget</Typography>
-                    <Typography variant="h5">{formatCurrency(currentBudget.totalAmount)}</Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2" color="text.secondary">Spent</Typography>
-                    <Typography variant="h5">{formatCurrency(currentBudget.totalSpending)}</Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2" color="text.secondary">Remaining</Typography>
-                    <Typography variant="h5" color={currentBudget.totalAmount - currentBudget.totalSpending >= 0 ? 'success.main' : 'error.main'}>
-                      {formatCurrency(Math.abs(currentBudget.totalAmount - currentBudget.totalSpending))}
-                    </Typography>
-                  </Grid>
-                </Grid>
+          return (
+            <Grid item xs={12} md={4} key={`${entry.year}-${entry.month}`}>
+              <Card sx={isCurrentMonth ? { border: 2, borderColor: 'primary.main' } : {}}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    {isCurrentMonth ? 'Current Month' : formatBudgetPeriod(entry.year, entry.month)}
+                    {isCurrentMonth && (
+                      <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                        {formatBudgetPeriod(entry.year, entry.month)}
+                      </Typography>
+                    )}
+                  </Typography>
 
-                <Box sx={{ mt: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2">Budget Used</Typography>
-                    <Typography variant="body2">{currentBudget.spendingPercentage.toFixed(1)}%</Typography>
+                  <Box sx={{ mb: 2 }}>
+                    <Chip
+                      label={getSpendingStatusText(budget.spendingPercentage)}
+                      color={getSpendingStatusColor(budget.spendingPercentage) as any}
+                      size="small"
+                    />
                   </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={Math.min(currentBudget.spendingPercentage, 100)}
-                    color={getSpendingStatusColor(currentBudget.spendingPercentage) as any}
-                    sx={{ height: 10, borderRadius: 5 }}
-                  />
-                </Box>
 
-                {currentBudget.spendingPercentage >= 90 && (
-                  <Alert severity="warning" sx={{ mt: 2 }}>
-                    Warning: You've used {currentBudget.spendingPercentage.toFixed(1)}% of your budget!
-                  </Alert>
-                )}
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">Budget</Typography>
+                    <Typography variant="h6">{formatCurrency(budget.totalAmount)}</Typography>
+                  </Box>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">Spent</Typography>
+                    <Typography variant="h6">{formatCurrency(budget.totalSpending)}</Typography>
+                  </Box>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">Remaining</Typography>
+                    <Typography variant="h6" color={remaining >= 0 ? 'success.main' : 'error.main'}>
+                      {formatCurrency(Math.abs(remaining))}
+                    </Typography>
+                  </Box>
 
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  {currentBudget.expenseCount} {currentBudget.expenseCount === 1 ? 'expense' : 'expenses'} recorded
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Budget Used</Typography>
+                      <Typography variant="body2">{budget.spendingPercentage.toFixed(1)}%</Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min(budget.spendingPercentage, 100)}
+                      color={getSpendingStatusColor(budget.spendingPercentage) as any}
+                      sx={{ height: 10, borderRadius: 5 }}
+                    />
+                  </Box>
+
+                  {budget.spendingPercentage >= 90 && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {budget.spendingPercentage.toFixed(1)}% of budget used!
+                    </Alert>
+                  )}
+
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    {budget.expenseCount} {budget.expenseCount === 1 ? 'expense' : 'expenses'} recorded
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
     </Container>
   );
 }

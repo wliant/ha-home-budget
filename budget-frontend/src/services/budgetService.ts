@@ -201,6 +201,11 @@ export const budgetService = {
     return response.data;
   },
 
+  getMonthlyBudgetSummary: async (year: number, month: number): Promise<BudgetSummaryDTO> => {
+    const response = await api.get<BudgetSummaryDTO>(`/api/budgets/monthly-summary?year=${year}&month=${month}`);
+    return response.data;
+  },
+
   getBudgetValidation: async (categoryId: number, year: number, month?: number | null): Promise<BudgetValidationDTO> => {
     const params = new URLSearchParams({ categoryId: String(categoryId), year: String(year) });
     if (month) {
