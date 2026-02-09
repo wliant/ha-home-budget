@@ -117,8 +117,8 @@ export const CategoryDialog: React.FC<CategoryDialogProps> = ({
         <Typography variant="body2" color="text.secondary" gutterBottom>
           Common icons:
         </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          {COMMON_CATEGORY_ICONS.slice(0, 12).map((item) => (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, maxHeight: 160, overflowY: 'auto', pr: 0.5 }}>
+          {COMMON_CATEGORY_ICONS.map((item) => (
             <Chip
               key={item.emoji}
               label={`${item.emoji} ${item.label}`}
