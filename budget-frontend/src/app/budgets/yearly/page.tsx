@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Container,
   IconButton,
-  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -49,7 +48,10 @@ interface CategoryGroup {
 
 export default function YearlyBudgetPage() {
   const currentYear = new Date().getFullYear();
+  const minYear = 2019;
+  const maxYear = 2200;
   const [year, setYear] = useState(currentYear);
+  const [yearInput, setYearInput] = useState(String(currentYear));
   const [data, setData] = useState<YearlyBudgetViewDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -57,11 +59,12 @@ export default function YearlyBudgetPage() {
   const [selectedCategories, setSelectedCategories] = useState<YearlyCategoryBudgetDTO[]>([]);
 
   const yearOptions = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => currentYear - 1 + i),
-    [currentYear],
+    () => Array.from({ length: maxYear - minYear + 1 }, (_, i) => String(minYear + i)),
+    [minYear, maxYear],
   );
 
   useEffect(() => {
+    setYearInput(String(year));
     const load = async () => {
       setIsLoading(true);
       setError('');
@@ -88,6 +91,25 @@ export default function YearlyBudgetPage() {
     };
     load();
   }, [year]);
+
+  const handleYearInputChange = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, '');
+    const normalized = digitsOnly.length > 4 ? digitsOnly.slice(-4) : digitsOnly;
+    setYearInput(normalized);
+    if (normalized.length !== 4) return;
+    const parsed = Number(normalized);
+    if (!Number.isInteger(parsed)) return;
+    if (parsed < minYear || parsed > maxYear) return;
+    setYear(parsed);
+  };
+
+  const yearInputError = (() => {
+    if (!yearInput) return '';
+    const parsed = Number(yearInput);
+    if (!Number.isInteger(parsed)) return 'Enter a valid year';
+    if (parsed < minYear || parsed > maxYear) return `Year must be between ${minYear} and ${maxYear}`;
+    return '';
+  })();
 
   // Group categories by parent
   const { groups, filterOptions } = useMemo(() => {
@@ -189,19 +211,42 @@ export default function YearlyBudgetPage() {
             )}
             sx={{ minWidth: 280 }}
           />
-          <TextField
-            select
-            label="Year"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            sx={{ width: 160 }}
-          >
-            {yearOptions.map((option) => (
-              <MenuItem key={option} value={option}>
-                {option}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            size="small"
+            freeSolo
+            options={yearOptions}
+            value={String(year)}
+            inputValue={yearInput}
+            onInputChange={(_, newValue, reason) => {
+              if (reason === 'reset') return;
+              handleYearInputChange(newValue);
+            }}
+            onChange={(_, newValue) => {
+              if (!newValue) return;
+              const parsed = Number(newValue);
+              if (!Number.isInteger(parsed)) return;
+              if (parsed < minYear || parsed > maxYear) return;
+              setYear(parsed);
+              setYearInput(String(parsed));
+            }}
+            getOptionLabel={(option) => String(option)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Year"
+                error={Boolean(yearInputError)}
+                helperText={yearInputError || ' '}
+                sx={{ width: 200 }}
+                inputProps={{
+                  ...params.inputProps,
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                  maxLength: 4,
+                  onFocus: (event) => event.currentTarget.select(),
+                }}
+              />
+            )}
+          />
         </Box>
       </Box>
 
