@@ -40,6 +40,16 @@ apiClient.interceptors.request.use(
       }
     }
 
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        if (typeof (config.headers as any).delete === 'function') {
+          (config.headers as any).delete('Content-Type');
+        }
+        delete (config.headers as any)['Content-Type'];
+        delete (config.headers as any)['content-type'];
+      }
+    }
+
     console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
