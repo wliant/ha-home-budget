@@ -65,7 +65,7 @@ export default function AppShell({ children }: AppShellProps) {
                 }
               }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ color: isSelected ? 'primary.main' : 'text.secondary' }}>{item.icon}</ListItemIcon>
               <ListItemText primary={item.label} />
             </ListItemButton>
           );
@@ -83,21 +83,17 @@ export default function AppShell({ children }: AppShellProps) {
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar
         position="fixed"
-        elevation={0}
         sx={{
           zIndex: (t) => t.zIndex.drawer + 1,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          bgcolor: 'background.paper',
-          color: 'text.primary',
         }}
       >
         <Toolbar sx={{ gap: 2 }}>
           {!isDesktop && (
             <IconButton
-              color="inherit"
               aria-label="open navigation"
               edge="start"
               onClick={handleDrawerToggle}
+              sx={{ color: '#ffffff' }}
             >
               <MenuIcon />
             </IconButton>
@@ -108,14 +104,23 @@ export default function AppShell({ children }: AppShellProps) {
             href="/"
             sx={{
               textDecoration: 'none',
-              color: 'inherit',
+              color: '#ffffff',
               fontWeight: 600,
               flexGrow: 1,
             }}
           >
             Home Budget Tracker
           </Typography>
-          <Button component={Link} href="/expenses/new" variant="contained">
+          <Button
+            component={Link}
+            href="/expenses/new"
+            variant="contained"
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.15)',
+              color: '#ffffff',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' },
+            }}
+          >
             Record Expense
           </Button>
         </Toolbar>
@@ -135,7 +140,8 @@ export default function AppShell({ children }: AppShellProps) {
             '& .MuiDrawer-paper': {
               width: drawerWidth,
               boxSizing: 'border-box',
-              bgcolor: 'background.paper',
+              bgcolor: '#F5EDE3',
+              borderRight: '1px solid rgba(160,82,45,0.1)',
             },
           }}
         >

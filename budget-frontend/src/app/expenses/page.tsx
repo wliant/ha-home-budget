@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
+import { ReceiptLong as ReceiptLongIcon } from '@mui/icons-material';
 import ExpenseListTable from '@/components/expenses/ExpenseListTable';
 import ExpenseFilters from '@/components/expenses/ExpenseFilters';
 import { expenseService } from '@/services/expenseService';
@@ -60,9 +61,12 @@ export default function ExpensesPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box>
-        <Typography variant="h5" sx={{ mb: 3 }}>
-          Expenses
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+          <ReceiptLongIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h5">
+            Expenses
+          </Typography>
+        </Box>
         <ExpenseFilters filters={filters} onFilterChange={handleFilterChange} />
         {loading && !data && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>

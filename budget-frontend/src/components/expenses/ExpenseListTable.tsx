@@ -132,7 +132,7 @@ export default function ExpenseListTable({
       <TableContainer sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ minWidth: 600 }}>
           <TableHead>
-            <TableRow>
+            <TableRow sx={{ bgcolor: 'grey.100' }}>
               {SORTABLE_COLUMNS.map((col) => (
                 <TableCell key={col.id} align={col.align} sortDirection={col.id === sortBy ? muiDirection(col.id) : false}>
                   <TableSortLabel
@@ -148,7 +148,7 @@ export default function ExpenseListTable({
           </TableHead>
           <TableBody>
             {data.content.map((expense) => (
-              <TableRow key={expense.id} hover>
+              <TableRow key={expense.id} hover sx={{ '&:hover': { bgcolor: 'rgba(160,82,45,0.04)' } }}>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                   {formatExpenseDate(expense.expenseDate)}
                 </TableCell>

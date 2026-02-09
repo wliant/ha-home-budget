@@ -20,6 +20,7 @@ import {
   Delete as DeleteIcon,
   AdminPanelSettings as SystemIcon,
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { CategoryDTO } from '../../../types/category';
 
 interface CategoryCardProps {
@@ -39,6 +40,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = React.memo(({
   onEdit,
   onDelete,
 }) => {
+  const theme = useTheme();
+
   const handleEdit = () => {
     onEdit(category);
   };
@@ -51,10 +54,19 @@ export const CategoryCard: React.FC<CategoryCardProps> = React.memo(({
     <Card
       sx={{
         ml: isChild ? 2 : 0,
-        borderLeft: isChild ? '4px solid #1976d2' : 'none',
+        borderLeft: isChild ? `4px solid ${theme.palette.primary.main}` : 'none',
+        bgcolor: isChild ? 'rgba(138,158,80,0.06)' : 'background.paper',
+        fontWeight: isChild ? 'normal' : 'bold',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        ...(!isChild && {
+          boxShadow: theme.shadows[3],
+        }),
+        '&:hover': isChild ? {
+          bgcolor: 'rgba(138,158,80,0.12)',
+          transition: 'background-color 0.2s ease',
+        } : undefined,
       }}
     >
       <CardContent sx={{ flexGrow: 1 }}>

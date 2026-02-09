@@ -4,9 +4,9 @@ import {
   Dashboard as DashboardIcon,
   AccountBalanceWallet as WalletIcon,
   Category as CategoryIcon,
-  Receipt as ReceiptIcon,
+  ReceiptLong as ReceiptLongIcon,
   CalendarMonth as CalendarIcon,
-  ListAlt as ListAltIcon,
+  AddCard as AddCardIcon,
 } from '@mui/icons-material';
 
 export type NavItem = {
@@ -55,13 +55,13 @@ export const navItems: NavItem[] = [
   {
     label: 'Expenses',
     href: '/expenses',
-    icon: <ListAltIcon />,
+    icon: <ReceiptLongIcon />,
     match: (pathname) => pathname === '/expenses',
   },
   {
     label: 'Record Expense',
     href: '/expenses/new',
-    icon: <ReceiptIcon />,
+    icon: <AddCardIcon />,
     match: (pathname) => pathname === '/expenses/new',
   },
 ];

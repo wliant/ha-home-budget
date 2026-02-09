@@ -87,10 +87,12 @@ export function RecentActivityCard() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
+        <Box sx={{ background: 'linear-gradient(135deg, #7A3B1E 0%, #A0522D 100%)', px: 3, py: 2, borderRadius: '12px 12px 0 0' }}>
+          <Typography variant="h6" sx={{ color: '#ffffff' }}>
             Recent Activity
           </Typography>
+        </Box>
+        <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </Box>
@@ -103,10 +105,12 @@ export function RecentActivityCard() {
   if (error) {
     return (
       <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
+        <Box sx={{ background: 'linear-gradient(135deg, #7A3B1E 0%, #A0522D 100%)', px: 3, py: 2, borderRadius: '12px 12px 0 0' }}>
+          <Typography variant="h6" sx={{ color: '#ffffff' }}>
             Recent Activity
           </Typography>
+        </Box>
+        <CardContent>
           <Alert severity="error" sx={{ mt: 2 }}>
             <Typography variant="body2">{error}</Typography>
           </Alert>
@@ -124,10 +128,12 @@ export function RecentActivityCard() {
   if (expenses.length === 0) {
     return (
       <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
+        <Box sx={{ background: 'linear-gradient(135deg, #7A3B1E 0%, #A0522D 100%)', px: 3, py: 2, borderRadius: '12px 12px 0 0' }}>
+          <Typography variant="h6" sx={{ color: '#ffffff' }}>
             Recent Activity
           </Typography>
+        </Box>
+        <CardContent>
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <ReceiptIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
             <Typography variant="body1" color="text.secondary" gutterBottom>
@@ -148,10 +154,12 @@ export function RecentActivityCard() {
   // Expenses list
   return (
     <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
+      <Box sx={{ background: 'linear-gradient(135deg, #7A3B1E 0%, #A0522D 100%)', px: 3, py: 2, borderRadius: '12px 12px 0 0' }}>
+        <Typography variant="h6" sx={{ color: '#ffffff' }}>
           Recent Activity
         </Typography>
+      </Box>
+      <CardContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Your 5 most recent expenses
         </Typography>
@@ -165,6 +173,9 @@ export function RecentActivityCard() {
                 borderColor: 'divider',
                 px: 0,
                 py: 1.5,
+                '&:hover': {
+                  bgcolor: 'rgba(160,82,45,0.04)',
+                },
               }}
             >
               <ListItemIcon>
@@ -199,6 +210,7 @@ export function RecentActivityCard() {
                           label={expense.categoryName}
                           size="small"
                           variant="outlined"
+                          color="primary"
                         />
                       )}
 
@@ -208,7 +220,7 @@ export function RecentActivityCard() {
                           label={expense.createdBy}
                           size="small"
                           variant="outlined"
-                          color="default"
+                          color="secondary"
                         />
                       )}
                     </Box>

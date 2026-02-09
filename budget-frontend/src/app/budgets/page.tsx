@@ -21,7 +21,7 @@ import {
   Select,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
-import { Add as AddIcon, Clear as ClearIcon } from '@mui/icons-material';
+import { Add as AddIcon, Clear as ClearIcon, AccountBalanceWallet as WalletIcon } from '@mui/icons-material';
 import BudgetCard from '@/components/BudgetCard';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod } from '@/services/budgetService';
 import { categoryService } from '@/services/categoryService';
@@ -298,9 +298,12 @@ export default function BudgetsPage() {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1">
-          Budgets
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <WalletIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h4" component="h1">
+            Budgets
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}

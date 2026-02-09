@@ -13,6 +13,11 @@ import {
   Button,
   Chip,
 } from '@mui/material';
+import {
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  ErrorOutline as ErrorOutlineIcon,
+} from '@mui/icons-material';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency } from '@/services/budgetService';
 
 /**
@@ -83,6 +88,12 @@ export function BudgetSummaryCard() {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return `${monthNames[month - 1]} ${year}`;
+  };
+
+  const getStatusIcon = (color: string) => {
+    if (color === 'error') return <ErrorOutlineIcon fontSize="small" />;
+    if (color === 'warning') return <WarningIcon fontSize="small" />;
+    return <CheckCircleIcon fontSize="small" />;
   };
 
   // Loading state
@@ -157,17 +168,20 @@ export function BudgetSummaryCard() {
 
   return (
     <Card>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
+      <Box sx={{ background: 'linear-gradient(135deg, #7A3B1E 0%, #A0522D 100%)', px: 3, py: 2, borderRadius: '12px 12px 0 0' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ color: '#ffffff' }}>
             Budget Summary
           </Typography>
           <Chip
+            icon={getStatusIcon(statusColor)}
             label={statusText}
             color={statusColor}
             size="small"
           />
         </Box>
+      </Box>
+      <CardContent>
 
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
           {period}

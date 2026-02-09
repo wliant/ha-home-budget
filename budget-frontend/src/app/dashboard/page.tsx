@@ -12,6 +12,7 @@ import {
   Alert,
   Chip,
 } from '@mui/material';
+import { Dashboard as DashboardIcon } from '@mui/icons-material';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency, getSpendingStatusColor, getSpendingStatusText } from '@/services/budgetService';
 import BudgetPieChart from '@/components/dashboard/BudgetPieChart';
 
@@ -85,9 +86,12 @@ export default function DashboardPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <DashboardIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+        <Typography variant="h4" component="h1" gutterBottom>
+          Dashboard
+        </Typography>
+      </Box>
 
       {error && monthlyBudgets.every((b) => b === null) && (
         <Alert severity="info" sx={{ mb: 3 }}>

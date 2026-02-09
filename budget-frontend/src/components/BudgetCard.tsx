@@ -16,6 +16,9 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Visibility as VisibilityIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from '@mui/icons-material';
 import {
   BudgetSummaryDTO,
@@ -52,8 +55,14 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({
   const statusText = getSpendingStatusText(budget.spendingPercentage);
   const remaining = budget.totalAmount - budget.totalSpending;
 
+  const getStatusIcon = () => {
+    if (statusColor === 'error') return <ErrorOutlineIcon fontSize="small" />;
+    if (statusColor === 'warning') return <WarningIcon fontSize="small" />;
+    return <CheckCircleIcon fontSize="small" />;
+  };
+
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderTop: `3px solid`, borderTopColor: `${statusColor}.main` }}>
       <CardContent sx={{ flexGrow: 1 }}>
         {/* Budget Period */}
         <Typography variant="h6" component="div" gutterBottom>
@@ -72,6 +81,7 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({
         {/* Status Chip */}
         <Box sx={{ mb: 2 }}>
           <Chip
+            icon={getStatusIcon()}
             label={statusText}
             color={statusColor as any}
             size="small"

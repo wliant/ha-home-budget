@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
+  Category as CategoryIcon,
 } from '@mui/icons-material';
 import { categoryService } from '@/services/categoryService';
 import { CategoryDTO } from '@/types/category';
@@ -174,9 +175,12 @@ export default function CategoriesPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1">
-          Spending Categories
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <CategoryIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h4" component="h1">
+            Spending Categories
+          </Typography>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <ToggleButtonGroup
             value={viewMode}

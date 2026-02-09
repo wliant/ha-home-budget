@@ -12,6 +12,7 @@ import {
   Alert,
   Box,
 } from '@mui/material';
+import { AddCard as AddCardIcon } from '@mui/icons-material';
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { expenseService, getTodayISO } from '@/services/expenseService';
 import { budgetService } from '@/services/budgetService';
@@ -222,9 +223,12 @@ export default function NewExpensePage() {
   return (
     <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 } }}> {/* Responsive padding (T028) */}
       <Paper sx={{ p: { xs: 3, sm: 4 }, mt: { xs: 2, sm: 4 } }}> {/* Responsive spacing (T028) */}
-        <Typography variant="h4" component="h1" gutterBottom>
-          Record Expense
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <AddCardIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h4" component="h1" gutterBottom>
+            Record Expense
+          </Typography>
+        </Box>
 
         {/* User context display (T024) */}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

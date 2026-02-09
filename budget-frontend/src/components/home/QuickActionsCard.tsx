@@ -67,9 +67,27 @@ export function QuickActionsCard() {
             <Button
               fullWidth
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255, 255, 255, 0.25)',
+                    transition: 'background-color 0.2s',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.35)',
+                    },
+                  }}
+                >
+                  <AddIcon fontSize="small" />
+                </Box>
+              }
               onClick={handleCreateBudget}
-              sx={{ py: 1.5 }}
+              sx={{ py: 1.5, minHeight: 48 }}
               aria-label="Create a new monthly budget"
             >
               Create Budget
@@ -81,9 +99,27 @@ export function QuickActionsCard() {
             <Button
               fullWidth
               variant="contained"
-              startIcon={<ReceiptIcon />}
+              startIcon={
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255, 255, 255, 0.25)',
+                    transition: 'background-color 0.2s',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.35)',
+                    },
+                  }}
+                >
+                  <ReceiptIcon fontSize="small" />
+                </Box>
+              }
               onClick={handleRecordExpense}
-              sx={{ py: 1.5 }}
+              sx={{ py: 1.5, minHeight: 48 }}
               aria-label="Record a new expense"
             >
               Record Expense
@@ -95,9 +131,27 @@ export function QuickActionsCard() {
             <Button
               fullWidth
               variant="contained"
-              startIcon={<CategoryIcon />}
+              startIcon={
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255, 255, 255, 0.25)',
+                    transition: 'background-color 0.2s',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.35)',
+                    },
+                  }}
+                >
+                  <CategoryIcon fontSize="small" />
+                </Box>
+              }
               onClick={handleViewCategories}
-              sx={{ py: 1.5 }}
+              sx={{ py: 1.5, minHeight: 48 }}
               aria-label="View spending categories"
             >
               View Categories
@@ -109,9 +163,27 @@ export function QuickActionsCard() {
             <Button
               fullWidth
               variant="contained"
-              startIcon={<DashboardIcon />}
+              startIcon={
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(255, 255, 255, 0.25)',
+                    transition: 'background-color 0.2s',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.35)',
+                    },
+                  }}
+                >
+                  <DashboardIcon fontSize="small" />
+                </Box>
+              }
               onClick={handleViewDashboard}
-              sx={{ py: 1.5 }}
+              sx={{ py: 1.5, minHeight: 48 }}
               aria-label="View budget dashboard and analytics"
             >
               View Dashboard
@@ -124,7 +196,25 @@ export function QuickActionsCard() {
           <Button
             variant="text"
             size="small"
-            startIcon={<WalletIcon />}
+            startIcon={
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  bgcolor: 'rgba(160, 82, 45, 0.15)',
+                  transition: 'background-color 0.2s',
+                  '&:hover': {
+                    bgcolor: 'rgba(160, 82, 45, 0.25)',
+                  },
+                }}
+              >
+                <WalletIcon fontSize="small" />
+              </Box>
+            }
             onClick={handleViewBudgets}
             aria-label="View all budgets list"
           >

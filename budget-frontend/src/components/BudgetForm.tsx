@@ -303,10 +303,12 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
   }, [formData.extendParentBudget, validation, parentAmountTouched]);
 
   return (
-    <Paper elevation={2} sx={{ p: 3 }}>
-      <Typography variant="h6" gutterBottom>
-        {isEdit ? 'Edit Budget' : 'Create New Budget'}
-      </Typography>
+    <Paper elevation={2} sx={{ p: 3, pt: 0, overflow: 'hidden' }}>
+      <Box sx={{ bgcolor: 'rgba(192,120,80,0.08)', px: 3, py: 2, borderRadius: '8px 8px 0 0', mb: 2, mx: -3 }}>
+        <Typography variant="h5">
+          {isEdit ? 'Edit Budget' : 'Create New Budget'}
+        </Typography>
+      </Box>
 
       {submitError && (
         <Alert severity="error" sx={{ mb: 2 }}>

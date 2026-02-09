@@ -27,9 +27,10 @@ interface FeatureNavigationCardProps {
   description: string;
   icon: React.ReactNode;
   path: string;
+  color?: string;
 }
 
-export function FeatureNavigationCard({ title, description, icon, path }: FeatureNavigationCardProps) {
+export function FeatureNavigationCard({ title, description, icon, path, color = 'primary.main' }: FeatureNavigationCardProps) {
   const router = useRouter();
 
   const handleNavigate = () => {
@@ -42,6 +43,7 @@ export function FeatureNavigationCard({ title, description, icon, path }: Featur
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        borderLeft: `4px solid ${color}`,
         transition: 'transform 0.2s, box-shadow 0.2s',
         '&:hover': {
           transform: 'translateY(-4px)',

@@ -3,6 +3,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { formatCurrency } from '@/services/budgetService';
 
 interface BudgetPieChartProps {
@@ -10,14 +11,16 @@ interface BudgetPieChartProps {
   totalSpending: number;
 }
 
-const COLORS = {
-  spent: '#1976d2',       // blue - spent within budget
-  remaining: '#e0e0e0',   // light gray - remaining budget
-  overBudget: '#d32f2f',  // red - amount over budget
-  budgetPortion: '#ff9800', // orange - budget portion when over
-};
-
 export default function BudgetPieChart({ totalBudget, totalSpending }: BudgetPieChartProps) {
+  const theme = useTheme();
+
+  const COLORS = {
+    spent: theme.palette.primary.main,
+    remaining: theme.palette.grey[300],
+    overBudget: theme.palette.error.main,
+    budgetPortion: theme.palette.warning.main,
+  };
+
   const isOverBudget = totalSpending > totalBudget;
 
   let data: { name: string; value: number; color: string }[];
@@ -45,7 +48,7 @@ export default function BudgetPieChart({ totalBudget, totalSpending }: BudgetPie
         <tspan x={cx} dy="-0.4em" fontSize="20" fontWeight="bold">
           {percentage}%
         </tspan>
-        <tspan x={cx} dy="1.4em" fontSize="12" fill="#666">
+        <tspan x={cx} dy="1.4em" fontSize="12" fill={theme.palette.text.secondary}>
           used
         </tspan>
       </text>

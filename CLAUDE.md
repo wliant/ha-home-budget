@@ -260,6 +260,8 @@ All bash scripts support:
 - MySQL 8.0 (existing database with expenses, budgets, categories tables) (011-expense-list-view)
 - Java 17 (backend), TypeScript 5.x (frontend) + Spring Boot 3.2.0, Spring Data JPA, Next.js 14.x, Material-UI v5, React 18.x, Axios (012-parent-category-budgets)
 - MySQL 8.0 (existing database with categories, budgets, expenses tables) (012-parent-category-budgets)
+- TypeScript 5.3.3 (frontend only) + Next.js 14.0.4, Material-UI 5.14.20, @mui/icons-material 5.14.19, Recharts 3.7.0, React 18.2.0 (013-frontend-theme-redesign)
+- N/A (no data changes) (013-frontend-theme-redesign)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

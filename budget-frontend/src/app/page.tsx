@@ -18,6 +18,7 @@ import {
   Category as CategoryIcon,
   Dashboard as DashboardIcon,
   Receipt as ReceiptIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { BudgetSummaryCard } from '@/components/home/BudgetSummaryCard';
 import { QuickActionsCard } from '@/components/home/QuickActionsCard';
@@ -64,9 +65,12 @@ export default function Home() {
       <Box sx={{ my: 4 }}>
         {/* Header */}
         <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography variant="h2" component="h1" gutterBottom>
-            Home Budget Tracker
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'center' }}>
+            <HomeIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+            <Typography variant="h2" component="h1" gutterBottom>
+              Home Budget Tracker
+            </Typography>
+          </Box>
           <Typography variant="h5" color="text.secondary" gutterBottom>
             Household Budget and Expense Tracking System
           </Typography>
