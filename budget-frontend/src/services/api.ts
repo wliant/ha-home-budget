@@ -10,8 +10,13 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
  * - Centralizes error handling
  */
 
-// Get API URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// Resolve API base URL differently for server vs browser.
+// - Server: prefer INTERNAL_API_URL (container-only), then NEXT_PUBLIC_API_URL
+// - Browser: prefer NEXT_PUBLIC_API_URL, else same-origin (empty base)
+const isServer = typeof window === 'undefined';
+const API_BASE_URL = isServer
+  ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  : process.env.NEXT_PUBLIC_API_URL || '';
 
 // Create axios instance with default configuration
 const apiClient: AxiosInstance = axios.create({
