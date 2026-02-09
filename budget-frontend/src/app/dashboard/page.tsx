@@ -10,10 +10,10 @@ import {
   CardContent,
   CircularProgress,
   Alert,
-  LinearProgress,
   Chip,
 } from '@mui/material';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency, getSpendingStatusColor, getSpendingStatusText } from '@/services/budgetService';
+import BudgetPieChart from '@/components/dashboard/BudgetPieChart';
 
 /**
  * Dashboard page - User Story 4: Budget Dashboard and Insights
@@ -124,32 +124,28 @@ export default function DashboardPage() {
                     />
                   </Box>
 
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">Budget</Typography>
-                    <Typography variant="h6">{formatCurrency(budget.totalAmount)}</Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">Spent</Typography>
-                    <Typography variant="h6">{formatCurrency(budget.totalSpending)}</Typography>
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary">Remaining</Typography>
-                    <Typography variant="h6" color={remaining >= 0 ? 'success.main' : 'error.main'}>
-                      {formatCurrency(Math.abs(remaining))}
-                    </Typography>
-                  </Box>
+                  <BudgetPieChart
+                    totalBudget={budget.totalAmount}
+                    totalSpending={budget.totalSpending}
+                  />
 
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">Budget Used</Typography>
-                      <Typography variant="body2">{budget.spendingPercentage.toFixed(1)}%</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Budget</Typography>
+                      <Typography variant="subtitle2">{formatCurrency(budget.totalAmount)}</Typography>
                     </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min(budget.spendingPercentage, 100)}
-                      color={getSpendingStatusColor(budget.spendingPercentage) as any}
-                      sx={{ height: 10, borderRadius: 5 }}
-                    />
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">Spent</Typography>
+                      <Typography variant="subtitle2">{formatCurrency(budget.totalSpending)}</Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {remaining >= 0 ? 'Remaining' : 'Over'}
+                      </Typography>
+                      <Typography variant="subtitle2" color={remaining >= 0 ? 'success.main' : 'error.main'}>
+                        {formatCurrency(Math.abs(remaining))}
+                      </Typography>
+                    </Box>
                   </Box>
 
                   {budget.spendingPercentage >= 90 && (
