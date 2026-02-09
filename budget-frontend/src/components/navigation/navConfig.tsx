@@ -7,6 +7,7 @@ import {
   ReceiptLong as ReceiptLongIcon,
   CalendarMonth as CalendarIcon,
   AddCard as AddCardIcon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 
 export type NavItem = {
@@ -57,6 +58,12 @@ export const navItems: NavItem[] = [
     href: '/expenses',
     icon: <ReceiptLongIcon />,
     match: (pathname) => pathname === '/expenses',
+  },
+  {
+    label: 'Bulk Upload',
+    href: '/expenses/bulk-upload',
+    icon: <CloudUploadIcon />,
+    match: (pathname) => pathname === '/expenses/bulk-upload',
   },
   {
     label: 'Record Expense',
@@ -117,6 +124,14 @@ const breadcrumbDefinitions: Array<{ regex: RegExp; crumbs: BreadcrumbItem[] }> 
     crumbs: [
       { label: 'Home', href: '/' },
       { label: 'Expenses' },
+    ],
+  },
+  {
+    regex: /^\/expenses\/bulk-upload$/,
+    crumbs: [
+      { label: 'Home', href: '/' },
+      { label: 'Expenses', href: '/expenses' },
+      { label: 'Bulk Upload' },
     ],
   },
   {

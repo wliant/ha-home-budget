@@ -37,4 +37,7 @@
     <!-- Feature 008: Expense Files -->
     <include file="db/changelog/changes/008-create-expense-files-table.xml"/>
 
+    <!-- Feature 009: Expense Input Jobs -->
+    <include file="db/changelog/changes/009-create-expense-input-jobs.xml"/>
+
 </databaseChangeLog>

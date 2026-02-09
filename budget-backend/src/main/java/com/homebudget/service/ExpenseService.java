@@ -480,6 +480,34 @@ public class ExpenseService {
         return Paths.get(expenseFileDir, String.valueOf(year), categorySlug);
     }
 
+    ExpenseFile attachExistingFile(Expense expense, Path sourcePath, String originalFilename) {
+        Path baseDir = resolveExpenseDir(expense);
+        try {
+            Files.createDirectories(baseDir);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create expense file directory", e);
+        }
+
+        ExpenseFile expenseFile = new ExpenseFile();
+        expenseFile.setExpense(expense);
+        expenseFile.setOriginalFilename(originalFilename == null ? "unnamed" : originalFilename);
+
+        String tempName = expense.getId() + "_" + java.util.UUID.randomUUID();
+        Path tempTarget = baseDir.resolve(tempName);
+        expenseFile.setFilePath(tempTarget.toString());
+        expenseFile = expenseFileRepository.save(expenseFile);
+
+        String finalName = expense.getId() + "_" + expenseFile.getId();
+        Path finalTarget = baseDir.resolve(finalName);
+        try {
+            Files.move(sourcePath, finalTarget);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to move expense file", e);
+        }
+        expenseFile.setFilePath(finalTarget.toString());
+        return expenseFileRepository.save(expenseFile);
+    }
+
     private String sanitizeFolderName(String input) {
         String normalized = input == null ? "uncategorized" : input.trim().toLowerCase();
         normalized = normalized.replaceAll("[^a-z0-9]+", "-");
