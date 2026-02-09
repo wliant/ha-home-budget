@@ -351,14 +351,20 @@ public class BudgetService {
     @Transactional(readOnly = true)
     public BigDecimal calculateSpendingPercentage(Budget budget) {
         BigDecimal totalSpending = calculateTotalSpending(budget.getId());
+        BigDecimal totalAmount = budget.getTotalAmount();
 
         if (totalSpending.compareTo(BigDecimal.ZERO) == 0) {
             logger.debug("Budget ID={} has zero spending", budget.getId());
             return BigDecimal.ZERO;
         }
 
+        if (totalAmount == null || totalAmount.compareTo(BigDecimal.ZERO) == 0) {
+            logger.debug("Budget ID={} has zero total amount; returning 0% spending", budget.getId());
+            return BigDecimal.ZERO;
+        }
+
         BigDecimal percentage = totalSpending
-                .divide(budget.getTotalAmount(), 4, RoundingMode.HALF_UP)
+                .divide(totalAmount, 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100))
                 .setScale(2, RoundingMode.HALF_UP);
 
