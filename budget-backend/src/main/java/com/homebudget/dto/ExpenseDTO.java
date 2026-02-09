@@ -48,6 +48,8 @@ public class ExpenseDTO {
 
     private List<String> warnings = new ArrayList<>();
 
+    private List<ExpenseFileDTO> files = new ArrayList<>();
+
     // Constructors
     public ExpenseDTO() {
     }
@@ -189,5 +191,13 @@ public class ExpenseDTO {
      */
     public void setDateMismatchWarning(String warning) {
         addWarning(warning);
+    }
+
+    public List<ExpenseFileDTO> getFiles() {
+        return files;
+    }
+
+    public void setFiles(List<ExpenseFileDTO> files) {
+        this.files = files;
     }
 }

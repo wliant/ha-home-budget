@@ -15,6 +15,7 @@ import {
   Box,
   Chip,
   Skeleton,
+  Tooltip,
 } from '@mui/material';
 import type { ExpenseListResponse } from '@/services/expenseService';
 import { formatExpenseDate, formatExpenseAmount } from '@/services/expenseService';
@@ -31,11 +32,12 @@ interface ExpenseListTableProps {
   onSortChange: (sortBy: string, sortDirection: SortDirection) => void;
 }
 
-const SORTABLE_COLUMNS: { id: string; label: string; align?: 'right' }[] = [
+const TABLE_COLUMNS: { id: string; label: string; align?: 'right'; sortable?: boolean }[] = [
   { id: 'expenseDate', label: 'Date' },
   { id: 'description', label: 'Description' },
   { id: 'categoryName', label: 'Category' },
   { id: 'amount', label: 'Amount', align: 'right' },
+  { id: 'files', label: 'Files' },
   { id: 'createdBy', label: 'Created By' },
 ];
 
@@ -87,7 +89,7 @@ export default function ExpenseListTable({
           <Table size="small" sx={{ minWidth: 600 }}>
             <TableHead>
               <TableRow>
-                {SORTABLE_COLUMNS.map((col) => (
+                {TABLE_COLUMNS.map((col) => (
                   <TableCell key={col.id} align={col.align}>
                     <Typography variant="subtitle2">{col.label}</Typography>
                   </TableCell>
@@ -133,15 +135,19 @@ export default function ExpenseListTable({
         <Table size="small" sx={{ minWidth: 600 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: 'grey.100' }}>
-              {SORTABLE_COLUMNS.map((col) => (
+              {TABLE_COLUMNS.map((col) => (
                 <TableCell key={col.id} align={col.align} sortDirection={col.id === sortBy ? muiDirection(col.id) : false}>
-                  <TableSortLabel
-                    active={col.id === sortBy}
-                    direction={muiDirection(col.id)}
-                    onClick={() => handleSortClick(col.id)}
-                  >
+                  {col.id === 'files' ? (
                     <Typography variant="subtitle2">{col.label}</Typography>
-                  </TableSortLabel>
+                  ) : (
+                    <TableSortLabel
+                      active={col.id === sortBy}
+                      direction={muiDirection(col.id)}
+                      onClick={() => handleSortClick(col.id)}
+                    >
+                      <Typography variant="subtitle2">{col.label}</Typography>
+                    </TableSortLabel>
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -169,6 +175,24 @@ export default function ExpenseListTable({
                 </TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                   {formatExpenseAmount(expense.amount)}
+                </TableCell>
+                <TableCell>
+                  {expense.files && expense.files.length > 0 ? (
+                    <Tooltip
+                      title={expense.files.map((file) => file.originalFilename).join(', ')}
+                      arrow
+                    >
+                      <Chip
+                        label={`${expense.files.length} file${expense.files.length > 1 ? 's' : ''}`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      —
+                    </Typography>
+                  )}
                 </TableCell>
                 <TableCell>{expense.createdBy}</TableCell>
               </TableRow>

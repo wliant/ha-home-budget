@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="008-create-expense-files-table" author="codex">
+        <comment>Create expense_files table for expense attachments</comment>
+
+        <createTable tableName="expense_files">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="expense_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="file_path" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="original_filename" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="expense_files"
+            baseColumnNames="expense_id"
+            constraintName="fk_expense_files_expense"
+            referencedTableName="expenses"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+
+        <createIndex tableName="expense_files" indexName="idx_expense_files_expense_id">
+            <column name="expense_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="expense_files"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

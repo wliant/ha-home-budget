@@ -12,8 +12,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -54,7 +56,7 @@ public class ExpenseController {
      * @param username User creating expense (from X-Hass-User header)
      * @return Created expense with HTTP 201 status
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ExpenseDTO> createExpense(
             @Valid @RequestBody ExpenseDTO dto,
             @RequestHeader(HASS_USER_HEADER) String username) {
@@ -62,6 +64,19 @@ public class ExpenseController {
         logger.info("POST /api/expenses - Creating expense for budget {}, user: {}", dto.getBudgetId(), username);
 
         ExpenseDTO created = expenseService.createExpense(dto, username);
+
+        logger.info("Created expense ID: {} for budget ID: {}", created.getId(), created.getBudgetId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ExpenseDTO> createExpenseWithFiles(
+            @RequestPart("expense") @Valid ExpenseDTO dto,
+            @RequestPart(value = "files", required = false) MultipartFile[] files,
+            @RequestHeader(HASS_USER_HEADER) String username) {
+
+        logger.info("POST /api/expenses (multipart) - Creating expense with files, user: {}", username);
+        ExpenseDTO created = expenseService.createExpenseWithFiles(dto, files == null ? List.of() : List.of(files), username);
 
         logger.info("Created expense ID: {} for budget ID: {}", created.getId(), created.getBudgetId());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -216,7 +231,7 @@ public class ExpenseController {
      * @param dto Updated expense data
      * @return Updated expense
      */
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ExpenseDTO> updateExpense(
             @PathVariable Long id,
             @Valid @RequestBody ExpenseDTO dto) {
@@ -224,6 +239,19 @@ public class ExpenseController {
         logger.info("PUT /api/expenses/{} - Updating expense", id);
 
         ExpenseDTO updated = expenseService.updateExpense(id, dto);
+
+        logger.info("Updated expense ID: {}", id);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ExpenseDTO> updateExpenseWithFiles(
+            @PathVariable Long id,
+            @RequestPart("expense") @Valid ExpenseDTO dto,
+            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+
+        logger.info("PUT /api/expenses/{} (multipart) - Updating expense with files", id);
+        ExpenseDTO updated = expenseService.updateExpenseWithFiles(id, dto, files == null ? List.of() : List.of(files));
 
         logger.info("Updated expense ID: {}", id);
         return ResponseEntity.ok(updated);

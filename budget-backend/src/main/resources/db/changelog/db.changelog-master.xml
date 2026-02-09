@@ -34,4 +34,7 @@
     <!-- Feature 007: Yearly Budgets -->
     <include file="db/changelog/changes/007-update-budgets-yearly-parent.xml"/>
 
+    <!-- Feature 008: Expense Files -->
+    <include file="db/changelog/changes/008-create-expense-files-table.xml"/>
+
 </databaseChangeLog>

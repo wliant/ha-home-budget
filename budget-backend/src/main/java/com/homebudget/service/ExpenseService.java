@@ -1,6 +1,7 @@
 package com.homebudget.service;
 
 import com.homebudget.dto.ExpenseDTO;
+import com.homebudget.dto.ExpenseFileDTO;
 import com.homebudget.dto.ExpenseListResponse;
 import com.homebudget.exception.BudgetNotFoundException;
 import com.homebudget.exception.CategoryNotFoundException;
@@ -8,18 +9,26 @@ import com.homebudget.exception.ExpenseNotFoundException;
 import com.homebudget.model.Budget;
 import com.homebudget.model.Category;
 import com.homebudget.model.Expense;
+import com.homebudget.model.ExpenseFile;
 import com.homebudget.repository.BudgetRepository;
 import com.homebudget.repository.CategoryRepository;
+import com.homebudget.repository.ExpenseFileRepository;
 import com.homebudget.repository.ExpenseRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -40,6 +49,8 @@ import java.util.stream.Collectors;
 public class ExpenseService {
 
     private static final Logger logger = LoggerFactory.getLogger(ExpenseService.class);
+    private static final int MAX_FILES = 5;
+    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
     @Autowired
     private ExpenseRepository expenseRepository;
@@ -49,6 +60,12 @@ public class ExpenseService {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ExpenseFileRepository expenseFileRepository;
+
+    @Value("${EXPENSE_FILE_DIR:./data/expense-files}")
+    private String expenseFileDir;
 
     /**
      * Create a new expense.
@@ -95,6 +112,16 @@ public class ExpenseService {
         checkDateMismatch(result, budget);
 
         return result;
+    }
+
+    public ExpenseDTO createExpenseWithFiles(ExpenseDTO dto, List<MultipartFile> files, String username) {
+        ExpenseDTO created = createExpense(dto, username);
+        if (files != null && !files.isEmpty()) {
+            Expense expense = expenseRepository.findById(created.getId())
+                    .orElseThrow(() -> new ExpenseNotFoundException(created.getId()));
+            saveExpenseFiles(expense, files);
+        }
+        return getExpenseById(created.getId());
     }
 
     /**
@@ -217,6 +244,16 @@ public class ExpenseService {
         checkDateMismatch(result, updated.getBudget());
 
         return result;
+    }
+
+    public ExpenseDTO updateExpenseWithFiles(Long id, ExpenseDTO dto, List<MultipartFile> files) {
+        ExpenseDTO updated = updateExpense(id, dto);
+        if (files != null && !files.isEmpty()) {
+            Expense expense = expenseRepository.findById(id)
+                    .orElseThrow(() -> new ExpenseNotFoundException(id));
+            saveExpenseFiles(expense, files);
+        }
+        return getExpenseById(id);
     }
 
     /**
@@ -359,7 +396,95 @@ public class ExpenseService {
             dto.setCategoryIcon(expense.getCategory().getIcon());
         }
 
+        List<ExpenseFileDTO> files = expenseFileRepository.findByExpenseIdOrderByIdAsc(expense.getId())
+                .stream()
+                .map(file -> new ExpenseFileDTO(file.getId(), file.getOriginalFilename()))
+                .collect(Collectors.toList());
+        dto.setFiles(files);
+
         return dto;
+    }
+
+    private void saveExpenseFiles(Expense expense, List<MultipartFile> files) {
+        if (files.size() > MAX_FILES) {
+            throw new IllegalArgumentException("Maximum 5 files allowed per expense");
+        }
+
+        long existingCount = expenseFileRepository.countByExpenseId(expense.getId());
+        if (existingCount + files.size() > MAX_FILES) {
+            throw new IllegalArgumentException("Maximum 5 files allowed per expense");
+        }
+
+        for (MultipartFile file : files) {
+            validateFile(file);
+        }
+
+        Path baseDir = resolveExpenseDir(expense);
+        try {
+            Files.createDirectories(baseDir);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create expense file directory", e);
+        }
+
+        for (MultipartFile file : files) {
+            ExpenseFile expenseFile = new ExpenseFile();
+            expenseFile.setExpense(expense);
+            expenseFile.setOriginalFilename(file.getOriginalFilename() == null ? "unnamed" : file.getOriginalFilename());
+
+            String storedName = expense.getId() + "_" + java.util.UUID.randomUUID();
+            Path target = baseDir.resolve(storedName);
+            expenseFile.setFilePath(target.toString());
+            expenseFile = expenseFileRepository.save(expenseFile);
+
+            String storedWithId = expense.getId() + "_" + expenseFile.getId();
+            Path finalTarget = baseDir.resolve(storedWithId);
+            try {
+                file.transferTo(finalTarget);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to store expense file", e);
+            }
+            if (!finalTarget.equals(target)) {
+                try {
+                    Files.deleteIfExists(target);
+                } catch (IOException e) {
+                    logger.warn("Failed to delete temp file {}", target, e);
+                }
+            }
+            expenseFile.setFilePath(finalTarget.toString());
+            expenseFileRepository.save(expenseFile);
+        }
+    }
+
+    private void validateFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File cannot be empty");
+        }
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new IllegalArgumentException("File size exceeds 5MB limit");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null) {
+            throw new IllegalArgumentException("Unsupported file type");
+        }
+        boolean isImage = contentType.startsWith("image/");
+        boolean isPdf = "application/pdf".equals(contentType);
+        if (!isImage && !isPdf) {
+            throw new IllegalArgumentException("Only PDF and image files are allowed");
+        }
+    }
+
+    private Path resolveExpenseDir(Expense expense) {
+        int year = expense.getExpenseDate().getYear();
+        String category = expense.getCategory() != null ? expense.getCategory().getName() : "uncategorized";
+        String categorySlug = sanitizeFolderName(category);
+        return Paths.get(expenseFileDir, String.valueOf(year), categorySlug);
+    }
+
+    private String sanitizeFolderName(String input) {
+        String normalized = input == null ? "uncategorized" : input.trim().toLowerCase();
+        normalized = normalized.replaceAll("[^a-z0-9]+", "-");
+        normalized = normalized.replaceAll("(^-|-$)", "");
+        return normalized.isBlank() ? "uncategorized" : normalized;
     }
 
     private Budget resolveBudgetForExpense(ExpenseDTO dto) {

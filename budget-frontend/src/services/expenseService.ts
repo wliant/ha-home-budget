@@ -20,6 +20,12 @@ export interface ExpenseDTO {
   updatedAt?: string;
   version?: number;
   warnings?: string[];
+  files?: ExpenseFileDTO[];
+}
+
+export interface ExpenseFileDTO {
+  id: number;
+  originalFilename: string;
 }
 
 export interface CreateExpenseRequest {
@@ -101,7 +107,16 @@ export const expenseService = {
   /**
    * Create new expense
    */
-  createExpense: async (request: CreateExpenseRequest): Promise<ExpenseDTO> => {
+  createExpense: async (request: CreateExpenseRequest, files?: File[]): Promise<ExpenseDTO> => {
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('expense', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+      files.forEach((file) => formData.append('files', file));
+      const response = await api.post<ExpenseDTO>('/api/expenses', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
     const response = await api.post<ExpenseDTO>('/api/expenses', request);
     return response.data;
   },
@@ -109,7 +124,16 @@ export const expenseService = {
   /**
    * Update existing expense
    */
-  updateExpense: async (id: number, request: UpdateExpenseRequest): Promise<ExpenseDTO> => {
+  updateExpense: async (id: number, request: UpdateExpenseRequest, files?: File[]): Promise<ExpenseDTO> => {
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('expense', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+      files.forEach((file) => formData.append('files', file));
+      const response = await api.put<ExpenseDTO>(`/api/expenses/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
     const response = await api.put<ExpenseDTO>(`/api/expenses/${id}`, request);
     return response.data;
   },

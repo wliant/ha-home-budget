@@ -72,6 +72,7 @@ export interface ExpenseDTO {
   updatedAt?: string;
   version?: number;
   warnings?: string[];
+  files?: { id: number; originalFilename: string }[];
 }
 
 export interface CategoryDTO {

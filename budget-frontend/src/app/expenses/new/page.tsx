@@ -13,8 +13,9 @@ import {
   Box,
   ButtonGroup,
   Tooltip,
+  Chip,
 } from '@mui/material';
-import { AddCard as AddCardIcon, Add, Remove } from '@mui/icons-material';
+import { AddCard as AddCardIcon, Add, Remove, AttachFile } from '@mui/icons-material';
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { expenseService, getTodayISO } from '@/services/expenseService';
 import { budgetService } from '@/services/budgetService';
@@ -42,11 +43,14 @@ export default function NewExpensePage() {
     expenseDate: getTodayISO(),
     categoryId: null,
     budgetId: null,
+    files: [],
     errors: {},
     loading: false,
     successMessage: null,
     errorMessage: null,
   });
+  const maxFiles = 5;
+  const maxFileSize = 5 * 1024 * 1024;
 
   // Budget auto-selection logic (T010)
   useEffect(() => {
@@ -141,6 +145,10 @@ export default function NewExpensePage() {
       errors.budget = 'A budget must exist for the selected date';
     }
 
+    if (formState.files.length > maxFiles) {
+      errors.files = 'Maximum 5 files allowed';
+    }
+
     setFormState((prev) => ({ ...prev, errors }));
     return Object.keys(errors).length === 0;
   };
@@ -171,13 +179,16 @@ export default function NewExpensePage() {
     setFormState((prev) => ({ ...prev, loading: true }));
 
     try {
-      await expenseService.createExpense({
-        amount: parseFloat(formState.amount),
-        description: formState.description.trim(),
-        expenseDate: formState.expenseDate,
-        budgetId: formState.budgetId!,
-        categoryId: formState.categoryId,
-      });
+      await expenseService.createExpense(
+        {
+          amount: parseFloat(formState.amount),
+          description: formState.description.trim(),
+          expenseDate: formState.expenseDate,
+          budgetId: formState.budgetId!,
+          categoryId: formState.categoryId,
+        },
+        formState.files
+      );
 
       // Success feedback (T014, T025)
       setFormState((prev) => ({
@@ -195,6 +206,7 @@ export default function NewExpensePage() {
           expenseDate: getTodayISO(),
           categoryId: null,
           budgetId: null,
+          files: [],
           errors: {},
           loading: false,
           successMessage: null,
@@ -220,6 +232,48 @@ export default function NewExpensePage() {
 
   const updateField = (field: keyof ExpenseFormState, value: any) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files || []);
+    if (selected.length === 0) return;
+
+    const combined = [...formState.files, ...selected];
+    const errors: Record<string, string> = { ...formState.errors };
+
+    if (combined.length > maxFiles) {
+      errors.files = `Maximum ${maxFiles} files allowed`;
+    } else {
+      delete errors.files;
+    }
+
+    const invalidType = combined.find((file) => {
+      return !(file.type === 'application/pdf' || file.type.startsWith('image/'));
+    });
+    if (invalidType) {
+      errors.files = 'Only PDF and image files are allowed';
+    }
+
+    const tooLarge = combined.find((file) => file.size > maxFileSize);
+    if (tooLarge) {
+      errors.files = 'Each file must be 5MB or less';
+    }
+
+    setFormState((prev) => ({
+      ...prev,
+      files: combined.slice(0, maxFiles),
+      errors,
+    }));
+
+    event.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setFormState((prev) => ({
+      ...prev,
+      files: prev.files.filter((_, i) => i !== index),
+      errors: { ...prev.errors, files: '' },
+    }));
   };
 
   const parseLocalDate = (value: string) => {
@@ -369,6 +423,48 @@ export default function NewExpensePage() {
               error={formState.errors.category}
               year={formState.expenseDate ? new Date(formState.expenseDate).getFullYear() : undefined}
             />
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Attach files (optional)
+            </Typography>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<AttachFile />}
+              disabled={formState.files.length >= maxFiles}
+            >
+              Add files
+              <input
+                type="file"
+                hidden
+                multiple
+                accept="application/pdf,image/*"
+                onChange={handleFileChange}
+              />
+            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              Up to {maxFiles} files, 5MB each
+            </Typography>
+            {formState.errors.files && (
+              <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
+                {formState.errors.files}
+              </Typography>
+            )}
+            {formState.files.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                {formState.files.map((file, index) => (
+                  <Chip
+                    key={`${file.name}-${index}`}
+                    label={file.name}
+                    onDelete={() => removeFile(index)}
+                    variant="outlined"
+                    size="small"
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
 
           {/* Submit button (T008, T034) */}
