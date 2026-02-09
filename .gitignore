@@ -66,3 +66,4 @@ coverage/
 # yarn.lock
 # pnpm-lock.yaml
 .playwright-cli
+data

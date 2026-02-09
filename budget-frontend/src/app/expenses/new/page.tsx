@@ -367,6 +367,7 @@ export default function NewExpensePage() {
               onChange={(id) => updateField('categoryId', id)}
               required
               error={formState.errors.category}
+              year={formState.expenseDate ? new Date(formState.expenseDate).getFullYear() : undefined}
             />
           </Box>
 
