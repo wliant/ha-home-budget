@@ -234,7 +234,19 @@ public class ExpenseInputJobService {
                 .orElseThrow(() -> new ExpenseNotFoundException(created.getId()));
 
         Path source = Paths.get(job.getFilePath());
-        expenseService.attachExistingFile(expense, source, job.getOriginalFilename());
+        if (Files.exists(source)) {
+            try {
+                expenseService.attachExistingFile(expense, source, job.getOriginalFilename());
+            } catch (RuntimeException e) {
+                logger.warn("Failed to attach file for job {}. Continuing without file.", job.getId(), e);
+                job.setErrorMessage("File attachment failed");
+                jobRepository.save(job);
+            }
+        } else {
+            logger.warn("Missing source file for job {} at {}. Continuing without file.", job.getId(), source);
+            job.setErrorMessage("Source file missing");
+            jobRepository.save(job);
+        }
         return expense;
     }
 
