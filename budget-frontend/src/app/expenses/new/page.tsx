@@ -11,8 +11,10 @@ import {
   Snackbar,
   Alert,
   Box,
+  ButtonGroup,
+  Tooltip,
 } from '@mui/material';
-import { AddCard as AddCardIcon } from '@mui/icons-material';
+import { AddCard as AddCardIcon, Add, Remove } from '@mui/icons-material';
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { expenseService, getTodayISO } from '@/services/expenseService';
 import { budgetService } from '@/services/budgetService';
@@ -220,6 +222,30 @@ export default function NewExpensePage() {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
+  const parseLocalDate = (value: string) => {
+    const [year, month, day] = value.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  };
+
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const shiftExpenseDate = (deltaDays: number) => {
+    const base = formState.expenseDate || getTodayISO();
+    const parsed = parseLocalDate(base);
+    if (!parsed) {
+      updateField('expenseDate', getTodayISO());
+      return;
+    }
+    parsed.setDate(parsed.getDate() + deltaDays);
+    updateField('expenseDate', formatLocalDate(parsed));
+  };
+
   return (
     <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 } }}> {/* Responsive padding (T028) */}
       <Paper sx={{ p: { xs: 3, sm: 4 }, mt: { xs: 2, sm: 4 } }}> {/* Responsive spacing (T028) */}
@@ -250,21 +276,48 @@ export default function NewExpensePage() {
         )}
 
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }} aria-label="Expense entry form"> {/* Accessibility (T034) */}
-          <TextField
-            fullWidth
-            type="date"
-            label="Date"
-            value={formState.expenseDate}
-            onChange={(e) => updateField('expenseDate', e.target.value)}
-            required
-            error={!!formState.errors.date}
-            helperText={formState.errors.date}
-            margin="normal"
-            InputLabelProps={{ shrink: true }}
-            inputProps={{
-              'aria-label': 'Expense date', // Accessibility (T034)
-            }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, mt: 1 }}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Date"
+              value={formState.expenseDate}
+              onChange={(e) => updateField('expenseDate', e.target.value)}
+              required
+              error={!!formState.errors.date}
+              helperText={formState.errors.date}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+              inputProps={{
+                'aria-label': 'Expense date', // Accessibility (T034)
+              }}
+            />
+            <ButtonGroup
+              variant="outlined"
+              size="small"
+              sx={{ mb: 0.5, height: 40 }}
+              aria-label="Adjust date by one day"
+            >
+              <Tooltip title="Previous day">
+                <Button
+                  onClick={() => shiftExpenseDate(-1)}
+                  aria-label="Previous day"
+                  sx={{ minWidth: 40, width: 40, height: 40, px: 0 }}
+                >
+                  <Remove fontSize="small" />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Next day">
+                <Button
+                  onClick={() => shiftExpenseDate(1)}
+                  aria-label="Next day"
+                  sx={{ minWidth: 40, width: 40, height: 40, px: 0 }}
+                >
+                  <Add fontSize="small" />
+                </Button>
+              </Tooltip>
+            </ButtonGroup>
+          </Box>
 
           {/* Amount field (T008, T029) */}
           <TextField
