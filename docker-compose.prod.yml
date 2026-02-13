@@ -41,9 +41,10 @@ services:
     build:
       context: ./budget-frontend
       dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: /api
     container_name: homebudget-frontend
     environment:
-      NEXT_PUBLIC_API_URL: /api
       INTERNAL_API_URL: http://backend:8080
       NODE_ENV: production
     depends_on:
