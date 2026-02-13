@@ -12,6 +12,7 @@ import com.homebudget.model.Expense;
 import com.homebudget.repository.BudgetRepository;
 import com.homebudget.repository.CategoryRepository;
 import com.homebudget.repository.ExpenseRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,9 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private ExpenseRepository expenseRepository;
 
+    @Autowired
+    private EntityManager entityManager;
+
     private Category testCategory;
 
     @BeforeEach
@@ -66,9 +70,20 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
         categoryRepository.flush();
     }
 
+    private void createYearlyBudget(Long categoryId, int year, BigDecimal amount) {
+        BudgetDTO yearlyDTO = new BudgetDTO();
+        yearlyDTO.setYear(year);
+        yearlyDTO.setMonth(null);
+        yearlyDTO.setTotalAmount(amount);
+        yearlyDTO.setCategoryId(categoryId);
+        budgetService.createBudget(yearlyDTO, "testuser");
+    }
+
     @Test
     @DisplayName("should create budget with real category and verify persistence")
     void createBudgetWithCategory() {
+        createYearlyBudget(testCategory.getId(), 2026, new BigDecimal("5000.00"));
+
         BudgetDTO dto = new BudgetDTO();
         dto.setYear(2026);
         dto.setMonth(2);
@@ -91,6 +106,8 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("should throw DuplicateBudgetException for duplicate category/year/month with real DB")
     void createDuplicateBudget() {
+        createYearlyBudget(testCategory.getId(), 2026, new BigDecimal("5000.00"));
+
         BudgetDTO dto = new BudgetDTO();
         dto.setYear(2026);
         dto.setMonth(2);
@@ -111,6 +128,8 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("should get budget by ID with expenses and verify spending calculation")
     void getBudgetByIdWithExpenses() {
+        createYearlyBudget(testCategory.getId(), 2026, new BigDecimal("5000.00"));
+
         BudgetDTO dto = new BudgetDTO();
         dto.setYear(2026);
         dto.setMonth(2);
@@ -127,6 +146,9 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
         expenseRepository.saveAll(List.of(e1, e2));
         expenseRepository.flush();
 
+        // Clear Hibernate L1 cache so getBudgetById fetches fresh data with expenses
+        entityManager.clear();
+
         BudgetSummaryDTO summary = budgetService.getBudgetById(created.getId());
 
         assertThat(summary.getTotalSpending()).isEqualByComparingTo(new BigDecimal("500.00"));
@@ -138,6 +160,8 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("should cascade delete expenses when budget is deleted")
     void deleteBudgetCascade() {
+        createYearlyBudget(testCategory.getId(), 2026, new BigDecimal("5000.00"));
+
         BudgetDTO dto = new BudgetDTO();
         dto.setYear(2026);
         dto.setMonth(2);
@@ -170,12 +194,16 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
         Category parent = categoryRepository.save(new Category("Food", "🍕", "testuser"));
         categoryRepository.flush();
 
-        Category child1 = new Category("Groceries", "🛒", "testuser");
+        Category child1 = new Category("Fresh Produce", "🥬", "testuser");
         child1.setParentCategory(parent);
         child1 = categoryRepository.save(child1);
         categoryRepository.flush();
 
-        // Create parent budget of 1000
+        // Create yearly budgets first (required before monthly)
+        createYearlyBudget(parent.getId(), 2026, new BigDecimal("5000.00"));
+        createYearlyBudget(child1.getId(), 2026, new BigDecimal("5000.00"));
+
+        // Create parent category monthly budget of 1000
         BudgetDTO parentBudgetDTO = new BudgetDTO();
         parentBudgetDTO.setYear(2026);
         parentBudgetDTO.setMonth(3);
@@ -183,7 +211,7 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
         parentBudgetDTO.setCategoryId(parent.getId());
         budgetService.createBudget(parentBudgetDTO, "testuser");
 
-        // Create child budget that exactly matches parent (valid)
+        // Create child budget that exactly matches parent category budget (valid)
         BudgetDTO childBudgetDTO = new BudgetDTO();
         childBudgetDTO.setYear(2026);
         childBudgetDTO.setMonth(3);
@@ -196,6 +224,8 @@ class BudgetServiceIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("should calculate total spending with real expenses")
     void calculateTotalSpending() {
+        createYearlyBudget(testCategory.getId(), 2026, new BigDecimal("5000.00"));
+
         BudgetDTO dto = new BudgetDTO();
         dto.setYear(2026);
         dto.setMonth(2);

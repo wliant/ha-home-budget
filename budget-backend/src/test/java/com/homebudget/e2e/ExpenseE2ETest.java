@@ -63,7 +63,14 @@ class ExpenseE2ETest extends AbstractIntegrationTest {
                 "/api/categories", HttpMethod.POST, new HttpEntity<>(catDTO, headers()), Map.class);
         categoryId = (Number) catResponse.getBody().get("id");
 
-        // Create a test budget via API
+        // Create yearly parent budget (required before monthly budgets)
+        BudgetDTO yearlyDTO = new BudgetDTO();
+        yearlyDTO.setYear(2026);
+        yearlyDTO.setTotalAmount(new BigDecimal("50000.00"));
+        yearlyDTO.setCategoryId(categoryId.longValue());
+        restTemplate.exchange("/api/budgets", HttpMethod.POST, new HttpEntity<>(yearlyDTO, headers()), Map.class);
+
+        // Create a test monthly budget via API
         BudgetDTO budgetDTO = new BudgetDTO();
         budgetDTO.setYear(2026);
         budgetDTO.setMonth(2);
@@ -300,6 +307,65 @@ class ExpenseE2ETest extends AbstractIntegrationTest {
         ResponseEntity<Map> response = restTemplate.exchange(
                 "/api/expenses/" + id, HttpMethod.GET, new HttpEntity<>(headers()), Map.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("GET /api/expenses/list - should return paginated list with 200")
+    void getExpenseList() {
+        // Create expense
+        ExpenseDTO dto = new ExpenseDTO();
+        dto.setAmount(new BigDecimal("50.00"));
+        dto.setDescription("Paginated test");
+        dto.setExpenseDate(java.time.LocalDate.of(2026, 2, 15));
+        dto.setBudgetId(budgetId.longValue());
+        dto.setCategoryId(categoryId.longValue());
+        restTemplate.exchange("/api/expenses", HttpMethod.POST, new HttpEntity<>(dto, headers()), Map.class);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/expenses/list?year=2026&month=2&page=0&size=10",
+                HttpMethod.GET, new HttpEntity<>(headers()), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("content")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("GET /api/expenses/years - should return year list with 200")
+    void getExpenseYears() {
+        // Create expense so at least one year exists
+        ExpenseDTO dto = new ExpenseDTO();
+        dto.setAmount(new BigDecimal("50.00"));
+        dto.setDescription("Year test");
+        dto.setExpenseDate(java.time.LocalDate.of(2026, 2, 15));
+        dto.setBudgetId(budgetId.longValue());
+        restTemplate.exchange("/api/expenses", HttpMethod.POST, new HttpEntity<>(dto, headers()), Map.class);
+
+        ResponseEntity<List> response = restTemplate.exchange(
+                "/api/expenses/years", HttpMethod.GET, new HttpEntity<>(headers()), List.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).contains(2026);
+    }
+
+    @Test
+    @DisplayName("GET /api/expenses/creators - should return creator list with 200")
+    void getExpenseCreators() {
+        // Create expense so at least one creator exists
+        ExpenseDTO dto = new ExpenseDTO();
+        dto.setAmount(new BigDecimal("50.00"));
+        dto.setDescription("Creator test");
+        dto.setExpenseDate(java.time.LocalDate.of(2026, 2, 15));
+        dto.setBudgetId(budgetId.longValue());
+        restTemplate.exchange("/api/expenses", HttpMethod.POST, new HttpEntity<>(dto, headers()), Map.class);
+
+        ResponseEntity<List> response = restTemplate.exchange(
+                "/api/expenses/creators", HttpMethod.GET, new HttpEntity<>(headers()), List.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).contains("testuser");
     }
 
     @Test

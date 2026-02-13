@@ -262,6 +262,8 @@ All bash scripts support:
 - MySQL 8.0 (existing database with categories, budgets, expenses tables) (012-parent-category-budgets)
 - TypeScript 5.3.3 (frontend only) + Next.js 14.0.4, Material-UI 5.14.20, @mui/icons-material 5.14.19, Recharts 3.7.0, React 18.2.0 (013-frontend-theme-redesign)
 - N/A (no data changes) (013-frontend-theme-redesign)
+- Java 17 + Spring Boot 3.2.0, Spring Data JPA, Spring MVC, Testcontainers 1.19.3 (014-backend-test-coverage)
+- MySQL 8.0 (via Testcontainers for tests), H2 (in-memory for unit tests) (014-backend-test-coverage)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

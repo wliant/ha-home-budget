@@ -62,6 +62,14 @@ class ExpenseServiceIntegrationTest extends AbstractIntegrationTest {
         testCategory = categoryRepository.save(new Category("Groceries", "🛒", "testuser"));
         categoryRepository.flush();
 
+        // Create yearly parent budget first (required by budget validation)
+        BudgetDTO yearlyDTO = new BudgetDTO();
+        yearlyDTO.setYear(2026);
+        yearlyDTO.setMonth(null);
+        yearlyDTO.setTotalAmount(new BigDecimal("5000.00"));
+        yearlyDTO.setCategoryId(testCategory.getId());
+        budgetService.createBudget(yearlyDTO, "testuser");
+
         BudgetDTO budgetDTO = new BudgetDTO();
         budgetDTO.setYear(2026);
         budgetDTO.setMonth(2);

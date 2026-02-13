@@ -12,6 +12,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,6 +33,9 @@ class BudgetRepositoryIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private ExpenseRepository expenseRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     private Category testCategory;
 
@@ -205,6 +210,9 @@ class BudgetRepositoryIntegrationTest extends AbstractIntegrationTest {
                 LocalDate.of(2026, 2, 15), budget, "testuser");
         expenseRepository.save(expense);
         expenseRepository.flush();
+
+        // Clear Hibernate L1 cache so the query fetches fresh data from DB
+        entityManager.clear();
 
         Optional<Budget> found = budgetRepository.findByYearAndMonthWithExpenses(2026, 2);
         assertThat(found).isPresent();

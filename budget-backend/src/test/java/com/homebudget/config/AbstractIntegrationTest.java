@@ -5,19 +5,20 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
 @SpringBootTest
 @ActiveProfiles("integration-test")
 public abstract class AbstractIntegrationTest {
 
-    @Container
-    static final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
-            .withDatabaseName("testdb")
-            .withUsername("test")
-            .withPassword("test");
+    static final MySQLContainer<?> mysql;
+
+    static {
+        mysql = new MySQLContainer<>("mysql:8.0")
+                .withDatabaseName("testdb")
+                .withUsername("test")
+                .withPassword("test");
+        mysql.start();
+    }
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

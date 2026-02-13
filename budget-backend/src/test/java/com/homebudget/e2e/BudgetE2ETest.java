@@ -60,6 +60,13 @@ class BudgetE2ETest extends AbstractIntegrationTest {
         ResponseEntity<Map> catResponse = restTemplate.exchange(
                 "/api/categories", HttpMethod.POST, new HttpEntity<>(catDTO, headers()), Map.class);
         categoryId = (Number) catResponse.getBody().get("id");
+
+        // Create yearly parent budget (required before monthly budgets)
+        BudgetDTO yearlyDTO = new BudgetDTO();
+        yearlyDTO.setYear(2026);
+        yearlyDTO.setTotalAmount(new BigDecimal("50000.00"));
+        yearlyDTO.setCategoryId(categoryId.longValue());
+        restTemplate.exchange("/api/budgets", HttpMethod.POST, new HttpEntity<>(yearlyDTO, headers()), Map.class);
     }
 
     private HttpHeaders headers() {
@@ -257,6 +264,54 @@ class BudgetE2ETest extends AbstractIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().get("createdBy")).isEqualTo("bob");
+    }
+
+    @Test
+    @DisplayName("GET /api/budgets/yearly - should return yearly view with 200")
+    void getYearlyBudgetView() {
+        // Create a monthly budget
+        BudgetDTO dto = new BudgetDTO();
+        dto.setYear(2026);
+        dto.setMonth(2);
+        dto.setTotalAmount(new BigDecimal("1000.00"));
+        dto.setCategoryId(categoryId.longValue());
+        restTemplate.exchange("/api/budgets", HttpMethod.POST, new HttpEntity<>(dto, headers()), Map.class);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/budgets/yearly?year=2026", HttpMethod.GET, new HttpEntity<>(headers()), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("year")).isEqualTo(2026);
+    }
+
+    @Test
+    @DisplayName("GET /api/budgets/monthly-summary - should return summary with 200 or 404")
+    void getMonthlyBudgetSummary() {
+        // Create a monthly budget
+        BudgetDTO dto = new BudgetDTO();
+        dto.setYear(2026);
+        dto.setMonth(2);
+        dto.setTotalAmount(new BigDecimal("1000.00"));
+        dto.setCategoryId(categoryId.longValue());
+        restTemplate.exchange("/api/budgets", HttpMethod.POST, new HttpEntity<>(dto, headers()), Map.class);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/budgets/monthly-summary?year=2026&month=2", HttpMethod.GET,
+                new HttpEntity<>(headers()), Map.class);
+
+        assertThat(response.getStatusCode()).isIn(HttpStatus.OK, HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("GET /api/budgets/validation - should return validation hints with 200")
+    void getBudgetValidation() {
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/api/budgets/validation?categoryId=" + categoryId + "&year=2026&month=3",
+                HttpMethod.GET, new HttpEntity<>(headers()), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
     }
 
     @Test
