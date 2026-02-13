@@ -15,7 +15,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 // - Browser: prefer NEXT_PUBLIC_API_URL, else same-origin (empty base)
 const isServer = typeof window === 'undefined';
 const API_BASE_URL = isServer
-  ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || ''
   : process.env.NEXT_PUBLIC_API_URL || '';
 
 // Create axios instance with default configuration
