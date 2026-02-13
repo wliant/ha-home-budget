@@ -81,7 +81,11 @@ export function CategorySelect({
   const selectedCategory = categories.find((c) => c.id === value) || null;
   const categoryById = useMemo(() => {
     const map = new Map<number, CategoryDTO>();
-    categories.forEach((category) => map.set(category.id, category));
+    categories.forEach((category) => {
+      if (category.id !== undefined) {
+        map.set(category.id, category);
+      }
+    });
     return map;
   }, [categories]);
 
@@ -209,7 +213,7 @@ export function CategorySelect({
                     size="small"
                     icon={getCategoryIcon(category.icon) ?? undefined}
                     label={category.name}
-                    onClick={() => onChange(category.id)}
+                    onClick={() => onChange(category.id ?? null)}
                     variant={category.id === value ? 'filled' : 'outlined'}
                     disabled={disabled || statsLoading}
                   />
@@ -229,7 +233,7 @@ export function CategorySelect({
                     size="small"
                     icon={getCategoryIcon(category.icon) ?? undefined}
                     label={category.name}
-                    onClick={() => onChange(category.id)}
+                    onClick={() => onChange(category.id ?? null)}
                     variant={category.id === value ? 'filled' : 'outlined'}
                     disabled={disabled || statsLoading}
                   />
