@@ -42,7 +42,7 @@ services:
       context: ./budget-frontend
       dockerfile: Dockerfile.prod
       args:
-        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_API_URL: ""
     container_name: homebudget-frontend
     environment:
       INTERNAL_API_URL: http://backend:8080
