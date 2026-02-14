@@ -7,14 +7,16 @@ ingress: true
 ingress_port: 80
 panel_icon: mdi:wallet
 panel_title: Budget
+hassio_api: true
 arch:
   - aarch64
   - amd64
-  - armhf
-  - armv7
-  - i386
 startup: services
 options:
-  target_url: "http://host:port" ## fix here
+  server_host: ""
+  frontend_port: 3000
+  backend_port: 8080
 schema:
-  target_url: str
+  server_host: str
+  frontend_port: port
+  backend_port: port

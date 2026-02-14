@@ -1,0 +1,52 @@
+worker_processes 1;
+events { worker_connections 1024; }
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    server {
+        listen 80;
+
+        allow 172.30.32.2;
+        deny all;
+
+        location /api/ {
+            proxy_pass http://__SERVER_HOST__:__BACKEND_PORT__/api/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Hass-User $http_x_remote_user_name;
+        }
+
+        location / {
+            proxy_pass http://__SERVER_HOST__:__FRONTEND_PORT__/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Accept-Encoding "";
+            proxy_set_header X-Ingress-Path $http_x_ingress_path;
+
+            sub_filter '/_next/' '__INGRESS_PATH__/_next/';
+            sub_filter_once off;
+            sub_filter_types text/html application/javascript text/javascript;
+        }
+
+        error_page 502 504 /error.html;
+        location = /error.html {
+            root /usr/share/nginx/html;
+            internal;
+        }
+    }
+}

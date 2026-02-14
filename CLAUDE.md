@@ -264,6 +264,8 @@ All bash scripts support:
 - N/A (no data changes) (013-frontend-theme-redesign)
 - Java 17 + Spring Boot 3.2.0, Spring Data JPA, Spring MVC, Testcontainers 1.19.3 (014-backend-test-coverage)
 - MySQL 8.0 (via Testcontainers for tests), H2 (in-memory for unit tests) (014-backend-test-coverage)
+- TypeScript 5.x (frontend), Java 17 (backend), Shell/nginx (add-on) + Next.js 14.x, Spring Boot 3.2.0, nginx:alpine, Material-UI v5 (015-ha-deployment-setup)
+- MySQL 8.0 (on application host, existing) (015-ha-deployment-setup)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

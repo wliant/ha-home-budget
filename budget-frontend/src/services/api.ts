@@ -12,11 +12,11 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // Resolve API base URL differently for server vs browser.
 // - Server: prefer INTERNAL_API_URL (container-only), then NEXT_PUBLIC_API_URL
-// - Browser: prefer NEXT_PUBLIC_API_URL, else same-origin (empty base)
+// - Browser: prepend ingress path (if running under HA ingress) + NEXT_PUBLIC_API_URL
 const isServer = typeof window === 'undefined';
 const API_BASE_URL = isServer
   ? process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || ''
-  : process.env.NEXT_PUBLIC_API_URL || '';
+  : ((window as any).__INGRESS_PATH__ || '') + (process.env.NEXT_PUBLIC_API_URL || '');
 
 // Create axios instance with default configuration
 const apiClient: AxiosInstance = axios.create({
