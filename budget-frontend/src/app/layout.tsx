@@ -28,23 +28,23 @@ export default function RootLayout({
 window.__INGRESS_PATH__ = ${JSON.stringify(ingressPath).replace(/</g, '\\u003c')};
 if (window.__INGRESS_PATH__) {
   var _ip = window.__INGRESS_PATH__;
-  var _origFetch = window.fetch;
-  window.fetch = function(input, init) {
-    if (typeof input === 'string' && input.startsWith('/') && !input.startsWith(_ip)) {
-      input = _ip + input;
-    }
-    return _origFetch.call(this, input, init);
-  };
-  function _rewriteUrl(url) {
-    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith(_ip)) {
-      return _ip + url;
-    }
-    return url;
+  function _pfx(u) {
+    return (typeof u === 'string' && u.startsWith('/') && !u.startsWith(_ip)) ? _ip + u : u;
   }
-  var _origPush = history.pushState.bind(history);
-  var _origReplace = history.replaceState.bind(history);
-  history.pushState = function(s, t, u) { return _origPush(s, t, _rewriteUrl(u)); };
-  history.replaceState = function(s, t, u) { return _origReplace(s, t, _rewriteUrl(u)); };
+  var _f = window.fetch;
+  window.fetch = function(i, o) { return _f.call(this, (typeof i === 'string') ? _pfx(i) : i, o); };
+  var _ps = history.pushState.bind(history);
+  var _rs = history.replaceState.bind(history);
+  history.pushState = function(s, t, u) { return _ps(s, t, _pfx(u)); };
+  history.replaceState = function(s, t, u) { return _rs(s, t, _pfx(u)); };
+  document.addEventListener('click', function(e) {
+    var a = e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var h = a.getAttribute('href');
+    if (h && h.startsWith('/') && !h.startsWith(_ip)) {
+      a.setAttribute('href', _ip + h);
+    }
+  }, true);
 }
 `,
           }}
