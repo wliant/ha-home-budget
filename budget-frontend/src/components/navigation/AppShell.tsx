@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '../../lib/navigation';
 import { useAppPathname } from '../../hooks/useAppPathname';
 import {
   AppBar,

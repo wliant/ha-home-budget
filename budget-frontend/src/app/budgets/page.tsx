@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../lib/navigation';
 import {
   Container,
   Typography,
@@ -39,7 +39,7 @@ import type { CategoryDTO } from '@/services/categoryService';
  */
 
 export default function BudgetsPage() {
-  const router = useRouter();
+  const router = useIngressRouter();
   const [budgets, setBudgets] = useState<BudgetSummaryDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');

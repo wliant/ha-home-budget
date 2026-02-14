@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../lib/navigation';
 import {
   Card,
   CardContent,
@@ -40,7 +40,7 @@ import {
  * - Error handling with retry
  */
 export function RecentActivityCard() {
-  const router = useRouter();
+  const router = useIngressRouter();
   const [expenses, setExpenses] = useState<ExpenseDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');

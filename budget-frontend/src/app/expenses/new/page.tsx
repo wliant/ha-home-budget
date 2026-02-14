@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../../lib/navigation';
 import {
   Container,
   Paper,
@@ -34,7 +34,7 @@ import { ExpenseFormState } from '@/types/expense';
  */
 
 export default function NewExpensePage() {
-  const router = useRouter();
+  const router = useIngressRouter();
 
   // Form state (T009)
   const [formState, setFormState] = useState<ExpenseFormState>({

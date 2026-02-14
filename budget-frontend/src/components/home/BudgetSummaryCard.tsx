@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../lib/navigation';
 import {
   Card,
   CardContent,
@@ -32,7 +32,7 @@ import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency } f
  * - Error handling with retry
  */
 export function BudgetSummaryCard() {
-  const router = useRouter();
+  const router = useIngressRouter();
   const [budgetData, setBudgetData] = useState<BudgetSummaryDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');

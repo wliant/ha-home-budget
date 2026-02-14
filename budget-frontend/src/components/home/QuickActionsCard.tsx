@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../lib/navigation';
 import {
   Card,
   CardContent,
@@ -29,7 +29,7 @@ import {
  * - View Dashboard
  */
 export function QuickActionsCard() {
-  const router = useRouter();
+  const router = useIngressRouter();
 
   const handleCreateBudget = () => {
     router.push('/budgets/new');

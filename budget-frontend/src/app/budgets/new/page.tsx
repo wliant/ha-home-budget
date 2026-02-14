@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../../lib/navigation';
 import {
   Container,
   Typography,
@@ -23,7 +23,7 @@ import { budgetService, CreateBudgetRequest, formatCurrency, getMonthName } from
  */
 
 export default function NewBudgetPage() {
-  const router = useRouter();
+  const router = useIngressRouter();
   const [successMessage, setSuccessMessage] = React.useState<string>('');
 
   const [parentCatUpdateMessage, setParentCatUpdateMessage] = React.useState<string>('');

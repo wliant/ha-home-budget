@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useIngressRouter } from '../../lib/navigation';
 import {
   Card,
   CardContent,
@@ -31,7 +31,7 @@ interface FeatureNavigationCardProps {
 }
 
 export function FeatureNavigationCard({ title, description, icon, path, color = 'primary.main' }: FeatureNavigationCardProps) {
-  const router = useRouter();
+  const router = useIngressRouter();
 
   const handleNavigate = () => {
     router.push(path);

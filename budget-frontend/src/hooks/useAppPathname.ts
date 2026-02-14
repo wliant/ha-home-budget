@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useIngressPath } from '../contexts/IngressContext';
 
 /**
  * Returns the app-relative pathname with the HA ingress prefix stripped.
@@ -8,10 +9,12 @@ import { usePathname } from 'next/navigation';
  */
 export function useAppPathname(): string {
   const pathname = usePathname();
+  const ingressPath = useIngressPath();
 
-  if (typeof window !== 'undefined' && window.__INGRESS_PATH__ && pathname.startsWith(window.__INGRESS_PATH__)) {
-    const stripped = pathname.slice(window.__INGRESS_PATH__.length);
-    return stripped === '' || stripped === '/' ? '/' : stripped;
+  if (ingressPath && pathname.startsWith(ingressPath.replace(/\/$/, ''))) {
+    const prefix = ingressPath.replace(/\/$/, '');
+    const stripped = pathname.slice(prefix.length);
+    return stripped === '' ? '/' : stripped;
   }
 
   return pathname;

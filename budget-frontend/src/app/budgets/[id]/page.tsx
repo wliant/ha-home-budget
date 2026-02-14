@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useIngressRouter } from '../../../lib/navigation';
 import {
   Container,
   Typography,
@@ -41,7 +42,7 @@ import {
  */
 
 export default function BudgetDetailPage() {
-  const router = useRouter();
+  const router = useIngressRouter();
   const params = useParams();
   const budgetId = params?.id ? parseInt(params.id as string) : null;
 
