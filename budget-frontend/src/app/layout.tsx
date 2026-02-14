@@ -24,7 +24,18 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__INGRESS_PATH__ = ${JSON.stringify(ingressPath)};`,
+            __html: `
+window.__INGRESS_PATH__ = ${JSON.stringify(ingressPath)};
+if (window.__INGRESS_PATH__) {
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === 'string' && input.startsWith('/') && !input.startsWith(window.__INGRESS_PATH__)) {
+      input = window.__INGRESS_PATH__ + input;
+    }
+    return _origFetch.call(this, input, init);
+  };
+}
+`,
           }}
         />
       </head>
