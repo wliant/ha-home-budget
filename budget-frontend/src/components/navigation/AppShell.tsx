@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useAppPathname } from '../../hooks/useAppPathname';
 import {
   AppBar,
   Box,
@@ -31,7 +31,7 @@ type AppShellProps = {
 };
 
 export default function AppShell({ children }: AppShellProps) {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
