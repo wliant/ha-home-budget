@@ -267,6 +267,11 @@ public class BudgetService {
 
         Category category = budget.getCategory();
 
+        // Feature 017: Calculate delta for parent budget cascade
+        BigDecimal oldAmount = budget.getTotalAmount();
+        BigDecimal newAmount = dto.getTotalAmount();
+        BigDecimal amountDelta = newAmount.subtract(oldAmount);
+
         // If amount is changing, validate yearly parent/child budget constraints
         if (dto.getTotalAmount().compareTo(budget.getTotalAmount()) != 0) {
             if (budget.getMonth() == null) {
@@ -300,6 +305,12 @@ public class BudgetService {
         budget.setDescription(dto.getDescription());
 
         Budget updated = budgetRepository.save(budget);
+
+        // Feature 017: Cascade amount change to parent category budget (if amount changed)
+        if (amountDelta.compareTo(BigDecimal.ZERO) != 0) {
+            cascadeToParentBudget(updated, amountDelta);
+        }
+
         return mapToBudgetDTO(updated);
     }
 
@@ -312,6 +323,11 @@ public class BudgetService {
     public void deleteBudget(Long id) {
         Budget budget = budgetRepository.findById(id)
                 .orElseThrow(() -> new BudgetNotFoundException(id));
+
+        // Feature 017: Cascade budget deletion to parent category (subtract child's amount)
+        // Must be done BEFORE deleting the budget (need category relationship intact)
+        BigDecimal amountDelta = budget.getTotalAmount().negate(); // Negative delta
+        cascadeToParentBudget(budget, amountDelta);
 
         budgetRepository.delete(budget);
     }
@@ -393,6 +409,52 @@ public class BudgetService {
         }
 
         return directSpending.add(childrenSpending);
+    }
+
+    /**
+     * Cascade budget changes to parent category budget (Feature 017: Parent Budget Rollup).
+     * When a child category budget is created, updated, or deleted, automatically adjusts
+     * the parent category budget by the specified amount delta.
+     *
+     * @param childBudget the child category budget being modified
+     * @param amountDelta the amount change to apply to parent budget
+     *                    (+amount for create, +/-delta for update, -amount for delete)
+     */
+    private void cascadeToParentBudget(Budget childBudget, BigDecimal amountDelta) {
+        Category childCategory = childBudget.getCategory();
+
+        // Only cascade if child category has a parent (not standalone)
+        if (childCategory.getParentCategory() == null) {
+            return;
+        }
+
+        Category parentCategory = childCategory.getParentCategory();
+        Integer year = childBudget.getYear();
+        Integer month = childBudget.getMonth(); // nullable (null = yearly budget)
+
+        // Find or create parent category budget for same period
+        Budget parentBudget = budgetRepository
+                .findByCategoryAndYearAndMonth(parentCategory, year, month)
+                .orElseGet(() -> {
+                    // Create new parent budget with zero amount (will be updated below)
+                    Budget newParent = new Budget();
+                    newParent.setCategory(parentCategory);
+                    newParent.setYear(year);
+                    newParent.setMonth(month);
+                    newParent.setTotalAmount(BigDecimal.ZERO);
+                    newParent.setDescription("Auto-created parent category budget");
+                    newParent.setCreatedBy(childBudget.getCreatedBy());
+                    return budgetRepository.save(newParent);
+                });
+
+        // Update parent budget amount by adding delta
+        BigDecimal oldAmount = parentBudget.getTotalAmount();
+        BigDecimal newAmount = oldAmount.add(amountDelta);
+        parentBudget.setTotalAmount(newAmount);
+        budgetRepository.save(parentBudget);
+
+        logger.debug("Cascaded budget change to parent category '{}': {} + {} = {} for {}/{}",
+                parentCategory.getName(), oldAmount, amountDelta, newAmount, year, month);
     }
 
     private Budget buildBudgetEntity(BudgetDTO dto, String username, Category category) {
@@ -851,8 +913,16 @@ public class BudgetService {
             categoryDTO.setYearlySpending(yearlySpending);
             categoryDTO.setYearlyRemaining(yearlyBudgetAmount.subtract(yearlySpending));
 
-            totalBudget = totalBudget.add(yearlyBudgetAmount);
-            totalSpending = totalSpending.add(yearlySpending);
+            // Feature 017: Only count parent categories + standalone categories in yearly total
+            // Exclude child categories to avoid double-counting (parent budget already includes children)
+            boolean isStandalone = category.getParentCategory() == null && children.isEmpty();
+            boolean isParent = category.getParentCategory() == null && !children.isEmpty();
+            boolean shouldCountInTotal = isStandalone || isParent;
+
+            if (shouldCountInTotal) {
+                totalBudget = totalBudget.add(yearlyBudgetAmount);
+                totalSpending = totalSpending.add(yearlySpending);
+            }
 
             view.getCategories().add(categoryDTO);
         }

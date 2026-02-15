@@ -187,4 +187,20 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
     BigDecimal sumBudgetsByChildCategoriesAndPeriod(@Param("parentCategoryId") Long parentCategoryId,
                                                      @Param("year") Integer year,
                                                      @Param("month") Integer month);
+
+    /**
+     * Find budget by Category entity, year, and month (Feature 017: Parent Budget Rollup).
+     * Used for cascade logic to find or create parent budgets.
+     * Handles both monthly budgets (month != null) and yearly budgets (month == null).
+     *
+     * @param category the category entity
+     * @param year the year
+     * @param month the month (nullable for yearly budgets)
+     * @return Optional containing the budget if found
+     */
+    @Query("SELECT b FROM Budget b WHERE b.category = :category AND b.year = :year " +
+           "AND (:month IS NULL AND b.month IS NULL OR b.month = :month)")
+    Optional<Budget> findByCategoryAndYearAndMonth(@Param("category") Category category,
+                                                    @Param("year") Integer year,
+                                                    @Param("month") Integer month);
 }

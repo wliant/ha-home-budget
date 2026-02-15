@@ -267,6 +267,7 @@ All bash scripts support:
 - TypeScript 5.x (frontend), Java 17 (backend), Shell/nginx (add-on) + Next.js 14.x, Spring Boot 3.2.0, nginx:alpine, Material-UI v5 (015-ha-deployment-setup)
 - MySQL 8.0 (on application host, existing) (015-ha-deployment-setup)
 - MySQL 8.0, Liquibase for migrations (016-category-expense-aggregates)
+- MySQL 8.0 (existing database with budgets, categories, expenses tables) (017-parent-budget-rollup)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)
