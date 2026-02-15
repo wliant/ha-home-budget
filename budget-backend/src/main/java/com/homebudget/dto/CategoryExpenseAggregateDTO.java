@@ -17,6 +17,7 @@ public class CategoryExpenseAggregateDTO {
     private BigDecimal totalAmount;
     private Integer year;
     private Integer month; // null for yearly aggregates
+    private Integer day; // null for monthly/yearly aggregates
 
     public CategoryExpenseAggregateDTO() {
     }
@@ -91,5 +92,13 @@ public class CategoryExpenseAggregateDTO {
 
     public void setMonth(Integer month) {
         this.month = month;
+    }
+
+    public Integer getDay() {
+        return day;
+    }
+
+    public void setDay(Integer day) {
+        this.day = day;
     }
 }

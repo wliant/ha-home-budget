@@ -125,6 +125,49 @@ public class ExpenseAggregateService {
         return result;
     }
 
+    /**
+     * Get daily expense aggregates per category with parent rollup for a specific month.
+     *
+     * @param year  the year
+     * @param month the month (1-12)
+     * @return list of category aggregate DTOs with day field set
+     */
+    public List<CategoryExpenseAggregateDTO> getDailyAggregates(Integer year, Integer month) {
+        logger.info("Computing daily aggregates for year={}, month={}", year, month);
+
+        List<Object[]> rawAggregates = expenseRepository.getDailyAggregatesByYearAndMonth(year, month);
+
+        List<Category> allCategories = categoryRepository.findAll();
+        Map<Long, Category> categoryMap = new HashMap<>();
+        for (Category c : allCategories) {
+            categoryMap.put(c.getId(), c);
+        }
+
+        // Group by day: day -> categoryId -> amount
+        Map<Integer, Map<Long, BigDecimal>> dailyDirectAmounts = new HashMap<>();
+        for (Object[] row : rawAggregates) {
+            Long categoryId = ((Number) row[0]).longValue();
+            Integer day = ((Number) row[1]).intValue();
+            BigDecimal amount = (BigDecimal) row[2];
+            dailyDirectAmounts
+                    .computeIfAbsent(day, k -> new HashMap<>())
+                    .put(categoryId, amount);
+        }
+
+        List<CategoryExpenseAggregateDTO> allResults = new ArrayList<>();
+        for (Map.Entry<Integer, Map<Long, BigDecimal>> entry : dailyDirectAmounts.entrySet()) {
+            Integer day = entry.getKey();
+            List<CategoryExpenseAggregateDTO> dayDTOs = buildDTOsWithRollup(
+                    entry.getValue(), categoryMap, year, month);
+            for (CategoryExpenseAggregateDTO dto : dayDTOs) {
+                dto.setDay(day);
+            }
+            allResults.addAll(dayDTOs);
+        }
+
+        return allResults;
+    }
+
     // ========================================================================
     // Private helpers
     // ========================================================================

@@ -271,4 +271,17 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "WHERE e.category.id = :categoryId AND YEAR(e.expenseDate) = :year")
     BigDecimal sumByCategoryAndYear(@Param("categoryId") Long categoryId,
                                      @Param("year") int year);
+
+    // ========================================================================
+    // Daily Aggregate Query (Feature 019)
+    // ========================================================================
+
+    /**
+     * Daily aggregate: SUM(amount) grouped by category_id and day for a given year and month.
+     * Returns Object[] with [categoryId (Long), day (Integer), totalAmount (BigDecimal)].
+     */
+    @Query("SELECT e.category.id, DAY(e.expenseDate), COALESCE(SUM(e.amount), 0) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month " +
+            "GROUP BY e.category.id, DAY(e.expenseDate)")
+    List<Object[]> getDailyAggregatesByYearAndMonth(@Param("year") Integer year, @Param("month") Integer month);
 }
