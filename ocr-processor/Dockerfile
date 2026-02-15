@@ -1,3 +1,5 @@
+FROM --platform=linux/arm64 ghcr.io/astral-sh/uv:latest AS uvbin
+
 FROM --platform=linux/arm64 python:3.11-slim AS builder
 
 WORKDIR /app
@@ -9,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtesseract-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install uv (ARM-safe)
+COPY --from=uvbin /uv /uvx /bin/
 
 # Copy project files
 COPY pyproject.toml uv.lock .python-version ./
@@ -20,6 +22,7 @@ RUN uv sync --frozen --no-dev
 
 # Copy source code
 COPY src/ src/
+
 
 FROM --platform=linux/arm64 python:3.11-slim
 
@@ -34,8 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed packages and source from builder
 COPY --from=builder /app /app
 
-# Copy uv binary for running
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Copy uv binary (ARM-safe)
+COPY --from=uvbin /uv /uvx /bin/
 
 EXPOSE 8082
 
