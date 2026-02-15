@@ -57,8 +57,8 @@ export default function NewExpensePage() {
     const errors: Record<string, string> = {};
 
     const amountNum = parseFloat(formState.amount);
-    if (!formState.amount || isNaN(amountNum) || amountNum <= 0) {
-      errors.amount = 'Amount must be greater than 0';
+    if (!formState.amount || isNaN(amountNum) || amountNum === 0) {
+      errors.amount = 'Amount must not be zero';
     }
 
     if (!formState.description.trim()) {
@@ -306,7 +306,7 @@ export default function NewExpensePage() {
             onBlur={(e) => {
               // Format as currency on blur (T029)
               const num = parseFloat(e.target.value);
-              if (!isNaN(num) && num > 0) {
+              if (!isNaN(num) && num !== 0) {
                 updateField('amount', num.toFixed(2));
               }
             }}
@@ -316,7 +316,6 @@ export default function NewExpensePage() {
             margin="normal"
             inputProps={{
               step: '0.01',
-              min: '0',
               'aria-label': 'Expense amount', // Accessibility (T034)
             }}
           />

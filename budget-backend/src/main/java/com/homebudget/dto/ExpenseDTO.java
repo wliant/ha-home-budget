@@ -1,6 +1,5 @@
 package com.homebudget.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -18,7 +17,6 @@ public class ExpenseDTO {
     private Long id;
 
     @NotNull(message = "Amount is required")
-    @Min(value = 0, message = "Amount must be positive")
     private BigDecimal amount;
 
     @NotBlank(message = "Description is required")
