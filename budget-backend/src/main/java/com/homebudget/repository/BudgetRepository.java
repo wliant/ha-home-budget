@@ -53,17 +53,6 @@ public interface BudgetRepository extends JpaRepository<Budget, Long> {
     List<Budget> findByCreatedByOrderByYearDescMonthDesc(String createdBy);
 
     /**
-     * Find budget by year and month with expenses eagerly loaded.
-     * Prevents N+1 query problem when accessing expenses.
-     *
-     * @param year the year
-     * @param month the month
-     * @return Optional containing budget with expenses
-     */
-    @Query("SELECT b FROM Budget b LEFT JOIN FETCH b.expenses WHERE b.year = :year AND b.month = :month")
-    Optional<Budget> findByYearAndMonthWithExpenses(Integer year, Integer month);
-
-    /**
      * Find budget by category, year, and month.
      * Used for uniqueness validation.
      *
