@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  trailingSlash: true,
 
   // Enable SWC minification for faster builds
   swcMinify: true,
