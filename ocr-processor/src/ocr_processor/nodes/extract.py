@@ -3,7 +3,7 @@ import json
 from datetime import date
 
 import fitz
-import numpy as np
+import pytesseract
 from langchain_core.messages import HumanMessage
 from langchain_ollama import ChatOllama
 from PIL import Image
@@ -20,54 +20,6 @@ from ocr_processor.errors import (
 from ocr_processor.logging import get_logger, log_agent_step
 
 logger = get_logger(__name__)
-
-# Initialize PaddleOCR once at module level
-_ocr_engine = None
-
-
-def _get_ocr_engine():
-    global _ocr_engine
-    if _ocr_engine is None:
-        # Compatibility shim: paddlex internally imports from langchain.docstore and
-        # langchain.text_splitter, which were moved in langchain>=0.3.0
-        import sys
-        import types
-
-        if "langchain.docstore" not in sys.modules:
-            try:
-                import langchain.docstore  # noqa: F401
-            except (ImportError, ModuleNotFoundError):
-                import langchain
-                docstore_mod = types.ModuleType("langchain.docstore")
-                document_mod = types.ModuleType("langchain.docstore.document")
-                from langchain_core.documents import Document
-                document_mod.Document = Document
-                docstore_mod.document = document_mod
-                sys.modules["langchain.docstore"] = docstore_mod
-                sys.modules["langchain.docstore.document"] = document_mod
-                langchain.docstore = docstore_mod
-
-        if "langchain.text_splitter" not in sys.modules:
-            try:
-                import langchain.text_splitter  # noqa: F401
-            except (ImportError, ModuleNotFoundError):
-                import langchain
-                from langchain_text_splitters import RecursiveCharacterTextSplitter
-                text_splitter_mod = types.ModuleType("langchain.text_splitter")
-                text_splitter_mod.RecursiveCharacterTextSplitter = RecursiveCharacterTextSplitter
-                sys.modules["langchain.text_splitter"] = text_splitter_mod
-                langchain.text_splitter = text_splitter_mod
-
-        from paddleocr import PaddleOCR
-        _ocr_engine = PaddleOCR(
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            lang="en",
-            ocr_version="PP-OCRv5",
-            device="cpu",
-        )
-    return _ocr_engine
 
 
 PARSE_PROMPT = """Analyze the following receipt text and extract the information as JSON:
@@ -141,20 +93,14 @@ def _extract_pdf_text(pdf_bytes: bytes) -> tuple[str, list[bytes]]:
 
 
 def _extract_text_with_ocr(image_bytes: bytes) -> str:
-    """Extract text from image bytes using PaddleOCR."""
-    ocr = _get_ocr_engine()
+    """Extract text from image bytes using TesseractOCR."""
     pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    image_array = np.array(pil_image)
 
-    results = ocr.predict(image_array)
+    # Use pytesseract to extract text
+    # Config options: --psm 6 assumes uniform text block, --oem 3 uses default OCR engine mode
+    text = pytesseract.image_to_string(pil_image, config='--psm 6 --oem 3')
 
-    text_lines = []
-    for res in results:
-        data = res.json
-        if "rec_texts" in data:
-            text_lines.extend(data["rec_texts"])
-
-    return "\n".join(text_lines)
+    return text.strip()
 
 
 async def _parse_text_with_llm(raw_text: str) -> dict:

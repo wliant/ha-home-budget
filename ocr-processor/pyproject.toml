@@ -1,7 +1,7 @@
 [project]
 name = "ocr-processor"
 version = "0.1.0"
-description = "Receipt OCR processor using LangGraph, PaddleOCR, and Ollama"
+description = "Receipt OCR processor using LangGraph, TesseractOCR, and Ollama"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
@@ -11,9 +11,7 @@ dependencies = [
     "langchain-community>=0.3.0",
     "langgraph>=0.2.0",
     "langchain-ollama>=0.2.0",
-    "opencv-python-headless>=4.6.0",
-    "paddlepaddle>=3.0.0,<4.0.0; platform_machine == 'x86_64'",
-    "paddleocr>=3.0.0,<4.0.0",
+    "pytesseract>=0.3.10",
     "numpy>=1.21.0",
     "pillow>=11.0.0",
     "pymupdf>=1.25.0",

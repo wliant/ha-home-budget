@@ -3,14 +3,12 @@
 ## Platform Support
 
 ### ARM64 (Apple Silicon) Development
-- **PaddlePaddle** does not provide pre-built wheels for ARM64 Linux
-- The `pyproject.toml` has been configured to only install PaddlePaddle on x86_64 platforms
-- For development on ARM64, you have two options:
-  1. Build for native ARM64 (PaddlePaddle will be skipped, OCR features limited)
-  2. Use Docker's multi-platform build to target x86_64 (requires working QEMU emulation)
+- **TesseractOCR** is available on all platforms (ARM64, x86_64, macOS, Windows, Linux)
+- No platform-specific dependencies or limitations
+- Full OCR features available on all architectures
 
-### Production Deployment (x86_64)
-- Production deployments on x86_64 (typical Home Assistant setups) will have full PaddlePaddle support
+### Production Deployment
+- Works on both x86_64 and ARM64 architectures
 - Build using: `docker compose build ocr-processor` or `docker build -f Dockerfile .`
 
 ## Known Issues
@@ -34,16 +32,17 @@ fork/exec /usr/bin/unpigz: exec format error
 
 ## Dependencies
 
-### Platform-Specific
-- `paddlepaddle>=3.0.0,<4.0.0` - Only on x86_64 (conditional in pyproject.toml)
-- `paddleocr>=3.0.0,<4.0.0` - All platforms (gracefully handles missing PaddlePaddle)
+### System Dependencies
+- `tesseract-ocr` - TesseractOCR binary (installed via apt-get)
+- `tesseract-ocr-eng` - English language data for Tesseract
 
-### Core Dependencies
+### Python Dependencies
 - Python 3.11+
 - FastAPI
 - LangChain + LangGraph
-- PyMuPDF (text extraction)
-- OpenCV (image processing)
+- PyMuPDF (text extraction from PDFs)
+- pytesseract (Python wrapper for TesseractOCR)
+- Pillow (image processing)
 
 ## Build Commands
 
@@ -62,5 +61,3 @@ docker run -p 8082:8082 -e OLLAMA_HOST=host:11434 ocr-processor:latest
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 -t ocr-processor:latest .
 ```
-
-Note: ARM64 builds will skip PaddlePaddle installation due to platform marker in pyproject.toml.

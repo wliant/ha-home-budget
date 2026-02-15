@@ -42,12 +42,9 @@ services:
     restart: unless-stopped
 
   ocr-processor:
-    platform: linux/amd64
     build:
       context: ./ocr-processor
       dockerfile: Dockerfile.dev
-      platforms:
-        - linux/amd64
     environment:
       OLLAMA_HOST: ${OLLAMA_HOST:-192.168.1.248:11434}
     ports:
