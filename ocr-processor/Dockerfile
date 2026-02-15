@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 python:3.11-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN uv sync --frozen --no-dev
 # Copy source code
 COPY src/ src/
 
-FROM --platform=linux/amd64 python:3.11-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
