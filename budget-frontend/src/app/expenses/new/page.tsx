@@ -86,7 +86,7 @@ export default function NewExpensePage() {
       // Escape to clear/cancel
       if (e.key === 'Escape') {
         if (confirm('Cancel and clear the form?')) {
-          router.push('/');
+          router.push('/expenses');
         }
       }
     };
@@ -139,9 +139,9 @@ export default function NewExpensePage() {
         });
       }, 1500);
 
-      // Navigate to homepage after 2 seconds
+      // Navigate to expenses list after 2 seconds
       setTimeout(() => {
-        router.push('/');
+        router.push('/expenses');
       }, 2000);
     } catch (err: any) {
       console.error('Failed to create expense:', err);
