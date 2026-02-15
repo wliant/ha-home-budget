@@ -272,6 +272,8 @@ All bash scripts support:
 - N/A (stateless service; files passed by backend) (018-receipt-ocr-processor)
 - TypeScript 5.x (frontend), Java 17 (backend) + Next.js 14.x, Material-UI v5, Recharts 3.7.0 (existing), Spring Boot 3.2.0, Spring Data JPA (019-dashboard-spending-trends)
 - MySQL 8.0 (existing database with expenses and categories tables) (019-dashboard-spending-trends)
+- Python 3.11+ + FastAPI, LangGraph, LangChain, PaddleOCR 3.x, PaddlePaddle 3.x (CPU), PyMuPDF 1.25+, Pillow, structlog (020-ocr-extraction-upgrade)
+- N/A (stateless processor) (020-ocr-extraction-upgrade)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

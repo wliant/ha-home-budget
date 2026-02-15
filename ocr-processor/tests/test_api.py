@@ -16,11 +16,10 @@ async def test_health_endpoint(client):
 async def test_process_receipt_returns_valid_structure(
     client, sample_receipt_path, sample_categories_json
 ):
-    """FR-016: At least one automated test that submits a real receipt image
-    and validates the response structure.
+    """Test that submitting a real receipt image returns a valid response structure.
 
-    NOTE: This test requires a running Ollama server with llava:13b and
-    llama3.1:latest loaded. Skip if Ollama is not available.
+    NOTE: This test requires a running Ollama server with llama3.1:latest
+    loaded and PaddleOCR models available. Skip if Ollama is not available.
     """
     # Check Ollama availability first
     health = await client.get("/health")
@@ -75,7 +74,7 @@ async def test_process_empty_categories_returns_422(client, sample_receipt_path)
 async def test_process_pdf_receipt_returns_valid_structure(
     client, sample_categories_json
 ):
-    """Test that PDF receipts are accepted and processed."""
+    """Test that PDF receipts are accepted and processed via text extraction or OCR."""
     health = await client.get("/health")
     if not health.json().get("ollama_reachable"):
         pytest.skip("Ollama server not reachable")

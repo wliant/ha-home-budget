@@ -2,6 +2,16 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
+# System dependencies for PaddleOCR (OpenCV, PaddlePaddle)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -17,6 +27,16 @@ COPY src/ src/
 FROM python:3.11-slim
 
 WORKDIR /app
+
+# Runtime system dependencies for PaddleOCR
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages and source from builder
 COPY --from=builder /app /app
