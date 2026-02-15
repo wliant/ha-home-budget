@@ -1,9 +1,9 @@
-"""LLM callback handlers for logging chat completions."""
+"""LLM and node callback handlers for logging."""
 
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from langchain_core.callbacks import AsyncCallbackHandler
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import LLMResult
 
@@ -12,14 +12,74 @@ from ocr_processor.logging import get_logger
 logger = get_logger(__name__)
 
 
-class ChatCompletionLogger(AsyncCallbackHandler):
-    """Callback handler that logs all LLM chat completions with structured logging."""
+class OcrProcessingLogger(BaseCallbackHandler):
+    """Callback handler that logs LLM chat completions and node execution."""
 
     def __init__(self):
         super().__init__()
         self._run_metadata: Dict[UUID, Dict[str, Any]] = {}
 
-    async def on_chat_model_start(
+    def on_chain_start(
+        self,
+        serialized: Dict[str, Any],
+        inputs: Dict[str, Any],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Log when a node/chain starts executing."""
+        # Get node name from serialized data or tags
+        node_name = serialized.get("name", "unknown")
+        if tags and any(tag for tag in tags if tag != "graph"):
+            node_name = next((tag for tag in tags if tag != "graph"), node_name)
+
+        logger.info(
+            "node_start",
+            run_id=str(run_id),
+            parent_run_id=str(parent_run_id) if parent_run_id else None,
+            node=node_name,
+            tags=tags,
+        )
+
+    def on_chain_end(
+        self,
+        outputs: Dict[str, Any],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Log when a node/chain finishes executing."""
+        # Get node name from tags
+        node_name = "unknown"
+        if tags and any(tag for tag in tags if tag != "graph"):
+            node_name = next((tag for tag in tags if tag != "graph"), node_name)
+
+        # Log full OCR results for extract node
+        log_data = {
+            "run_id": str(run_id),
+            "parent_run_id": str(parent_run_id) if parent_run_id else None,
+            "node": node_name,
+            "tags": tags,
+        }
+
+        # Log full extracted text for extract node
+        if node_name == "extract" and "extracted_text" in outputs:
+            log_data["extracted_text"] = outputs["extracted_text"]
+            log_data["line_items"] = outputs.get("line_items", [])
+            log_data["receipt_date"] = outputs.get("receipt_date")
+
+        # Log classified expenses for classify node
+        if node_name == "classify" and "line_items" in outputs:
+            log_data["classified_expenses"] = outputs["line_items"]
+
+        logger.info("node_end", **log_data)
+
+    def on_chat_model_start(
         self,
         serialized: Dict[str, Any],
         messages: List[List[BaseMessage]],
@@ -34,17 +94,16 @@ class ChatCompletionLogger(AsyncCallbackHandler):
         # Extract model name from serialized data
         model_name = serialized.get("id", ["unknown"])[-1] if isinstance(serialized.get("id"), list) else "unknown"
 
-        # Get the first message content for logging (usually the prompt)
-        prompt_preview = ""
+        # Get the full prompt content
+        prompt = ""
         if messages and messages[0]:
             first_message = messages[0][0]
-            content = getattr(first_message, "content", "")
-            prompt_preview = (content[:200] + "...") if len(content) > 200 else content
+            prompt = getattr(first_message, "content", "")
 
         # Store metadata for this run
         self._run_metadata[run_id] = {
             "model": model_name,
-            "prompt_length": len(prompt_preview) if prompt_preview else 0,
+            "prompt_length": len(prompt),
             "tags": tags or [],
         }
 
@@ -53,12 +112,12 @@ class ChatCompletionLogger(AsyncCallbackHandler):
             run_id=str(run_id),
             parent_run_id=str(parent_run_id) if parent_run_id else None,
             model=model_name,
-            prompt_preview=prompt_preview,
+            prompt=prompt,
+            prompt_length=len(prompt),
             tags=tags,
-            metadata=metadata,
         )
 
-    async def on_llm_end(
+    def on_llm_end(
         self,
         response: LLMResult,
         *,
@@ -72,7 +131,7 @@ class ChatCompletionLogger(AsyncCallbackHandler):
         generations = response.generations
         llm_output = response.llm_output or {}
 
-        # Get response text
+        # Get full response text
         response_text = ""
         if generations and generations[0]:
             first_gen = generations[0][0]
@@ -88,15 +147,12 @@ class ChatCompletionLogger(AsyncCallbackHandler):
         run_meta = self._run_metadata.get(run_id, {})
         model_name = run_meta.get("model", "unknown")
 
-        # Preview of response (first 200 chars)
-        response_preview = (response_text[:200] + "...") if len(response_text) > 200 else response_text
-
         logger.info(
             "llm_chat_completion",
             run_id=str(run_id),
             parent_run_id=str(parent_run_id) if parent_run_id else None,
             model=model_name,
-            response_preview=response_preview,
+            response=response_text,
             response_length=len(response_text),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
@@ -107,7 +163,7 @@ class ChatCompletionLogger(AsyncCallbackHandler):
         # Clean up metadata
         self._run_metadata.pop(run_id, None)
 
-    async def on_llm_error(
+    def on_llm_error(
         self,
         error: BaseException,
         *,
@@ -135,12 +191,12 @@ class ChatCompletionLogger(AsyncCallbackHandler):
 
 
 # Singleton instance for reuse
-_chat_completion_logger = None
+_ocr_processing_logger = None
 
 
-def get_chat_completion_logger() -> ChatCompletionLogger:
-    """Get or create the singleton ChatCompletionLogger instance."""
-    global _chat_completion_logger
-    if _chat_completion_logger is None:
-        _chat_completion_logger = ChatCompletionLogger()
-    return _chat_completion_logger
+def get_ocr_processing_logger() -> OcrProcessingLogger:
+    """Get or create the singleton OcrProcessingLogger instance."""
+    global _ocr_processing_logger
+    if _ocr_processing_logger is None:
+        _ocr_processing_logger = OcrProcessingLogger()
+    return _ocr_processing_logger

@@ -69,14 +69,11 @@ async def classify_node(state: dict) -> dict:
         line_items=items_str,
     )
 
-    from ocr_processor.callbacks import get_chat_completion_logger
-
     try:
         llm = ChatOllama(
             model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
-            callbacks=[get_chat_completion_logger()],
         )
 
         response = await llm.ainvoke([HumanMessage(content=prompt)])

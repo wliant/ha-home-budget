@@ -54,6 +54,8 @@ async def process_receipt(
     content_type: str,
     categories: list[CategoryInput],
 ) -> ProcessResponse:
+    from ocr_processor.callbacks import get_ocr_processing_logger
+
     graph = get_graph()
 
     initial_state: AgentState = {
@@ -62,6 +64,9 @@ async def process_receipt(
         "categories": categories,
     }
 
-    result = await graph.ainvoke(initial_state)
+    # Pass callback handler as config
+    config = {"callbacks": [get_ocr_processing_logger()]}
+
+    result = await graph.ainvoke(initial_state, config=config)
 
     return ProcessResponse(expenses=result["expenses"])

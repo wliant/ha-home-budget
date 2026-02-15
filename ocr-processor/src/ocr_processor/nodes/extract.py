@@ -105,14 +105,11 @@ def _extract_text_with_ocr(image_bytes: bytes) -> str:
 
 async def _parse_text_with_llm(raw_text: str) -> dict:
     """Parse raw receipt text into structured data using the text LLM."""
-    from ocr_processor.callbacks import get_chat_completion_logger
-
     try:
         llm = ChatOllama(
             model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
-            callbacks=[get_chat_completion_logger()],
         )
 
         message = HumanMessage(content=PARSE_PROMPT + raw_text)
