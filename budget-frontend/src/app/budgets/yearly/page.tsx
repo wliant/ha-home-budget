@@ -5,6 +5,7 @@ import {
   Alert,
   Autocomplete,
   Box,
+  Button,
   Checkbox,
   Chip,
   CircularProgress,
@@ -60,6 +61,33 @@ export default function YearlyBudgetPage() {
   const [error, setError] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<YearlyCategoryBudgetDTO[]>([]);
+  const [hiddenMonths, setHiddenMonths] = useState<Set<number>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('yearlyView.hiddenMonths');
+        if (stored) return new Set(JSON.parse(stored));
+      } catch {}
+    }
+    return new Set();
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yearlyView.hiddenMonths', JSON.stringify([...hiddenMonths]));
+    }
+  }, [hiddenMonths]);
+
+  const toggleMonth = (month: number) => {
+    setHiddenMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(month)) {
+        next.delete(month);
+      } else {
+        next.add(month);
+      }
+      return next;
+    });
+  };
 
   const yearOptions = useMemo(
     () => Array.from({ length: maxYear - minYear + 1 }, (_, i) => String(minYear + i)),
@@ -166,28 +194,30 @@ export default function YearlyBudgetPage() {
   };
 
   const renderMonthCells = (category: YearlyCategoryBudgetDTO, bold: boolean) =>
-    category.months.map((month) => (
-      <TableCell key={month.month} align="center">
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          <Typography variant="caption" fontWeight={bold ? 600 : 400}>
-            {month.hasBudget ? formatCurrency(month.budgetAmount) : '—'}
-          </Typography>
-          {month.spending !== 0 ? (
-            <Typography
-              variant="caption"
-              color={month.hasBudget ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
-              fontWeight={month.hasBudget && month.spending >= month.budgetAmount ? 700 : bold ? 600 : 400}
-              onClick={(e) => { e.stopPropagation(); goToExpenses(category.categoryId, month.month); }}
-              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-            >
-              {formatCurrency(month.spending)}
+    category.months
+      .filter((month) => !hiddenMonths.has(month.month))
+      .map((month) => (
+        <TableCell key={month.month} align="center">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Typography variant="caption" fontWeight={bold ? 600 : 400}>
+              {month.hasBudget ? formatCurrency(month.budgetAmount) : '—'}
             </Typography>
-          ) : (
-            <Typography variant="caption" color="text.secondary">&nbsp;</Typography>
-          )}
-        </Box>
-      </TableCell>
-    ));
+            {month.spending !== 0 ? (
+              <Typography
+                variant="caption"
+                color={month.hasBudget ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
+                fontWeight={month.hasBudget && month.spending >= month.budgetAmount ? 700 : bold ? 600 : 400}
+                onClick={(e) => { e.stopPropagation(); goToExpenses(category.categoryId, month.month); }}
+                sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              >
+                {formatCurrency(month.spending)}
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary">&nbsp;</Typography>
+            )}
+          </Box>
+        </TableCell>
+      ));
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -298,6 +328,33 @@ export default function YearlyBudgetPage() {
             </Box>
           </Paper>
 
+          {/* Month visibility toggles */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+              Months:
+            </Typography>
+            {MONTH_LABELS.map((label, idx) => {
+              const monthNum = idx + 1;
+              const isHidden = hiddenMonths.has(monthNum);
+              return (
+                <Chip
+                  key={label}
+                  label={label}
+                  size="small"
+                  color={isHidden ? 'default' : 'primary'}
+                  variant={isHidden ? 'outlined' : 'filled'}
+                  onClick={() => toggleMonth(monthNum)}
+                  sx={isHidden ? { opacity: 0.5 } : {}}
+                />
+              );
+            })}
+            {hiddenMonths.size > 0 && (
+              <Button size="small" variant="text" onClick={() => setHiddenMonths(new Set())}>
+                Show All
+              </Button>
+            )}
+          </Box>
+
           <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
             <Table stickyHeader size="small" aria-label="yearly budget table">
               <TableHead>
@@ -306,21 +363,24 @@ export default function YearlyBudgetPage() {
                   <TableCell sx={{ minWidth: 140 }}>Yearly Budget</TableCell>
                   <TableCell sx={{ minWidth: 140 }}>Spent</TableCell>
                   <TableCell sx={{ minWidth: 140 }}>Available</TableCell>
-                  {MONTH_LABELS.map((label, idx) => (
-                    <TableCell
-                      key={label}
-                      align="center"
-                      sx={{ minWidth: 110, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                      onClick={() => {
-                        const params = new URLSearchParams({ year: String(year), month: String(idx + 1) });
-                        router.push(`/expenses?${params.toString()}`);
-                      }}
-                    >
-                      <Typography variant="subtitle2" sx={{ '&:hover': { textDecoration: 'underline' } }}>
-                        {label}
-                      </Typography>
-                    </TableCell>
-                  ))}
+                  {MONTH_LABELS.map((label, idx) => {
+                    if (hiddenMonths.has(idx + 1)) return null;
+                    return (
+                      <TableCell
+                        key={label}
+                        align="center"
+                        sx={{ minWidth: 110, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                        onClick={() => {
+                          const params = new URLSearchParams({ year: String(year), month: String(idx + 1) });
+                          router.push(`/expenses?${params.toString()}`);
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ '&:hover': { textDecoration: 'underline' } }}>
+                          {label}
+                        </Typography>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               </TableHead>
               <TableBody>
