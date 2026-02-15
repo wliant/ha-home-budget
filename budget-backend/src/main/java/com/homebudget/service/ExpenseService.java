@@ -67,14 +67,15 @@ public class ExpenseService {
      * @throws CategoryNotFoundException if category not found
      */
     public ExpenseDTO createExpense(ExpenseDTO dto, String username) {
-        logger.info("Creating expense for user: {}", username);
+        String effectiveUser = dto.isCommonExpense() ? "common" : username;
+        logger.info("Creating expense for user: {} (common={})", effectiveUser, dto.isCommonExpense());
 
         // Create expense entity
         Expense expense = new Expense();
         expense.setAmount(dto.getAmount());
         expense.setDescription(dto.getDescription());
         expense.setExpenseDate(dto.getExpenseDate());
-        expense.setCreatedBy(username);
+        expense.setCreatedBy(effectiveUser);
 
         // Set category - required; fall back to system "Uncategorized" if null
         if (dto.getCategoryId() != null) {

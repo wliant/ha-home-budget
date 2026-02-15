@@ -31,6 +31,7 @@ export interface CreateExpenseRequest {
   description: string;
   expenseDate: string;
   categoryId: number;
+  commonExpense?: boolean;
 }
 
 export interface UpdateExpenseRequest {

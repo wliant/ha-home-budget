@@ -14,6 +14,8 @@ import {
   ButtonGroup,
   Tooltip,
   Chip,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { AddCard as AddCardIcon, Add, Remove, AttachFile } from '@mui/icons-material';
 import { CategorySelect } from '@/components/expenses/CategorySelect';
@@ -40,6 +42,7 @@ export default function NewExpensePage() {
     description: '',
     expenseDate: getTodayISO(),
     categoryId: null,
+    commonExpense: false,
     files: [],
     errors: {},
     loading: false,
@@ -112,6 +115,7 @@ export default function NewExpensePage() {
           description: formState.description.trim(),
           expenseDate: formState.expenseDate,
           categoryId: formState.categoryId!,
+          commonExpense: formState.commonExpense,
         },
         formState.files
       );
@@ -131,6 +135,7 @@ export default function NewExpensePage() {
           description: '',
           expenseDate: getTodayISO(),
           categoryId: null,
+          commonExpense: false,
           files: [],
           errors: {},
           loading: false,
@@ -340,6 +345,18 @@ export default function NewExpensePage() {
               required
               error={formState.errors.category}
               year={formState.expenseDate ? new Date(formState.expenseDate).getFullYear() : undefined}
+            />
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formState.commonExpense}
+                  onChange={(e) => updateField('commonExpense', e.target.checked)}
+                />
+              }
+              label="Common household expense"
             />
           </Box>
 

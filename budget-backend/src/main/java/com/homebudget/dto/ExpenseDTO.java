@@ -46,6 +46,8 @@ public class ExpenseDTO {
 
     private List<ExpenseFileDTO> files = new ArrayList<>();
 
+    private boolean commonExpense;
+
     // Constructors
     public ExpenseDTO() {
     }
@@ -167,5 +169,13 @@ public class ExpenseDTO {
 
     public void setFiles(List<ExpenseFileDTO> files) {
         this.files = files;
+    }
+
+    public boolean isCommonExpense() {
+        return commonExpense;
+    }
+
+    public void setCommonExpense(boolean commonExpense) {
+        this.commonExpense = commonExpense;
     }
 }
