@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import { ReceiptLong as ReceiptLongIcon } from '@mui/icons-material';
 import ExpenseListTable from '@/components/expenses/ExpenseListTable';
@@ -22,9 +23,22 @@ const defaultFilters: ExpenseListFilters = {
 
 export default function ExpensesPage() {
   const router = useIngressRouter();
+  const searchParams = useSearchParams();
+
+  const initialFilters = (): ExpenseListFilters => {
+    const f = { ...defaultFilters };
+    const yearParam = searchParams.get('year');
+    if (yearParam) f.year = Number(yearParam);
+    const monthParam = searchParams.get('month');
+    if (monthParam) f.month = Number(monthParam);
+    const categoryParam = searchParams.get('categoryId');
+    if (categoryParam) f.categoryId = Number(categoryParam);
+    return f;
+  };
+
   const [data, setData] = useState<ExpenseListResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
+  const [filters, setFilters] = useState<ExpenseListFilters>(initialFilters);
   const [page, setPage] = useState(0);
   const [currentUser, setCurrentUser] = useState<string>('');
 

@@ -26,6 +26,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import { budgetService, formatCurrency, YearlyBudgetViewDTO, YearlyCategoryBudgetDTO } from '@/services/budgetService';
+import { useIngressRouter } from '@/lib/navigation';
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -48,6 +49,7 @@ interface CategoryGroup {
 }
 
 export default function YearlyBudgetPage() {
+  const router = useIngressRouter();
   const currentYear = new Date().getFullYear();
   const minYear = 2019;
   const maxYear = 2200;
@@ -145,6 +147,12 @@ export default function YearlyBudgetPage() {
     return groups.filter(g => selectedIds.has(g.parent.categoryId));
   }, [groups, selectedCategories]);
 
+  const goToExpenses = (categoryId: number, month?: number) => {
+    const params = new URLSearchParams({ year: String(year), categoryId: String(categoryId) });
+    if (month != null) params.set('month', String(month));
+    router.push(`/expenses?${params.toString()}`);
+  };
+
   const toggleGroup = (categoryId: number) => {
     setExpandedGroups(prev => {
       const next = new Set(prev);
@@ -164,13 +172,19 @@ export default function YearlyBudgetPage() {
           <Typography variant="caption" fontWeight={bold ? 600 : 400}>
             {month.hasBudget ? formatCurrency(month.budgetAmount) : '—'}
           </Typography>
-          <Typography
-            variant="caption"
-            color={month.hasBudget && month.spending !== 0 ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
-            fontWeight={month.hasBudget && month.spending >= month.budgetAmount ? 700 : bold ? 600 : 400}
-          >
-            {month.spending !== 0 ? formatCurrency(month.spending) : ''}
-          </Typography>
+          {month.spending !== 0 ? (
+            <Typography
+              variant="caption"
+              color={month.hasBudget ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
+              fontWeight={month.hasBudget && month.spending >= month.budgetAmount ? 700 : bold ? 600 : 400}
+              onClick={(e) => { e.stopPropagation(); goToExpenses(category.categoryId, month.month); }}
+              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+            >
+              {formatCurrency(month.spending)}
+            </Typography>
+          ) : (
+            <Typography variant="caption" color="text.secondary">&nbsp;</Typography>
+          )}
         </Box>
       </TableCell>
     ));
@@ -292,9 +306,19 @@ export default function YearlyBudgetPage() {
                   <TableCell sx={{ minWidth: 140 }}>Yearly Budget</TableCell>
                   <TableCell sx={{ minWidth: 140 }}>Spent</TableCell>
                   <TableCell sx={{ minWidth: 140 }}>Available</TableCell>
-                  {MONTH_LABELS.map((label) => (
-                    <TableCell key={label} align="center" sx={{ minWidth: 110 }}>
-                      {label}
+                  {MONTH_LABELS.map((label, idx) => (
+                    <TableCell
+                      key={label}
+                      align="center"
+                      sx={{ minWidth: 110, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                      onClick={() => {
+                        const params = new URLSearchParams({ year: String(year), month: String(idx + 1) });
+                        router.push(`/expenses?${params.toString()}`);
+                      }}
+                    >
+                      <Typography variant="subtitle2" sx={{ '&:hover': { textDecoration: 'underline' } }}>
+                        {label}
+                      </Typography>
                     </TableCell>
                   ))}
                 </TableRow>
@@ -343,6 +367,8 @@ export default function YearlyBudgetPage() {
                             variant="body2"
                             color={getSpendingColor(group.parent.yearlySpending, group.parent.yearlyBudgetAmount)}
                             fontWeight={group.parent.yearlySpending >= group.parent.yearlyBudgetAmount ? 700 : hasChildren ? 700 : 400}
+                            onClick={(e) => { e.stopPropagation(); goToExpenses(group.parent.categoryId); }}
+                            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                           >
                             {formatCurrency(group.parent.yearlySpending)}
                           </Typography>
@@ -373,6 +399,8 @@ export default function YearlyBudgetPage() {
                               variant="body2"
                               color={getSpendingColor(child.yearlySpending, child.yearlyBudgetAmount)}
                               fontWeight={child.yearlySpending >= child.yearlyBudgetAmount ? 700 : 400}
+                              onClick={() => goToExpenses(child.categoryId)}
+                              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                             >
                               {formatCurrency(child.yearlySpending)}
                             </Typography>
