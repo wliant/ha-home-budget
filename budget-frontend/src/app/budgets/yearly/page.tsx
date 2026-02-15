@@ -33,6 +33,7 @@ const MONTH_LABELS = [
 ];
 
 function getSpendingColor(spent: number, budget: number): string {
+  if (spent < 0) return 'success.main';
   if (budget <= 0) return spent > 0 ? 'error.main' : 'text.primary';
   const ratio = spent / budget;
   if (ratio >= 1) return 'error.main';
@@ -165,10 +166,10 @@ export default function YearlyBudgetPage() {
           </Typography>
           <Typography
             variant="caption"
-            color={month.hasBudget && month.spending > 0 ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
+            color={month.hasBudget && month.spending !== 0 ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
             fontWeight={month.hasBudget && month.spending >= month.budgetAmount ? 700 : bold ? 600 : 400}
           >
-            {month.spending > 0 ? formatCurrency(month.spending) : ''}
+            {month.spending !== 0 ? formatCurrency(month.spending) : ''}
           </Typography>
         </Box>
       </TableCell>
