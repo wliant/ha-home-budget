@@ -168,7 +168,7 @@ export default function YearlyBudgetPage() {
             color={month.hasBudget && month.spending > 0 ? getSpendingColor(month.spending, month.budgetAmount) : 'text.secondary'}
             fontWeight={month.hasBudget && month.spending >= month.budgetAmount ? 700 : bold ? 600 : 400}
           >
-            {month.hasBudget ? formatCurrency(month.spending) : ''}
+            {month.spending > 0 ? formatCurrency(month.spending) : ''}
           </Typography>
         </Box>
       </TableCell>
