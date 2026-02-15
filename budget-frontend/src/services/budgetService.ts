@@ -49,30 +49,11 @@ export interface BudgetSummaryDTO {
   totalSpending: number;
   spendingPercentage: number;
   expenseCount: number;
-  expenses?: ExpenseDTO[];
   categoryId?: number;
   category?: CategoryDTO;
   childrenBudgetSum?: number;
   childrenSpending?: number;
   isParentCategory?: boolean;
-}
-
-export interface ExpenseDTO {
-  id?: number;
-  amount: number;
-  description: string;
-  expenseDate: string; // ISO date string
-  budgetId: number;
-  categoryId?: number | null;
-  category?: CategoryDTO;
-  categoryName?: string;
-  categoryIcon?: string;
-  createdBy?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  version?: number;
-  warnings?: string[];
-  files?: { id: number; originalFilename: string }[];
 }
 
 export interface CategoryDTO {
@@ -191,7 +172,7 @@ export const budgetService = {
 
   /**
    * Delete budget.
-   * Cascade deletes all associated expenses.
+   * Expenses are not affected (decoupled from budgets).
    */
   deleteBudget: async (id: number): Promise<void> => {
     await api.delete(`/api/budgets/${id}`);

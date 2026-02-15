@@ -1,0 +1,396 @@
+# API Contract Changes: Category Expense Aggregates
+# Feature: 016-category-expense-aggregates
+# Date: 2026-02-15
+#
+# This document describes changes to existing API endpoints and new endpoints.
+# Format: OpenAPI 3.0 style descriptions.
+
+openapi: 3.0.3
+info:
+  title: Home Budget API - Category Expense Aggregates Changes
+  version: 2.0.0
+  description: |
+    API changes for decoupling expenses from budgets and introducing
+    category-based expense aggregation.
+
+paths:
+  # ===== MODIFIED ENDPOINTS =====
+
+  /api/expenses:
+    post:
+      summary: Create Expense (MODIFIED)
+      description: |
+        BEFORE: Required budgetId. Auto-resolved budget from date/category.
+        AFTER: No budgetId. Requires categoryId. Category is mandatory.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '201':
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+
+    get:
+      summary: Get All Expenses (MODIFIED)
+      description: |
+        BEFORE: Supported budgetId filter parameter.
+        AFTER: budgetId filter removed. Category, date, amount, creator filters remain.
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: month
+          in: query
+          schema:
+            type: integer
+        - name: minAmount
+          in: query
+          schema:
+            type: number
+        - name: maxAmount
+          in: query
+          schema:
+            type: number
+        - name: createdBy
+          in: query
+          schema:
+            type: string
+
+  /api/expenses/{id}:
+    put:
+      summary: Update Expense (MODIFIED)
+      description: |
+        BEFORE: Could change budgetId.
+        AFTER: No budgetId field. Can change categoryId.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExpenseRequest'
+
+  /api/expenses/list:
+    get:
+      summary: Get Expense List - Paginated (MODIFIED)
+      description: |
+        BEFORE: Spending calculated via budget-linked expenses.
+        AFTER: Same filters, but totalAmount aggregation uses category-based queries.
+        No budgetId in response items.
+
+  /api/budgets/{id}:
+    get:
+      summary: Get Budget Detail (MODIFIED)
+      description: |
+        BEFORE: Returned budget with list of linked expenses.
+        AFTER: Returns budget info with category aggregate spending for the
+        budget's category and time period. No expense list.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetDetailResponse'
+
+    delete:
+      summary: Delete Budget (MODIFIED)
+      description: |
+        BEFORE: Cascade-deleted all linked expenses.
+        AFTER: Deletes only the budget record. Expenses are unaffected.
+
+  /api/budgets/yearly/{year}:
+    get:
+      summary: Get Yearly Budget View (MODIFIED)
+      description: |
+        BEFORE: Spending calculated via sumAmountByBudgetId for each budget.
+        AFTER: Spending calculated via category expense aggregates (SUM by
+        category_id and expense_date month/year). Parent category rollup
+        from child category aggregates.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/YearlyBudgetViewResponse'
+
+  /api/budgets/current-month:
+    get:
+      summary: Get Current Month Budget Summary (MODIFIED)
+      description: |
+        BEFORE: Spending from sumAmountByBudgetId per budget.
+        AFTER: Spending from category-based monthly aggregates.
+
+  # ===== NEW ENDPOINTS =====
+
+  /api/expenses/aggregates/monthly:
+    get:
+      summary: Get Monthly Expense Aggregates (NEW)
+      description: |
+        Returns monthly spending totals per category for a given year.
+        Includes parent category rollup (parent aggregate = direct + children).
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryExpenseAggregate'
+
+  /api/expenses/aggregates/yearly:
+    get:
+      summary: Get Yearly Expense Aggregates (NEW)
+      description: |
+        Returns yearly spending totals per category.
+        Includes parent category rollup.
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryExpenseAggregate'
+
+components:
+  schemas:
+    CreateExpenseRequest:
+      type: object
+      required:
+        - amount
+        - description
+        - expenseDate
+        - categoryId
+      properties:
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        description:
+          type: string
+          maxLength: 500
+        expenseDate:
+          type: string
+          format: date
+        categoryId:
+          type: integer
+          format: int64
+          description: "REQUIRED (was optional). Category for this expense."
+        # budgetId: REMOVED
+
+    UpdateExpenseRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: decimal
+          minimum: 0
+        description:
+          type: string
+          maxLength: 500
+        expenseDate:
+          type: string
+          format: date
+        categoryId:
+          type: integer
+          format: int64
+        # budgetId: REMOVED
+
+    ExpenseResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        expenseDate:
+          type: string
+          format: date
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseFileDTO'
+        # budgetId: REMOVED
+        # warnings: REMOVED (was for budget date mismatch)
+
+    BudgetDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        year:
+          type: integer
+        month:
+          type: integer
+          nullable: true
+        totalAmount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        categoryId:
+          type: integer
+          format: int64
+        category:
+          $ref: '#/components/schemas/CategoryDTO'
+        categorySpending:
+          type: number
+          format: decimal
+          description: "NEW: Aggregate spending for this budget's category and period"
+        spendingPercentage:
+          type: number
+          format: decimal
+          description: "categorySpending / totalAmount * 100"
+        # expenses: REMOVED (was list of linked expenses)
+
+    CategoryExpenseAggregate:
+      type: object
+      description: "NEW DTO for category-level expense aggregation"
+      properties:
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+        parentCategoryId:
+          type: integer
+          format: int64
+          nullable: true
+        directAmount:
+          type: number
+          format: decimal
+          description: "Expenses directly on this category"
+        childrenAmount:
+          type: number
+          format: decimal
+          description: "Sum of expenses on child categories (0 if no children)"
+        totalAmount:
+          type: number
+          format: decimal
+          description: "directAmount + childrenAmount"
+        year:
+          type: integer
+        month:
+          type: integer
+          nullable: true
+          description: "Null for yearly aggregates"
+
+    YearlyBudgetViewResponse:
+      description: "Structure unchanged, but spending data sourced differently"
+      type: object
+      properties:
+        year:
+          type: integer
+        totalBudget:
+          type: number
+          format: decimal
+        totalSpending:
+          type: number
+          format: decimal
+          description: "Now from category aggregates instead of budget-linked sums"
+        totalRemaining:
+          type: number
+          format: decimal
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/YearlyCategoryBudgetDTO'
+
+    ExpenseFileDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        fileName:
+          type: string
+        contentType:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+
+    CategoryDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        icon:
+          type: string
+
+    YearlyCategoryBudgetDTO:
+      type: object
+      properties:
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        categoryIcon:
+          type: string
+        yearlyBudgetAmount:
+          type: number
+          format: decimal
+        yearlySpending:
+          type: number
+          format: decimal
+          description: "Now from category aggregates"
+        yearlyRemaining:
+          type: number
+          format: decimal

@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * Expense entity representing a single spending transaction.
  *
- * Each expense is associated with a budget and optionally with a category.
+ * Each expense is associated with a category.
  * Expenses track who recorded them (via X-Hass-User header) for household accountability.
  */
 @Entity
@@ -37,11 +37,7 @@ public class Expense {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "budget_id", nullable = false)
-    private Budget budget;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
     @NotNull
@@ -74,11 +70,11 @@ public class Expense {
     public Expense() {
     }
 
-    public Expense(BigDecimal amount, String description, LocalDate expenseDate, Budget budget, String createdBy) {
+    public Expense(BigDecimal amount, String description, LocalDate expenseDate, Category category, String createdBy) {
         this.amount = amount;
         this.description = description;
         this.expenseDate = expenseDate;
-        this.budget = budget;
+        this.category = category;
         this.createdBy = createdBy;
     }
 
@@ -113,14 +109,6 @@ public class Expense {
 
     public void setExpenseDate(LocalDate expenseDate) {
         this.expenseDate = expenseDate;
-    }
-
-    public Budget getBudget() {
-        return budget;
-    }
-
-    public void setBudget(Budget budget) {
-        this.budget = budget;
     }
 
     public Category getCategory() {

@@ -1,7 +1,9 @@
 package com.homebudget.controller;
 
+import com.homebudget.dto.CategoryExpenseAggregateDTO;
 import com.homebudget.dto.ExpenseDTO;
 import com.homebudget.dto.ExpenseListResponse;
+import com.homebudget.service.ExpenseAggregateService;
 import com.homebudget.service.ExpenseService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -25,8 +27,6 @@ import java.util.Set;
 /**
  * REST API Controller for expense operations.
  *
- * Implements User Story 2: Record Expenses Against Budgets
- *
  * Endpoints:
  * - POST /api/expenses - Create new expense
  * - GET /api/expenses - List all expenses with optional filters
@@ -49,10 +49,13 @@ public class ExpenseController {
     @Autowired
     private ExpenseService expenseService;
 
+    @Autowired
+    private ExpenseAggregateService expenseAggregateService;
+
     /**
      * Create a new expense.
      *
-     * @param dto Expense data (budgetId, amount, description, expenseDate, optional categoryId)
+     * @param dto Expense data (amount, description, expenseDate, categoryId)
      * @param username User creating expense (from X-Hass-User header)
      * @return Created expense with HTTP 201 status
      */
@@ -61,11 +64,11 @@ public class ExpenseController {
             @Valid @RequestBody ExpenseDTO dto,
             @RequestHeader(HASS_USER_HEADER) String username) {
 
-        logger.info("POST /api/expenses - Creating expense for budget {}, user: {}", dto.getBudgetId(), username);
+        logger.info("POST /api/expenses - Creating expense, user: {}", username);
 
         ExpenseDTO created = expenseService.createExpense(dto, username);
 
-        logger.info("Created expense ID: {} for budget ID: {}", created.getId(), created.getBudgetId());
+        logger.info("Created expense ID: {}", created.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -78,7 +81,7 @@ public class ExpenseController {
         logger.info("POST /api/expenses (multipart) - Creating expense with files, user: {}", username);
         ExpenseDTO created = expenseService.createExpenseWithFiles(dto, files == null ? List.of() : List.of(files), username);
 
-        logger.info("Created expense ID: {} for budget ID: {}", created.getId(), created.getBudgetId());
+        logger.info("Created expense ID: {}", created.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -86,7 +89,6 @@ public class ExpenseController {
      * Get all expenses with optional filtering.
      *
      * Query parameters (all optional):
-     * - budgetId: Filter by budget
      * - categoryId: Filter by category
      * - startDate: Filter by date range start (YYYY-MM-DD)
      * - endDate: Filter by date range end (YYYY-MM-DD)
@@ -96,17 +98,16 @@ public class ExpenseController {
      */
     @GetMapping
     public ResponseEntity<List<ExpenseDTO>> getAllExpenses(
-            @RequestParam(required = false) Long budgetId,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String createdBy) {
 
-        logger.info("GET /api/expenses - Filters: budgetId={}, categoryId={}, dateRange={}-{}, createdBy={}",
-                   budgetId, categoryId, startDate, endDate, createdBy);
+        logger.info("GET /api/expenses - Filters: categoryId={}, dateRange={}-{}, createdBy={}",
+                   categoryId, startDate, endDate, createdBy);
 
         List<ExpenseDTO> expenses = expenseService.getAllExpenses(
-                budgetId, categoryId, startDate, endDate, createdBy);
+                categoryId, startDate, endDate, createdBy);
 
         logger.info("Found {} expenses", expenses.size());
         return ResponseEntity.ok(expenses);
@@ -255,6 +256,50 @@ public class ExpenseController {
 
         logger.info("Updated expense ID: {}", id);
         return ResponseEntity.ok(updated);
+    }
+
+    // ========================================================================
+    // Aggregate Endpoints (Feature 016)
+    // ========================================================================
+
+    /**
+     * Get monthly expense aggregates per category with parent rollup.
+     *
+     * @param year  required year
+     * @param month optional month (1-12); if omitted, returns all months
+     * @return list of category expense aggregates
+     */
+    @GetMapping("/aggregates/monthly")
+    public ResponseEntity<List<CategoryExpenseAggregateDTO>> getMonthlyAggregates(
+            @RequestParam int year,
+            @RequestParam(required = false) Integer month) {
+
+        logger.info("GET /api/expenses/aggregates/monthly - year={}, month={}", year, month);
+
+        if (month != null && (month < 1 || month > 12)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<CategoryExpenseAggregateDTO> aggregates = expenseAggregateService.getMonthlyAggregates(year, month);
+        logger.info("Returning {} monthly aggregates", aggregates.size());
+        return ResponseEntity.ok(aggregates);
+    }
+
+    /**
+     * Get yearly expense aggregates per category with parent rollup.
+     *
+     * @param year required year
+     * @return list of category expense aggregates (month=null)
+     */
+    @GetMapping("/aggregates/yearly")
+    public ResponseEntity<List<CategoryExpenseAggregateDTO>> getYearlyAggregates(
+            @RequestParam int year) {
+
+        logger.info("GET /api/expenses/aggregates/yearly - year={}", year);
+
+        List<CategoryExpenseAggregateDTO> aggregates = expenseAggregateService.getYearlyAggregates(year);
+        logger.info("Returning {} yearly aggregates", aggregates.size());
+        return ResponseEntity.ok(aggregates);
     }
 
     /**

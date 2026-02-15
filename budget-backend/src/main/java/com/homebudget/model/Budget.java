@@ -6,14 +6,12 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Budget entity representing a household's spending plan.
  *
  * Budgets can be monthly (month set) or yearly (month null).
- * Budgets track all expenses recorded against them and calculate spending totals.
+ * Budgets define spending targets for categories but are not directly linked to expenses.
  */
 @Entity
 @Table(name = "budgets")
@@ -59,9 +57,6 @@ public class Budget {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
-
-    @OneToMany(mappedBy = "budget", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<Expense> expenses = new ArrayList<>();
 
     // Lifecycle callbacks
     @PrePersist
@@ -166,25 +161,6 @@ public class Budget {
 
     public void setCategory(Category category) {
         this.category = category;
-    }
-
-    public List<Expense> getExpenses() {
-        return expenses;
-    }
-
-    public void setExpenses(List<Expense> expenses) {
-        this.expenses = expenses;
-    }
-
-    // Helper methods
-    public void addExpense(Expense expense) {
-        expenses.add(expense);
-        expense.setBudget(this);
-    }
-
-    public void removeExpense(Expense expense) {
-        expenses.remove(expense);
-        expense.setBudget(null);
     }
 
     @Override

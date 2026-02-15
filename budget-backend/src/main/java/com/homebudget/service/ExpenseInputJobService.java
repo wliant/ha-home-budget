@@ -6,12 +6,10 @@ import com.homebudget.dto.TemporaryExpenseRecordDTO;
 import com.homebudget.dto.UpdateTemporaryExpenseRecordRequest;
 import com.homebudget.exception.CategoryNotFoundException;
 import com.homebudget.exception.ExpenseNotFoundException;
-import com.homebudget.model.Budget;
 import com.homebudget.model.Category;
 import com.homebudget.model.Expense;
 import com.homebudget.model.ExpenseInputJob;
 import com.homebudget.model.TemporaryExpenseRecord;
-import com.homebudget.repository.BudgetRepository;
 import com.homebudget.repository.CategoryRepository;
 import com.homebudget.repository.ExpenseInputJobRepository;
 import com.homebudget.repository.ExpenseRepository;
@@ -46,7 +44,6 @@ public class ExpenseInputJobService {
     private final ExpenseInputJobRepository jobRepository;
     private final TemporaryExpenseRecordRepository tempRepository;
     private final CategoryRepository categoryRepository;
-    private final BudgetRepository budgetRepository;
     private final ExpenseService expenseService;
     private final ExpenseRepository expenseRepository;
     @Value("${EXPENSE_FILE_DIR:./data/expense-files}")
@@ -55,13 +52,11 @@ public class ExpenseInputJobService {
     public ExpenseInputJobService(ExpenseInputJobRepository jobRepository,
                                   TemporaryExpenseRecordRepository tempRepository,
                                   CategoryRepository categoryRepository,
-                                  BudgetRepository budgetRepository,
                                   ExpenseService expenseService,
                                   ExpenseRepository expenseRepository) {
         this.jobRepository = jobRepository;
         this.tempRepository = tempRepository;
         this.categoryRepository = categoryRepository;
-        this.budgetRepository = budgetRepository;
         this.expenseService = expenseService;
         this.expenseRepository = expenseRepository;
     }
@@ -227,7 +222,6 @@ public class ExpenseInputJobService {
         if (record.getCategory() != null) {
             dto.setCategoryId(record.getCategory().getId());
         }
-        dto.setBudgetId(resolveBudgetId(record));
 
         com.homebudget.dto.ExpenseDTO created = expenseService.createExpense(dto, username);
         Expense expense = expenseRepository.findById(created.getId())
@@ -248,38 +242,6 @@ public class ExpenseInputJobService {
             jobRepository.save(job);
         }
         return expense;
-    }
-
-    private Long resolveBudgetId(TemporaryExpenseRecord record) {
-        if (record.getCategory() != null && record.getExpenseDate() != null) {
-            int year = record.getExpenseDate().getYear();
-            int month = record.getExpenseDate().getMonthValue();
-
-            Budget monthly = budgetRepository.findByCategoryIdAndYearAndMonth(record.getCategory().getId(), year, month)
-                    .orElse(null);
-            if (monthly != null) {
-                return monthly.getId();
-            }
-
-            Budget parent = budgetRepository.findParentBudget(record.getCategory().getId(), year)
-                    .orElse(null);
-            if (parent != null) {
-                return parent.getId();
-            }
-
-            List<Budget> categoryBudgets = budgetRepository.findByCategoryIdOrderByYearDescMonthDesc(
-                    record.getCategory().getId());
-            if (!categoryBudgets.isEmpty()) {
-                return categoryBudgets.get(0).getId();
-            }
-        }
-
-        List<Budget> fallback = budgetRepository.findAllByOrderByYearDescMonthDesc();
-        if (!fallback.isEmpty()) {
-            return fallback.get(0).getId();
-        }
-
-        throw new IllegalArgumentException("No budgets available to confirm expense");
     }
 
     private void validateFile(MultipartFile file) {

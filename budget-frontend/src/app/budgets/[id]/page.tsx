@@ -19,9 +19,9 @@ import {
 import {
   ArrowBack as ArrowBackIcon,
   Edit as EditIcon,
+  List as ListIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
-import ExpenseList from '@/components/expenses/ExpenseList';
 import {
   budgetService,
   BudgetSummaryDTO,
@@ -36,7 +36,8 @@ import {
  *
  * Features:
  * - Display budget details with spending breakdown
- * - Show list of expenses (if any)
+ * - Spending sourced from category expense aggregates
+ * - Link to expense list filtered by category/period
  * - Edit budget button
  * - Loading and error states
  */
@@ -86,22 +87,20 @@ export default function BudgetDetailPage() {
   };
 
   const handleAddExpense = () => {
-    router.push(`/expenses/new?budgetId=${budgetId}`);
+    router.push('/expenses/new');
   };
 
-  const handleEditExpense = (expenseId: number) => {
-    router.push(`/expenses/${expenseId}/edit?budgetId=${budgetId}`);
-  };
-
-  const handleDeleteExpense = async (expenseId: number) => {
-    if (confirm('Are you sure you want to delete this expense?')) {
-      try {
-        // TODO: Implement delete functionality
-        await loadBudget();
-      } catch (err) {
-        console.error('Failed to delete expense:', err);
-      }
+  const handleViewExpenses = () => {
+    if (!budget) return;
+    const params = new URLSearchParams();
+    params.append('year', budget.year.toString());
+    if (budget.month) {
+      params.append('month', budget.month.toString());
     }
+    if (budget.categoryId) {
+      params.append('categoryId', budget.categoryId.toString());
+    }
+    router.push(`/expenses?${params.toString()}`);
   };
 
   if (isLoading) {
@@ -150,6 +149,13 @@ export default function BudgetDetailPage() {
             Edit Budget
           </Button>
         </Box>
+        {budget.category && (
+          <Chip
+            label={`${budget.category.icon || ''} ${budget.category.name}`}
+            variant="outlined"
+            sx={{ mt: 1 }}
+          />
+        )}
       </Box>
 
       <Grid container spacing={3}>
@@ -248,35 +254,30 @@ export default function BudgetDetailPage() {
               </Typography>
             </Box>
 
-            {/* Expense Count */}
+            {/* Expense Count & Actions */}
             <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" color="text.secondary">
-              {budget.expenseCount} {budget.expenseCount === 1 ? 'expense' : 'expenses'} recorded
-            </Typography>
-          </Paper>
-        </Grid>
-
-        {/* Expenses List */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Expenses
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                {budget.expenseCount} {budget.expenseCount === 1 ? 'expense' : 'expenses'} recorded
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleAddExpense}
-              >
-                Add Expense
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  size="small"
+                  startIcon={<ListIcon />}
+                  onClick={handleViewExpenses}
+                >
+                  View Expenses
+                </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddExpense}
+                >
+                  Add Expense
+                </Button>
+              </Box>
             </Box>
-
-            <ExpenseList
-              expenses={budget.expenses || []}
-              onEdit={handleEditExpense}
-              onDelete={handleDeleteExpense}
-            />
           </Paper>
         </Grid>
       </Grid>

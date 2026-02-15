@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   IconButton,
-  Alert,
   Chip,
 } from '@mui/material';
 import {
@@ -16,8 +15,6 @@ import {
   ExpenseDTO,
   formatExpenseAmount,
   formatExpenseDate,
-  hasDateMismatchWarning,
-  getWarningMessage,
 } from '@/services/expenseService';
 
 /**
@@ -27,7 +24,6 @@ import {
  * - Display expense amount, description, date
  * - Show category (if assigned)
  * - Show who created the expense
- * - Display date mismatch warnings
  * - Edit and delete actions
  */
 
@@ -70,13 +66,6 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
             '&:last-child': { borderBottom: 'none' },
           }}
         >
-          {/* Date Mismatch Warning */}
-          {hasDateMismatchWarning(expense) && (
-            <Alert severity="warning" sx={{ mb: 1 }}>
-              {getWarningMessage(expense)}
-            </Alert>
-          )}
-
           {/* Main Expense Info */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
             <Box sx={{ flexGrow: 1 }}>
