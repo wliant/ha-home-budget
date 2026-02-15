@@ -49,7 +49,7 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
 
   const [formData, setFormData] = useState<CreateBudgetRequest>({
     year: initialValues?.year || currentYear,
-    month: initialValues?.month ?? currentMonth,
+    month: initialValues?.month ?? null,
     totalAmount: initialValues?.totalAmount || 0,
     description: initialValues?.description || '',
     categoryId: initialValues?.categoryId || 0,
@@ -86,8 +86,8 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({
     loadCategories();
   }, []);
 
-  // Generate year options (current year and next 5 years)
-  const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear + i);
+  // Generate year options (5 years back and 5 years forward)
+  const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   // Generate month options
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
