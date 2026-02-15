@@ -268,6 +268,8 @@ All bash scripts support:
 - MySQL 8.0 (on application host, existing) (015-ha-deployment-setup)
 - MySQL 8.0, Liquibase for migrations (016-category-expense-aggregates)
 - MySQL 8.0 (existing database with budgets, categories, expenses tables) (017-parent-budget-rollup)
+- Python 3.11+ (OCR processor), Java 17 (backend integration) + FastAPI, LangGraph, LangChain, langchain-ollama, Pillow, PyMuPDF (fitz), uvicorn, httpx (018-receipt-ocr-processor)
+- N/A (stateless service; files passed by backend) (018-receipt-ocr-processor)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

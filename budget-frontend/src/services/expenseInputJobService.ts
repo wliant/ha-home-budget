@@ -19,7 +19,7 @@ export interface ExpenseInputJobDTO {
   errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
-  temporaryRecord?: TemporaryExpenseRecordDTO | null;
+  temporaryRecords?: TemporaryExpenseRecordDTO[] | null;
 }
 
 export interface UpdateTemporaryExpenseRecordRequest {
@@ -43,11 +43,11 @@ export const expenseInputJobService = {
   },
 
   updateTemporaryRecord: async (
-    jobId: number,
+    recordId: number,
     request: UpdateTemporaryExpenseRecordRequest
   ): Promise<TemporaryExpenseRecordDTO> => {
     const response = await api.patch<TemporaryExpenseRecordDTO>(
-      `/api/expense-input-jobs/${jobId}/temporary-record`,
+      `/api/expense-input-jobs/temporary-records/${recordId}`,
       request
     );
     return response.data;

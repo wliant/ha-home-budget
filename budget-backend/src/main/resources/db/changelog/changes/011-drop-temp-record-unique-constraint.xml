@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Feature 018: Receipt OCR Processor - Allow multiple temporary records per job -->
+
+    <changeSet id="011-01-drop-temp-record-job-unique" author="claude">
+        <comment>Drop unique constraint on temporary_expense_records.job_id to allow multiple records per job (one receipt can produce multiple expenses)</comment>
+        <dropUniqueConstraint
+            tableName="temporary_expense_records"
+            constraintName="job_id"
+            uniqueColumns="job_id"/>
+        <rollback>
+            <addUniqueConstraint
+                tableName="temporary_expense_records"
+                columnNames="job_id"
+                constraintName="job_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="011-02-add-job-id-index" author="claude">
+        <comment>Add non-unique index on job_id for efficient lookups</comment>
+        <createIndex tableName="temporary_expense_records" indexName="idx_temp_records_job_id">
+            <column name="job_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

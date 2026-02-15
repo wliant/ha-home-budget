@@ -43,4 +43,7 @@
     <!-- Feature 016: Category Expense Aggregates - Decouple expenses from budgets -->
     <include file="db/changelog/changes/010-remove-budget-fk-from-expenses.xml"/>
 
+    <!-- Feature 018: Receipt OCR Processor - One-to-many temp records per job -->
+    <include file="db/changelog/changes/011-drop-temp-record-unique-constraint.xml"/>
+
 </databaseChangeLog>

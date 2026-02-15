@@ -35,6 +35,13 @@ import { expenseInputJobService, ExpenseInputJobDTO, TemporaryExpenseRecordDTO }
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { formatExpenseAmount } from '@/services/expenseService';
 
+interface FlatRow {
+  job: ExpenseInputJobDTO;
+  record: TemporaryExpenseRecordDTO | null;
+  isFirstRecord: boolean;
+  recordCount: number;
+}
+
 const statusColor = (status: ExpenseInputJobDTO['status']) => {
   switch (status) {
     case 'COMPLETED':
@@ -53,7 +60,7 @@ export default function BulkUploadExpensePage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [editingJob, setEditingJob] = useState<ExpenseInputJobDTO | null>(null);
+  const [editingRecord, setEditingRecord] = useState<{ record: TemporaryExpenseRecordDTO; job: ExpenseInputJobDTO } | null>(null);
   const [editForm, setEditForm] = useState({
     amount: '',
     description: '',
@@ -84,14 +91,32 @@ export default function BulkUploadExpensePage() {
     return () => clearInterval(timer);
   }, [jobs]);
 
-  const selectableJobs = useMemo(
-    () =>
-      jobs.filter(
-        (job) =>
-          job.temporaryRecord &&
-          !job.temporaryRecord.confirmed &&
-          job.status === 'COMPLETED'
-      ),
+  const flatRows: FlatRow[] = useMemo(() => {
+    const rows: FlatRow[] = [];
+    for (const job of jobs) {
+      const records = job.temporaryRecords ?? [];
+      if (records.length === 0) {
+        rows.push({ job, record: null, isFirstRecord: true, recordCount: 0 });
+      } else {
+        records.forEach((record, idx) => {
+          rows.push({ job, record, isFirstRecord: idx === 0, recordCount: records.length });
+        });
+      }
+    }
+    return rows;
+  }, [jobs]);
+
+  const selectableJobIds = useMemo(
+    () => {
+      const ids = new Set<number>();
+      for (const job of jobs) {
+        const records = job.temporaryRecords ?? [];
+        if (job.status === 'COMPLETED' && records.length > 0 && records.some((r) => !r.confirmed)) {
+          ids.add(job.id);
+        }
+      }
+      return Array.from(ids);
+    },
     [jobs]
   );
 
@@ -103,7 +128,7 @@ export default function BulkUploadExpensePage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelected(selectableJobs.map((job) => job.id));
+      setSelected(selectableJobIds);
     } else {
       setSelected([]);
     }
@@ -156,10 +181,9 @@ export default function BulkUploadExpensePage() {
     }
   };
 
-  const openEditDialog = (job: ExpenseInputJobDTO) => {
-    const record = job.temporaryRecord;
-    if (!record || record.confirmed) return;
-    setEditingJob(job);
+  const openEditDialog = (record: TemporaryExpenseRecordDTO, job: ExpenseInputJobDTO) => {
+    if (record.confirmed) return;
+    setEditingRecord({ record, job });
     setEditForm({
       amount: record.amount.toString(),
       description: record.description,
@@ -169,18 +193,16 @@ export default function BulkUploadExpensePage() {
   };
 
   const handleEditSave = async () => {
-    if (!editingJob) return;
-    const record = editingJob.temporaryRecord;
-    if (!record) return;
+    if (!editingRecord) return;
     setLoading(true);
     try {
-      await expenseInputJobService.updateTemporaryRecord(editingJob.id, {
+      await expenseInputJobService.updateTemporaryRecord(editingRecord.record.id, {
         amount: parseFloat(editForm.amount),
         description: editForm.description.trim(),
         expenseDate: editForm.expenseDate,
         categoryId: editForm.categoryId,
       });
-      setEditingJob(null);
+      setEditingRecord(null);
       await fetchJobs();
     } catch (err) {
       console.error('Failed to update temporary record', err);
@@ -188,26 +210,6 @@ export default function BulkUploadExpensePage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const renderTemp = (record?: TemporaryExpenseRecordDTO | null) => {
-    if (!record) {
-      return (
-        <Typography variant="body2" color="text.secondary">
-          —
-        </Typography>
-      );
-    }
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Typography variant="body2" fontWeight={600}>
-          {formatExpenseAmount(record.amount)}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {record.description}
-        </Typography>
-      </Box>
-    );
   };
 
   return (
@@ -266,8 +268,8 @@ export default function BulkUploadExpensePage() {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={selected.length > 0 && selected.length === selectableJobs.length}
-                      indeterminate={selected.length > 0 && selected.length < selectableJobs.length}
+                      checked={selected.length > 0 && selected.length === selectableJobIds.length}
+                      indeterminate={selected.length > 0 && selected.length < selectableJobIds.length}
                       onChange={(_, checked) => handleSelectAll(checked)}
                     />
                   }
@@ -277,7 +279,8 @@ export default function BulkUploadExpensePage() {
               <TableCell>Status</TableCell>
               <TableCell>Filename</TableCell>
               <TableCell>Created</TableCell>
-              <TableCell>Temp Record</TableCell>
+              <TableCell>Amount</TableCell>
+              <TableCell>Description</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Category</TableCell>
               <TableCell>Confirmed</TableCell>
@@ -285,25 +288,59 @@ export default function BulkUploadExpensePage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {jobs.map((job) => {
-              const record = job.temporaryRecord;
-              const selectable = record && !record.confirmed && job.status === 'COMPLETED';
+            {flatRows.map((row, idx) => {
+              const { job, record, isFirstRecord, recordCount } = row;
+              const selectable = selectableJobIds.includes(job.id);
               return (
-                <TableRow key={job.id} hover>
+                <TableRow key={`${job.id}-${record?.id ?? 'none'}-${idx}`} hover>
                   <TableCell padding="checkbox">
-                    <Checkbox
-                      checked={selected.includes(job.id)}
-                      onChange={() => toggleSelect(job.id)}
-                      disabled={!selectable}
-                    />
+                    {isFirstRecord ? (
+                      <Checkbox
+                        checked={selected.includes(job.id)}
+                        onChange={() => toggleSelect(job.id)}
+                        disabled={!selectable}
+                      />
+                    ) : null}
                   </TableCell>
                   <TableCell>
-                    <Chip label={job.status} color={statusColor(job.status)} size="small" />
+                    {isFirstRecord ? (
+                      <Chip label={job.status} color={statusColor(job.status)} size="small" />
+                    ) : null}
                   </TableCell>
-                  <TableCell>{job.originalFilename}</TableCell>
-                  <TableCell>{new Date(job.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{renderTemp(record)}</TableCell>
-                  <TableCell>{record ? record.expenseDate : '—'}</TableCell>
+                  <TableCell>
+                    {isFirstRecord ? (
+                      <Box>
+                        {job.originalFilename}
+                        {recordCount > 1 && (
+                          <Chip label={`${recordCount} items`} size="small" sx={{ ml: 1 }} variant="outlined" />
+                        )}
+                      </Box>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    {isFirstRecord ? new Date(job.createdAt).toLocaleString() : null}
+                  </TableCell>
+                  <TableCell>
+                    {record ? (
+                      <Typography variant="body2" fontWeight={600}>
+                        {formatExpenseAmount(record.amount)}
+                      </Typography>
+                    ) : (
+                      isFirstRecord ? <Typography variant="body2" color="text.secondary">—</Typography> : null
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {record ? (
+                      <Typography variant="caption" color="text.secondary">
+                        {record.description}
+                      </Typography>
+                    ) : (
+                      isFirstRecord && job.errorMessage ? (
+                        <Typography variant="caption" color="error">{job.errorMessage}</Typography>
+                      ) : null
+                    )}
+                  </TableCell>
+                  <TableCell>{record ? record.expenseDate : null}</TableCell>
                   <TableCell>
                     {record?.categoryName ? (
                       <Chip
@@ -313,35 +350,34 @@ export default function BulkUploadExpensePage() {
                         variant="outlined"
                       />
                     ) : (
-                      <Typography variant="body2" color="text.secondary">—</Typography>
+                      record ? <Typography variant="body2" color="text.secondary">—</Typography> : null
                     )}
                   </TableCell>
                   <TableCell>
                     {record?.confirmed ? (
                       <Chip label="Confirmed" color="success" size="small" />
-                    ) : (
+                    ) : record ? (
                       <Typography variant="body2" color="text.secondary">No</Typography>
-                    )}
+                    ) : null}
                   </TableCell>
                   <TableCell align="right">
-                    <Tooltip title={record?.confirmed ? 'Already confirmed' : 'Edit'}>
-                      <span>
+                    {record && !record.confirmed ? (
+                      <Tooltip title="Edit">
                         <IconButton
                           size="small"
-                          disabled={!record || record.confirmed}
-                          onClick={() => openEditDialog(job)}
+                          onClick={() => openEditDialog(record, job)}
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
-                      </span>
-                    </Tooltip>
+                      </Tooltip>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );
             })}
             {jobs.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
                     No jobs yet. Upload files to get started.
                   </Typography>
@@ -352,7 +388,7 @@ export default function BulkUploadExpensePage() {
         </Table>
       </TableContainer>
 
-      <Dialog open={!!editingJob} onClose={() => setEditingJob(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!editingRecord} onClose={() => setEditingRecord(null)} maxWidth="sm" fullWidth>
         <DialogTitle>Edit Temporary Record</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           <TextField
@@ -385,7 +421,7 @@ export default function BulkUploadExpensePage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditingJob(null)}>Cancel</Button>
+          <Button onClick={() => setEditingRecord(null)}>Cancel</Button>
           <Button variant="contained" onClick={handleEditSave} disabled={loading}>
             Save
           </Button>

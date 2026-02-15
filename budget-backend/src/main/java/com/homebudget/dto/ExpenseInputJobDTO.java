@@ -1,6 +1,7 @@
 package com.homebudget.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class ExpenseInputJobDTO {
     private Long id;
@@ -9,7 +10,7 @@ public class ExpenseInputJobDTO {
     private String errorMessage;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private TemporaryExpenseRecordDTO temporaryRecord;
+    private List<TemporaryExpenseRecordDTO> temporaryRecords;
 
     public ExpenseInputJobDTO() {}
 
@@ -61,11 +62,11 @@ public class ExpenseInputJobDTO {
         this.updatedAt = updatedAt;
     }
 
-    public TemporaryExpenseRecordDTO getTemporaryRecord() {
-        return temporaryRecord;
+    public List<TemporaryExpenseRecordDTO> getTemporaryRecords() {
+        return temporaryRecords;
     }
 
-    public void setTemporaryRecord(TemporaryExpenseRecordDTO temporaryRecord) {
-        this.temporaryRecord = temporaryRecord;
+    public void setTemporaryRecords(List<TemporaryExpenseRecordDTO> temporaryRecords) {
+        this.temporaryRecords = temporaryRecords;
     }
 }
