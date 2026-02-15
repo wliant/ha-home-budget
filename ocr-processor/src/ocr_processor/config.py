@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     ollama_host: str = "192.168.1.248:11434"
-    vision_model: str = "llava:13b"
     text_model: str = "llama3.1:latest"
     max_file_size_mb: int = 10
     log_level: str = "INFO"

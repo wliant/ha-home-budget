@@ -1,10 +1,12 @@
-import base64
+import io
 import json
 from datetime import date
 
 import fitz
+import numpy as np
 from langchain_core.messages import HumanMessage
 from langchain_ollama import ChatOllama
+from PIL import Image
 
 from ocr_processor.config import settings
 from ocr_processor.errors import (
@@ -19,7 +21,56 @@ from ocr_processor.logging import get_logger, log_agent_step
 
 logger = get_logger(__name__)
 
-EXTRACT_PROMPT = """Analyze this receipt image and extract the following information as JSON:
+# Initialize PaddleOCR once at module level
+_ocr_engine = None
+
+
+def _get_ocr_engine():
+    global _ocr_engine
+    if _ocr_engine is None:
+        # Compatibility shim: paddlex internally imports from langchain.docstore and
+        # langchain.text_splitter, which were moved in langchain>=0.3.0
+        import sys
+        import types
+
+        if "langchain.docstore" not in sys.modules:
+            try:
+                import langchain.docstore  # noqa: F401
+            except (ImportError, ModuleNotFoundError):
+                import langchain
+                docstore_mod = types.ModuleType("langchain.docstore")
+                document_mod = types.ModuleType("langchain.docstore.document")
+                from langchain_core.documents import Document
+                document_mod.Document = Document
+                docstore_mod.document = document_mod
+                sys.modules["langchain.docstore"] = docstore_mod
+                sys.modules["langchain.docstore.document"] = document_mod
+                langchain.docstore = docstore_mod
+
+        if "langchain.text_splitter" not in sys.modules:
+            try:
+                import langchain.text_splitter  # noqa: F401
+            except (ImportError, ModuleNotFoundError):
+                import langchain
+                from langchain_text_splitters import RecursiveCharacterTextSplitter
+                text_splitter_mod = types.ModuleType("langchain.text_splitter")
+                text_splitter_mod.RecursiveCharacterTextSplitter = RecursiveCharacterTextSplitter
+                sys.modules["langchain.text_splitter"] = text_splitter_mod
+                langchain.text_splitter = text_splitter_mod
+
+        from paddleocr import PaddleOCR
+        _ocr_engine = PaddleOCR(
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=False,
+            lang="en",
+            ocr_version="PP-OCRv5",
+            device="cpu",
+        )
+    return _ocr_engine
+
+
+PARSE_PROMPT = """Analyze the following receipt text and extract the information as JSON:
 {
   "is_receipt": true/false,
   "date": "YYYY-MM-DD or null if not visible",
@@ -33,55 +84,89 @@ EXTRACT_PROMPT = """Analyze this receipt image and extract the following informa
 }
 
 Rules:
-- Set is_receipt to false if the image is clearly NOT a receipt or invoice
+- Set is_receipt to false if the text is clearly NOT from a receipt or invoice
 - Extract every distinct line item with its amount
 - If there's only a total and no line items, create one line item with the total
 - Amounts should be numbers (not strings)
 - Date should be in YYYY-MM-DD format if visible
-- Return ONLY valid JSON, no other text"""
+- Return ONLY valid JSON, no other text
+
+Receipt text:
+"""
+
+MIN_STRUCTURED_TEXT_LENGTH = 50
+FULL_PAGE_IMAGE_COVERAGE_THRESHOLD = 0.95
 
 
-def _convert_pdf_to_image(pdf_bytes: bytes) -> bytes:
+def _has_extractable_text(page: fitz.Page) -> bool:
+    """Check if a PDF page has real embedded text (not scanned image with OCR overlay)."""
+    text = page.get_text().strip()
+    if not text or len(text) < MIN_STRUCTURED_TEXT_LENGTH:
+        return False
+
+    page_area = abs(page.rect)
+    if page_area == 0:
+        return False
+
+    for img in page.get_images(full=True):
+        bbox = page.get_image_bbox(img)
+        intersection = abs(bbox & page.rect)
+        if intersection / page_area >= FULL_PAGE_IMAGE_COVERAGE_THRESHOLD:
+            return False
+
+    return True
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> tuple[str, list[bytes]]:
+    """Extract text from PDF pages. Returns (structured_text, scanned_page_images).
+
+    For pages with embedded text, extracts text directly.
+    For scanned/image-only pages, converts to PNG images for OCR.
+    """
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    page = doc.load_page(0)
-    pix = page.get_pixmap(dpi=200)
-    img_bytes = pix.tobytes("png")
+    structured_text_parts = []
+    scanned_page_images = []
+
+    for page in doc:
+        if _has_extractable_text(page):
+            structured_text_parts.append(page.get_text())
+        else:
+            pix = page.get_pixmap(dpi=200)
+            scanned_page_images.append(pix.tobytes("png"))
+
     doc.close()
-    return img_bytes
+
+    structured_text = "\n".join(structured_text_parts)
+    return structured_text, scanned_page_images
 
 
-async def extract_node(state: dict) -> dict:
-    file_bytes = state["file_bytes"]
-    file_type = state["file_type"]
+def _extract_text_with_ocr(image_bytes: bytes) -> str:
+    """Extract text from image bytes using PaddleOCR."""
+    ocr = _get_ocr_engine()
+    pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    image_array = np.array(pil_image)
 
-    log_agent_step(logger, "extract", input_summary=f"file_type={file_type}")
+    results = ocr.predict(image_array)
 
-    if file_type == "application/pdf":
-        image_bytes = _convert_pdf_to_image(file_bytes)
-        mime_type = "image/png"
-    else:
-        image_bytes = file_bytes
-        mime_type = file_type
+    text_lines = []
+    for res in results:
+        data = res.json
+        if "rec_texts" in data:
+            text_lines.extend(data["rec_texts"])
 
-    b64_image = base64.b64encode(image_bytes).decode("utf-8")
+    return "\n".join(text_lines)
 
+
+async def _parse_text_with_llm(raw_text: str) -> dict:
+    """Parse raw receipt text into structured data using the text LLM."""
     try:
         llm = ChatOllama(
-            model=settings.vision_model,
+            model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
         )
 
-        message = HumanMessage(
-            content=[
-                {"type": "text", "text": EXTRACT_PROMPT},
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{mime_type};base64,{b64_image}"},
-                },
-            ]
-        )
-
+        message = HumanMessage(content=PARSE_PROMPT + raw_text)
         response = await llm.ainvoke([message])
     except Exception as e:
         error_msg = str(e).lower()
@@ -100,20 +185,65 @@ async def extract_node(state: dict) -> dict:
             f"Failed to communicate with AI model server: {e}",
         )
 
-    raw_text = response.content
-    log_agent_step(logger, "extract", output_summary=f"raw_response_length={len(raw_text)}")
+    response_text = response.content
+    log_agent_step(logger, "extract", output_summary=f"llm_response_length={len(response_text)}")
 
     try:
-        json_start = raw_text.find("{")
-        json_end = raw_text.rfind("}") + 1
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
         if json_start == -1 or json_end == 0:
             raise ValueError("No JSON found in response")
-        parsed = json.loads(raw_text[json_start:json_end])
+        parsed = json.loads(response_text[json_start:json_end])
     except (json.JSONDecodeError, ValueError):
         raise NonRetryableError(
             NO_EXPENSE_DATA,
             "Could not extract any expense data from the receipt",
         )
+
+    return parsed
+
+
+async def extract_node(state: dict) -> dict:
+    file_bytes = state["file_bytes"]
+    file_type = state["file_type"]
+
+    log_agent_step(logger, "extract", input_summary=f"file_type={file_type}")
+
+    raw_text = ""
+    image_bytes = file_bytes
+
+    if file_type == "application/pdf":
+        structured_text, scanned_page_images = _extract_pdf_text(file_bytes)
+
+        if structured_text.strip():
+            raw_text = structured_text
+            log_agent_step(logger, "extract", output_summary="pdf_text_extraction")
+
+        if scanned_page_images:
+            ocr_texts = []
+            for page_img in scanned_page_images:
+                ocr_text = _extract_text_with_ocr(page_img)
+                if ocr_text.strip():
+                    ocr_texts.append(ocr_text)
+            if ocr_texts:
+                raw_text = raw_text + "\n" + "\n".join(ocr_texts) if raw_text else "\n".join(ocr_texts)
+                log_agent_step(logger, "extract", output_summary=f"pdf_ocr_pages={len(scanned_page_images)}")
+
+            if scanned_page_images:
+                image_bytes = scanned_page_images[0]
+    else:
+        raw_text = _extract_text_with_ocr(file_bytes)
+        log_agent_step(logger, "extract", output_summary="image_ocr_extraction")
+
+    if not raw_text.strip():
+        raise NonRetryableError(
+            NO_EXPENSE_DATA,
+            "Could not extract any text from the receipt",
+        )
+
+    log_agent_step(logger, "extract", output_summary=f"raw_text_length={len(raw_text)}")
+
+    parsed = await _parse_text_with_llm(raw_text)
 
     if not parsed.get("is_receipt", True) is True:
         raise NonRetryableError(
