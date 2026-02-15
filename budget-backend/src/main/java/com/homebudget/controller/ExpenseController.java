@@ -235,11 +235,12 @@ public class ExpenseController {
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ExpenseDTO> updateExpense(
             @PathVariable Long id,
-            @Valid @RequestBody ExpenseDTO dto) {
+            @Valid @RequestBody ExpenseDTO dto,
+            @RequestHeader(HASS_USER_HEADER) String username) {
 
-        logger.info("PUT /api/expenses/{} - Updating expense", id);
+        logger.info("PUT /api/expenses/{} - Updating expense, user: {}", id, username);
 
-        ExpenseDTO updated = expenseService.updateExpense(id, dto);
+        ExpenseDTO updated = expenseService.updateExpense(id, dto, username);
 
         logger.info("Updated expense ID: {}", id);
         return ResponseEntity.ok(updated);
@@ -249,10 +250,11 @@ public class ExpenseController {
     public ResponseEntity<ExpenseDTO> updateExpenseWithFiles(
             @PathVariable Long id,
             @RequestPart("expense") @Valid ExpenseDTO dto,
-            @RequestPart(value = "files", required = false) MultipartFile[] files) {
+            @RequestPart(value = "files", required = false) MultipartFile[] files,
+            @RequestHeader(HASS_USER_HEADER) String username) {
 
-        logger.info("PUT /api/expenses/{} (multipart) - Updating expense with files", id);
-        ExpenseDTO updated = expenseService.updateExpenseWithFiles(id, dto, files == null ? List.of() : List.of(files));
+        logger.info("PUT /api/expenses/{} (multipart) - Updating expense with files, user: {}", id, username);
+        ExpenseDTO updated = expenseService.updateExpenseWithFiles(id, dto, files == null ? List.of() : List.of(files), username);
 
         logger.info("Updated expense ID: {}", id);
         return ResponseEntity.ok(updated);
@@ -309,10 +311,12 @@ public class ExpenseController {
      * @return HTTP 204 No Content on success
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteExpense(@PathVariable Long id) {
-        logger.info("DELETE /api/expenses/{} - Deleting expense", id);
+    public ResponseEntity<Void> deleteExpense(
+            @PathVariable Long id,
+            @RequestHeader(HASS_USER_HEADER) String username) {
+        logger.info("DELETE /api/expenses/{} - Deleting expense, user: {}", id, username);
 
-        expenseService.deleteExpense(id);
+        expenseService.deleteExpense(id, username);
 
         logger.info("Deleted expense ID: {}", id);
         return ResponseEntity.noContent().build();

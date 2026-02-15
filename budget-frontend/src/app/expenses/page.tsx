@@ -6,6 +6,8 @@ import { ReceiptLong as ReceiptLongIcon } from '@mui/icons-material';
 import ExpenseListTable from '@/components/expenses/ExpenseListTable';
 import ExpenseFilters from '@/components/expenses/ExpenseFilters';
 import { expenseService } from '@/services/expenseService';
+import { userService } from '@/services/api';
+import { useIngressRouter } from '@/lib/navigation';
 import type { ExpenseListResponse, ExpenseListFilters } from '@/services/expenseService';
 
 const currentYear = new Date().getFullYear();
@@ -19,10 +21,16 @@ const defaultFilters: ExpenseListFilters = {
 };
 
 export default function ExpensesPage() {
+  const router = useIngressRouter();
   const [data, setData] = useState<ExpenseListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ExpenseListFilters>(defaultFilters);
   const [page, setPage] = useState(0);
+  const [currentUser, setCurrentUser] = useState<string>('');
+
+  useEffect(() => {
+    userService.getCurrentUser().then(setCurrentUser).catch(() => {});
+  }, []);
 
   const fetchExpenses = useCallback(async (currentFilters: ExpenseListFilters, pageNum: number) => {
     setLoading(true);
@@ -58,6 +66,20 @@ export default function ExpensesPage() {
     setFilters((prev) => ({ ...prev, sortBy: newSortBy, sortDirection: newSortDirection }));
   };
 
+  const handleEdit = (id: number) => {
+    router.push(`/expenses/${id}/edit`);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+    try {
+      await expenseService.deleteExpense(id);
+      fetchExpenses(filters, page);
+    } catch (error) {
+      console.error('Failed to delete expense:', error);
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box>
@@ -81,6 +103,9 @@ export default function ExpensesPage() {
           sortBy={filters.sortBy || 'expenseDate'}
           sortDirection={filters.sortDirection || 'DESC'}
           onSortChange={handleSortChange}
+          currentUser={currentUser}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
         />
       </Box>
     </Container>

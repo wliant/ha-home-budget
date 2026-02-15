@@ -2,6 +2,7 @@ package com.homebudget.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -49,6 +50,14 @@ public class HealthController {
         response.put("description", "Backend service for household budget and expense tracking");
         response.put("version", "1.0.0-SNAPSHOT");
         response.put("authentication", "Home Assistant (X-Hass-User header)");
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<Map<String, String>> me(
+            @RequestHeader("X-Hass-User") String username) {
+        Map<String, String> response = new HashMap<>();
+        response.put("username", username);
         return ResponseEntity.ok(response);
     }
 }

@@ -16,7 +16,12 @@ import {
   Chip,
   Skeleton,
   Tooltip,
+  IconButton,
 } from '@mui/material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material';
 import type { ExpenseListResponse } from '@/services/expenseService';
 import { formatExpenseDate, formatExpenseAmount } from '@/services/expenseService';
 
@@ -30,6 +35,9 @@ interface ExpenseListTableProps {
   sortBy: string;
   sortDirection: SortDirection;
   onSortChange: (sortBy: string, sortDirection: SortDirection) => void;
+  currentUser?: string;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
 const TABLE_COLUMNS: { id: string; label: string; align?: 'right'; sortable?: boolean }[] = [
@@ -39,6 +47,7 @@ const TABLE_COLUMNS: { id: string; label: string; align?: 'right'; sortable?: bo
   { id: 'amount', label: 'Amount', align: 'right' },
   { id: 'files', label: 'Files' },
   { id: 'createdBy', label: 'Created By' },
+  { id: 'actions', label: 'Actions' },
 ];
 
 export default function ExpenseListTable({
@@ -49,7 +58,13 @@ export default function ExpenseListTable({
   sortBy,
   sortDirection,
   onSortChange,
+  currentUser,
+  onEdit,
+  onDelete,
 }: ExpenseListTableProps) {
+  const canModify = (createdBy?: string) =>
+    createdBy === 'common' || createdBy === currentUser;
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     onPageChange(newPage);
   };
@@ -137,7 +152,7 @@ export default function ExpenseListTable({
             <TableRow sx={{ bgcolor: 'grey.100' }}>
               {TABLE_COLUMNS.map((col) => (
                 <TableCell key={col.id} align={col.align} sortDirection={col.id === sortBy ? muiDirection(col.id) : false}>
-                  {col.id === 'files' ? (
+                  {col.id === 'files' || col.id === 'actions' ? (
                     <Typography variant="subtitle2">{col.label}</Typography>
                   ) : (
                     <TableSortLabel
@@ -195,6 +210,22 @@ export default function ExpenseListTable({
                   )}
                 </TableCell>
                 <TableCell>{expense.createdBy}</TableCell>
+                <TableCell>
+                  {canModify(expense.createdBy) && (
+                    <Box sx={{ display: 'flex' }}>
+                      {onEdit && (
+                        <IconButton size="small" onClick={() => onEdit(expense.id!)} color="primary" title="Edit">
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {onDelete && (
+                        <IconButton size="small" onClick={() => onDelete(expense.id!)} color="error" title="Delete">
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

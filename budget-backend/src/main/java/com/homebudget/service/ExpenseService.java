@@ -4,6 +4,7 @@ import com.homebudget.dto.ExpenseDTO;
 import com.homebudget.dto.ExpenseFileDTO;
 import com.homebudget.dto.ExpenseListResponse;
 import com.homebudget.exception.CategoryNotFoundException;
+import com.homebudget.exception.ExpenseAuthorizationException;
 import com.homebudget.exception.ExpenseNotFoundException;
 import com.homebudget.model.Category;
 import com.homebudget.model.Expense;
@@ -180,12 +181,18 @@ public class ExpenseService {
      * @throws ExpenseNotFoundException if expense not found
      * @throws CategoryNotFoundException if new category not found
      */
-    public ExpenseDTO updateExpense(Long id, ExpenseDTO dto) {
-        logger.info("Updating expense ID: {}", id);
+    public ExpenseDTO updateExpense(Long id, ExpenseDTO dto, String username) {
+        logger.info("Updating expense ID: {} by user: {}", id, username);
 
         // Find existing expense
         Expense expense = expenseRepository.findById(id)
                 .orElseThrow(() -> new ExpenseNotFoundException(id));
+
+        // Authorization check: only owner or common expenses can be modified
+        String createdBy = expense.getCreatedBy();
+        if (!"common".equals(createdBy) && !createdBy.equals(username)) {
+            throw new ExpenseAuthorizationException("You are not authorized to modify this expense");
+        }
 
         // Update fields
         expense.setAmount(dto.getAmount());
@@ -213,8 +220,8 @@ public class ExpenseService {
         return toDTO(updated);
     }
 
-    public ExpenseDTO updateExpenseWithFiles(Long id, ExpenseDTO dto, List<MultipartFile> files) {
-        ExpenseDTO updated = updateExpense(id, dto);
+    public ExpenseDTO updateExpenseWithFiles(Long id, ExpenseDTO dto, List<MultipartFile> files, String username) {
+        ExpenseDTO updated = updateExpense(id, dto, username);
         if (files != null && !files.isEmpty()) {
             Expense expense = expenseRepository.findById(id)
                     .orElseThrow(() -> new ExpenseNotFoundException(id));
@@ -229,11 +236,15 @@ public class ExpenseService {
      * @param id Expense ID
      * @throws ExpenseNotFoundException if expense not found
      */
-    public void deleteExpense(Long id) {
-        logger.info("Deleting expense ID: {}", id);
+    public void deleteExpense(Long id, String username) {
+        logger.info("Deleting expense ID: {} by user: {}", id, username);
 
-        if (!expenseRepository.existsById(id)) {
-            throw new ExpenseNotFoundException(id);
+        Expense expense = expenseRepository.findById(id)
+                .orElseThrow(() -> new ExpenseNotFoundException(id));
+
+        String createdBy = expense.getCreatedBy();
+        if (!"common".equals(createdBy) && !createdBy.equals(username)) {
+            throw new ExpenseAuthorizationException("You are not authorized to delete this expense");
         }
 
         expenseRepository.deleteById(id);

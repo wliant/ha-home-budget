@@ -144,6 +144,18 @@ public class GlobalExceptionHandler {
      * @param ex expense not found exception
      * @return HTTP 404
      */
+    @ExceptionHandler(ExpenseAuthorizationException.class)
+    public ResponseEntity<ErrorResponse> handleExpenseAuthorization(ExpenseAuthorizationException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
     @ExceptionHandler(ExpenseNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleExpenseNotFound(ExpenseNotFoundException ex) {
         ErrorResponse errorResponse = new ErrorResponse(

@@ -170,6 +170,13 @@ export const healthService = {
   },
 };
 
+export const userService = {
+  getCurrentUser: async (): Promise<string> => {
+    const response = await api.get<{ username: string }>('/api/me');
+    return response.data.username;
+  },
+};
+
 // Export the base API client and axios instance for advanced usage
 export { apiClient };
 export default api;

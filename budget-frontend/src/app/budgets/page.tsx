@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useIngressRouter } from '../../lib/navigation';
 import {
   Container,
   Typography,
   Box,
   Button,
-  Grid,
   Alert,
   CircularProgress,
   Dialog,
@@ -15,6 +14,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -22,10 +22,11 @@ import {
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import { Add as AddIcon, Clear as ClearIcon, AccountBalanceWallet as WalletIcon } from '@mui/icons-material';
-import BudgetCard from '@/components/BudgetCard';
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod } from '@/services/budgetService';
 import { categoryService } from '@/services/categoryService';
 import type { CategoryDTO } from '@/services/categoryService';
+import BudgetGroup from './components/BudgetGroup';
+import type { CategoryBudgetGroup } from './components/BudgetGroup';
 
 /**
  * Budgets list page - User Story 1: Create and View Budgets
@@ -294,6 +295,77 @@ export default function BudgetsPage() {
     selectedStatus !== '' ||
     selectedSort !== '';
 
+  // Group budgets by year, then by category hierarchy
+  const groupedByYear = useMemo(() => {
+    // 1. Group by year
+    const yearMap = new Map<number, BudgetSummaryDTO[]>();
+    for (const budget of filteredBudgets) {
+      const list = yearMap.get(budget.year) || [];
+      list.push(budget);
+      yearMap.set(budget.year, list);
+    }
+
+    // 2. For each year, build category groups
+    const result: { year: number; groups: CategoryBudgetGroup[] }[] = [];
+
+    const sortedYears = [...yearMap.keys()].sort((a, b) => b - a);
+    for (const year of sortedYears) {
+      const yearBudgets = yearMap.get(year)!;
+
+      // Group by categoryId
+      const catMap = new Map<number, { yearly?: BudgetSummaryDTO; monthly: BudgetSummaryDTO[] }>();
+      for (const b of yearBudgets) {
+        const catId = b.categoryId ?? 0;
+        const entry = catMap.get(catId) || { monthly: [] };
+        if (!b.month) {
+          entry.yearly = b;
+        } else {
+          entry.monthly.push(b);
+        }
+        catMap.set(catId, entry);
+      }
+
+      // Build CategoryBudgetGroup for each category
+      const catGroupMap = new Map<number, CategoryBudgetGroup>();
+      for (const [catId, entry] of catMap) {
+        const sampleBudget = entry.yearly || entry.monthly[0];
+        const cat = sampleBudget?.category;
+        catGroupMap.set(catId, {
+          categoryId: catId,
+          categoryName: cat?.name ?? 'Unknown',
+          categoryIcon: cat?.icon,
+          parentCategoryId: cat?.parentCategoryId,
+          yearlyBudget: entry.yearly,
+          monthlyBudgets: entry.monthly,
+          childCategoryGroups: [],
+        });
+      }
+
+      // Nest child categories under their parent
+      const rootGroups: CategoryBudgetGroup[] = [];
+      for (const [catId, group] of catGroupMap) {
+        const parentId = group.parentCategoryId;
+        if (parentId && catGroupMap.has(parentId)) {
+          catGroupMap.get(parentId)!.childCategoryGroups.push(group);
+        } else {
+          rootGroups.push(group);
+        }
+      }
+
+      // Sort: groups with children first, then alphabetically
+      rootGroups.sort((a, b) => {
+        const aHasChildren = a.childCategoryGroups.length > 0 ? 0 : 1;
+        const bHasChildren = b.childCategoryGroups.length > 0 ? 0 : 1;
+        if (aHasChildren !== bHasChildren) return aHasChildren - bHasChildren;
+        return a.categoryName.localeCompare(b.categoryName);
+      });
+
+      result.push({ year, groups: rootGroups });
+    }
+
+    return result;
+  }, [filteredBudgets]);
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
@@ -485,20 +557,30 @@ export default function BudgetsPage() {
         </Box>
       )}
 
-      {/* Budgets Grid */}
+      {/* Budgets Grouped by Year & Category */}
       {!isLoading && budgets.length > 0 && (
-        <Grid container spacing={3}>
-          {sortedBudgets.map((budget) => (
-            <Grid item xs={12} sm={6} md={4} key={budget.id}>
-              <BudgetCard
-                budget={budget}
-                onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
-              />
-            </Grid>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {groupedByYear.map(({ year, groups }) => (
+            <Box key={year}>
+              <Divider sx={{ mb: 2 }}>
+                <Typography variant="h5" fontWeight={700} color="primary">
+                  {year}
+                </Typography>
+              </Divider>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {groups.map((group) => (
+                  <BudgetGroup
+                    key={group.categoryId}
+                    group={group}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteClick}
+                  />
+                ))}
+              </Box>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       )}
 
       {/* Delete Confirmation Dialog */}
