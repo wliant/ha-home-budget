@@ -39,6 +39,7 @@ public class ExpenseInputJobService {
     private static final Logger logger = LoggerFactory.getLogger(ExpenseInputJobService.class);
     private static final int MAX_FILES = 20;
     private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+    private static final int MAX_RETRIES = 3;
 
     private final ExpenseInputJobRepository jobRepository;
     private final TemporaryExpenseRecordRepository tempRepository;
@@ -75,7 +76,8 @@ public class ExpenseInputJobService {
         for (MultipartFile file : files) {
             validateFile(file);
             ExpenseInputJob job = new ExpenseInputJob();
-            job.setStatus(ExpenseInputJob.Status.PENDING);
+            job.setStatus(ExpenseInputJob.Status.INIT);
+            job.setRetryCount(0);
             job.setOriginalFilename(file.getOriginalFilename() == null ? "unnamed" : file.getOriginalFilename());
             job.setCreatedBy(username);
             job.setFilePath("temp");
@@ -174,7 +176,16 @@ public class ExpenseInputJobService {
 
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 2000)
     public void processPendingJobs() {
-        List<ExpenseInputJob> jobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.PROCESSING);
+        // Get jobs in INIT, PROCESSING, or RETRYABLE status
+        List<ExpenseInputJob> initJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.INIT);
+        List<ExpenseInputJob> processingJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.PROCESSING);
+        List<ExpenseInputJob> retryableJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.RETRYABLE);
+
+        List<ExpenseInputJob> jobs = new ArrayList<>();
+        jobs.addAll(initJobs);
+        jobs.addAll(processingJobs);
+        jobs.addAll(retryableJobs);
+
         if (jobs.isEmpty()) {
             return;
         }
@@ -186,9 +197,17 @@ public class ExpenseInputJobService {
         }
 
         for (ExpenseInputJob job : jobs) {
+            // Skip if already has records (avoid duplicate processing)
             List<TemporaryExpenseRecord> existingRecords = tempRepository.findByJobId(job.getId());
             if (!existingRecords.isEmpty()) {
                 continue;
+            }
+
+            // Transition from INIT or RETRYABLE to PROCESSING
+            if (job.getStatus() == ExpenseInputJob.Status.INIT ||
+                job.getStatus() == ExpenseInputJob.Status.RETRYABLE) {
+                job.setStatus(ExpenseInputJob.Status.PROCESSING);
+                jobRepository.save(job);
             }
 
             Path filePath = Paths.get(job.getFilePath());
@@ -232,25 +251,55 @@ public class ExpenseInputJobService {
                     }
 
                     job.setStatus(ExpenseInputJob.Status.COMPLETED);
+                    job.setErrorMessage(null); // Clear any previous error
                     jobRepository.save(job);
                     logger.info("Job {} completed with {} expense(s)", job.getId(),
                             result.getResponse().getExpenses().size());
 
                 } else if (result.isRetryable()) {
-                    logger.warn("Retryable error for job {}: {}", job.getId(), result.getErrorMessage());
-                    // Leave status as PROCESSING so it will be retried
+                    // Increment retry count
+                    job.setRetryCount(job.getRetryCount() + 1);
+
+                    if (job.getRetryCount() >= MAX_RETRIES) {
+                        // Max retries reached, mark as FAILED
+                        logger.error("Job {} failed after {} retries: {}",
+                                job.getId(), MAX_RETRIES, result.getErrorMessage());
+                        job.setStatus(ExpenseInputJob.Status.FAILED);
+                        job.setErrorMessage(String.format("Failed after %d retries: %s",
+                                MAX_RETRIES, result.getErrorMessage()));
+                    } else {
+                        // Mark as RETRYABLE to retry later
+                        logger.warn("Retryable error for job {} (attempt {}/{}): {}",
+                                job.getId(), job.getRetryCount(), MAX_RETRIES, result.getErrorMessage());
+                        job.setStatus(ExpenseInputJob.Status.RETRYABLE);
+                        job.setErrorMessage(String.format("Attempt %d/%d failed: %s",
+                                job.getRetryCount(), MAX_RETRIES, result.getErrorMessage()));
+                    }
+                    jobRepository.save(job);
 
                 } else {
-                    logger.warn("Non-retryable error for job {}: {}", job.getId(), result.getErrorMessage());
+                    // Non-retryable error, mark as FAILED immediately
+                    logger.error("Non-retryable error for job {}: {}", job.getId(), result.getErrorMessage());
                     job.setStatus(ExpenseInputJob.Status.FAILED);
                     job.setErrorMessage(result.getErrorMessage());
                     jobRepository.save(job);
                 }
 
             } catch (Exception e) {
+                // Unexpected exception - treat as retryable
                 logger.error("Failed to process job {}", job.getId(), e);
-                job.setStatus(ExpenseInputJob.Status.FAILED);
-                job.setErrorMessage("Processing failed: " + e.getMessage());
+
+                job.setRetryCount(job.getRetryCount() + 1);
+
+                if (job.getRetryCount() >= MAX_RETRIES) {
+                    job.setStatus(ExpenseInputJob.Status.FAILED);
+                    job.setErrorMessage(String.format("Failed after %d retries: %s",
+                            MAX_RETRIES, e.getMessage()));
+                } else {
+                    job.setStatus(ExpenseInputJob.Status.RETRYABLE);
+                    job.setErrorMessage(String.format("Attempt %d/%d failed: %s",
+                            job.getRetryCount(), MAX_RETRIES, e.getMessage()));
+                }
                 jobRepository.save(job);
             }
         }
@@ -323,6 +372,7 @@ public class ExpenseInputJobService {
         ExpenseInputJobDTO dto = new ExpenseInputJobDTO();
         dto.setId(job.getId());
         dto.setStatus(job.getStatus().name());
+        dto.setRetryCount(job.getRetryCount());
         dto.setOriginalFilename(job.getOriginalFilename());
         dto.setErrorMessage(job.getErrorMessage());
         dto.setCreatedAt(job.getCreatedAt());

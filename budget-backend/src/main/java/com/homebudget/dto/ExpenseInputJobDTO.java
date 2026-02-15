@@ -6,6 +6,7 @@ import java.util.List;
 public class ExpenseInputJobDTO {
     private Long id;
     private String status;
+    private Integer retryCount;
     private String originalFilename;
     private String errorMessage;
     private LocalDateTime createdAt;
@@ -28,6 +29,14 @@ public class ExpenseInputJobDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public Integer getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(Integer retryCount) {
+        this.retryCount = retryCount;
     }
 
     public String getOriginalFilename() {

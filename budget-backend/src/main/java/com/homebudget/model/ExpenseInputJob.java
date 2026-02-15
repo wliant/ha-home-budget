@@ -10,10 +10,11 @@ import java.time.LocalDateTime;
 public class ExpenseInputJob {
 
     public enum Status {
-        PENDING,
-        PROCESSING,
-        COMPLETED,
-        FAILED
+        INIT,           // Initial state when job is created
+        PROCESSING,     // Currently being processed
+        RETRYABLE,      // Processing failed but can retry
+        COMPLETED,      // Successfully processed
+        FAILED          // Failed after max retries or non-retryable error
     }
 
     @Id
@@ -22,7 +23,11 @@ public class ExpenseInputJob {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
-    private Status status = Status.PENDING;
+    private Status status = Status.INIT;
+
+    @NotNull
+    @Column(name = "retry_count", nullable = false)
+    private Integer retryCount = 0;
 
     @NotBlank
     @Column(name = "original_filename", nullable = false, length = 255)
@@ -73,6 +78,14 @@ public class ExpenseInputJob {
 
     public void setStatus(Status status) {
         this.status = status;
+    }
+
+    public Integer getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(Integer retryCount) {
+        this.retryCount = retryCount;
     }
 
     public String getOriginalFilename() {

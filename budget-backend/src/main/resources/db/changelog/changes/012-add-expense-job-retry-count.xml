@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="012-add-expense-job-retry-count" author="codex">
+        <comment>Add retry_count column and update status enum for expense_input_jobs</comment>
+
+        <!-- Add retry_count column -->
+        <addColumn tableName="expense_input_jobs">
+            <column name="retry_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <!-- Update existing PENDING status to INIT (new initial state) -->
+        <update tableName="expense_input_jobs">
+            <column name="status" value="INIT"/>
+            <where>status = 'PENDING'</where>
+        </update>
+
+        <!-- Add comment explaining state transitions -->
+        <addNotNullConstraint tableName="expense_input_jobs" columnName="retry_count" columnDataType="INT"/>
+
+        <rollback>
+            <!-- Revert INIT back to PENDING -->
+            <update tableName="expense_input_jobs">
+                <column name="status" value="PENDING"/>
+                <where>status = 'INIT'</where>
+            </update>
+
+            <!-- Remove retry_count column -->
+            <dropColumn tableName="expense_input_jobs" columnName="retry_count"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -46,4 +46,7 @@
     <!-- Feature 018: Receipt OCR Processor - One-to-many temp records per job -->
     <include file="db/changelog/changes/011-drop-temp-record-unique-constraint.xml"/>
 
+    <!-- Add retry count and state transition support for expense input jobs -->
+    <include file="db/changelog/changes/012-add-expense-job-retry-count.xml"/>
+
 </databaseChangeLog>
