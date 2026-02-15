@@ -19,6 +19,7 @@ import {
 import { categoryService } from '@/services/categoryService';
 import { CategoryDTO } from '@/types/category';
 import { CategoryCard } from './components/CategoryCard';
+import { CategoryGroup } from './components/CategoryGroup';
 import { CategoryDialog } from './components/CategoryDialog';
 import { CategorySearch } from './components/CategorySearch';
 import { useCategoryForm } from './hooks/useCategoryForm';
@@ -241,14 +242,28 @@ export default function CategoriesPage() {
           </Button>
         </Box>
       ) : viewMode === 'hierarchy' ? (
-        <Grid container spacing={3}>
-          {categorySearch.filteredHierarchy.map((parent) => (
-            <React.Fragment key={parent.id}>
-              {renderCategoryCard(parent, false)}
-              {parent.childCategories?.map((child) => renderCategoryCard(child, true))}
-            </React.Fragment>
-          ))}
-        </Grid>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Parent categories with children: grouped sections */}
+          {categorySearch.filteredHierarchy
+            .filter((parent) => parent.childCategories && parent.childCategories.length > 0)
+            .map((parent) => (
+              <CategoryGroup
+                key={parent.id}
+                parent={parent}
+                onEdit={handleOpenEditDialog}
+                onDelete={handleDeleteCategory}
+              />
+            ))}
+
+          {/* Standalone categories (no children): regular grid */}
+          {categorySearch.filteredHierarchy.some((p) => !p.childCategories || p.childCategories.length === 0) && (
+            <Grid container spacing={3}>
+              {categorySearch.filteredHierarchy
+                .filter((parent) => !parent.childCategories || parent.childCategories.length === 0)
+                .map((category) => renderCategoryCard(category, false))}
+            </Grid>
+          )}
+        </Box>
       ) : (
         <Grid container spacing={3}>
           {categorySearch.filteredCategories.map((category) => renderCategoryCard(category, false))}
