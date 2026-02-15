@@ -96,7 +96,13 @@ export const categoryService = {
    */
   getCategoryHierarchy: async (): Promise<CategoryDTO[]> => {
     const response = await api.get<CategoryDTO[]>('/api/categories/hierarchy');
-    return response.data;
+    // Map API 'children' field to 'childCategories' used by UI components
+    const mapChildren = (cats: CategoryDTO[]): CategoryDTO[] =>
+      cats.map((cat) => ({
+        ...cat,
+        childCategories: cat.children ? mapChildren(cat.children) : cat.childCategories,
+      }));
+    return mapChildren(response.data);
   },
 };
 

@@ -89,6 +89,21 @@ export const CategoryGroup: React.FC<CategoryGroupProps> = React.memo(({
             {parent.budgetCount || 0} {parent.budgetCount === 1 ? 'budget' : 'budgets'}
           </Typography>
         </Box>
+
+        {/* Child category chips for at-a-glance view */}
+        {children.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1 }}>
+            {children.map((child) => (
+              <Chip
+                key={child.id}
+                label={`${child.icon ? child.icon + ' ' : ''}${child.name}`}
+                size="small"
+                variant="outlined"
+                color="primary"
+              />
+            ))}
+          </Box>
+        )}
       </CardContent>
 
       {/* Children sub-grid */}
