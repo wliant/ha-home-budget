@@ -20,11 +20,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +45,7 @@ public class ExpenseInputJobService {
     private final CategoryRepository categoryRepository;
     private final ExpenseService expenseService;
     private final ExpenseRepository expenseRepository;
+    private final OcrProcessorClient ocrProcessorClient;
     @Value("${EXPENSE_FILE_DIR:./data/expense-files}")
     private String expenseFileDir;
 
@@ -53,12 +53,14 @@ public class ExpenseInputJobService {
                                   TemporaryExpenseRecordRepository tempRepository,
                                   CategoryRepository categoryRepository,
                                   ExpenseService expenseService,
-                                  ExpenseRepository expenseRepository) {
+                                  ExpenseRepository expenseRepository,
+                                  OcrProcessorClient ocrProcessorClient) {
         this.jobRepository = jobRepository;
         this.tempRepository = tempRepository;
         this.categoryRepository = categoryRepository;
         this.expenseService = expenseService;
         this.expenseRepository = expenseRepository;
+        this.ocrProcessorClient = ocrProcessorClient;
     }
 
     public List<ExpenseInputJobDTO> createJobs(List<MultipartFile> files, String username) {
@@ -107,9 +109,9 @@ public class ExpenseInputJobService {
                 .collect(Collectors.toList());
     }
 
-    public TemporaryExpenseRecordDTO updateTemporaryRecord(Long jobId, UpdateTemporaryExpenseRecordRequest request) {
-        TemporaryExpenseRecord record = tempRepository.findByJobId(jobId)
-                .orElseThrow(() -> new ExpenseNotFoundException(jobId));
+    public TemporaryExpenseRecordDTO updateTemporaryRecord(Long recordId, UpdateTemporaryExpenseRecordRequest request) {
+        TemporaryExpenseRecord record = tempRepository.findById(recordId)
+                .orElseThrow(() -> new ExpenseNotFoundException(recordId));
 
         record.setAmount(request.getAmount());
         record.setDescription(request.getDescription());
@@ -140,11 +142,11 @@ public class ExpenseInputJobService {
                 continue;
             }
             ExpenseInputJob job = record.getJob();
-            Expense expense = createExpenseFromTemporary(record, job, username);
+            createExpenseFromTemporary(record, job, username);
             record.setConfirmed(true);
             record.setConfirmedAt(LocalDateTime.now());
             tempRepository.save(record);
-            confirmed.add(job.getId());
+            confirmed.add(record.getId());
         }
         return confirmed;
     }
@@ -155,14 +157,14 @@ public class ExpenseInputJobService {
         }
         List<ExpenseInputJob> jobs = jobRepository.findAllById(jobIds);
         for (ExpenseInputJob job : jobs) {
-            TemporaryExpenseRecord record = tempRepository.findByJobId(job.getId()).orElse(null);
-            if (record != null && !record.isConfirmed()) {
-                tempRepository.delete(record);
-            } else if (record != null) {
+            List<TemporaryExpenseRecord> records = tempRepository.findByJobId(job.getId());
+            boolean anyConfirmed = records.stream().anyMatch(TemporaryExpenseRecord::isConfirmed);
+
+            for (TemporaryExpenseRecord record : records) {
                 tempRepository.delete(record);
             }
 
-            if (record == null || !record.isConfirmed()) {
+            if (!anyConfirmed) {
                 deleteFileIfExists(job.getFilePath());
             }
 
@@ -177,38 +179,78 @@ public class ExpenseInputJobService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        List<Category> categories = categoryRepository.findAllByOrderByNameAsc();
+        if (categories.isEmpty()) {
+            logger.warn("No categories found; skipping OCR processing");
+            return;
+        }
+
         for (ExpenseInputJob job : jobs) {
-            if (tempRepository.findByJobId(job.getId()).isPresent()) {
+            List<TemporaryExpenseRecord> existingRecords = tempRepository.findByJobId(job.getId());
+            if (!existingRecords.isEmpty()) {
                 continue;
             }
-            int delaySeconds = 3 + Math.toIntExact(job.getId() % 8);
-            Duration elapsed = Duration.between(job.getCreatedAt(), now);
-            if (elapsed.getSeconds() < delaySeconds) {
+
+            Path filePath = Paths.get(job.getFilePath());
+            if (!Files.exists(filePath)) {
+                logger.error("File not found for job {}: {}", job.getId(), filePath);
+                job.setStatus(ExpenseInputJob.Status.FAILED);
+                job.setErrorMessage("Uploaded file not found");
+                jobRepository.save(job);
                 continue;
             }
 
             try {
-                Random random = new Random(job.getId());
-                TemporaryExpenseRecord record = new TemporaryExpenseRecord();
-                record.setJob(job);
-                record.setAmount(new BigDecimal(String.format("%.2f", 5 + random.nextDouble() * 250)));
-                record.setDescription(randomDescription(random));
-                record.setExpenseDate(LocalDate.now().minusDays(random.nextInt(120)));
+                OcrProcessorClient.OcrResult result = ocrProcessorClient.processReceipt(
+                        filePath, job.getOriginalFilename(), categories);
 
-                List<Category> categories = categoryRepository.findAllByOrderByNameAsc();
-                if (!categories.isEmpty()) {
-                    Category category = categories.get(random.nextInt(categories.size()));
-                    record.setCategory(category);
+                if (result.isSuccess()) {
+                    Map<Long, Category> categoryMap = categories.stream()
+                            .collect(Collectors.toMap(Category::getId, c -> c));
+
+                    for (var ocrExpense : result.getResponse().getExpenses()) {
+                        TemporaryExpenseRecord record = new TemporaryExpenseRecord();
+                        record.setJob(job);
+                        record.setAmount(ocrExpense.getAmount() != null
+                                ? ocrExpense.getAmount()
+                                : BigDecimal.ZERO);
+                        record.setDescription(ocrExpense.getDescription() != null
+                                ? ocrExpense.getDescription()
+                                : "Receipt scan");
+                        record.setExpenseDate(ocrExpense.getExpenseDate() != null
+                                ? ocrExpense.getExpenseDate()
+                                : LocalDate.now());
+
+                        if (ocrExpense.getCategoryId() != null) {
+                            Category cat = categoryMap.get(ocrExpense.getCategoryId());
+                            if (cat != null) {
+                                record.setCategory(cat);
+                            }
+                        }
+
+                        tempRepository.save(record);
+                    }
+
+                    job.setStatus(ExpenseInputJob.Status.COMPLETED);
+                    jobRepository.save(job);
+                    logger.info("Job {} completed with {} expense(s)", job.getId(),
+                            result.getResponse().getExpenses().size());
+
+                } else if (result.isRetryable()) {
+                    logger.warn("Retryable error for job {}: {}", job.getId(), result.getErrorMessage());
+                    // Leave status as PROCESSING so it will be retried
+
+                } else {
+                    logger.warn("Non-retryable error for job {}: {}", job.getId(), result.getErrorMessage());
+                    job.setStatus(ExpenseInputJob.Status.FAILED);
+                    job.setErrorMessage(result.getErrorMessage());
+                    jobRepository.save(job);
                 }
 
-                tempRepository.save(record);
-                job.setStatus(ExpenseInputJob.Status.COMPLETED);
-                jobRepository.save(job);
             } catch (Exception e) {
                 logger.error("Failed to process job {}", job.getId(), e);
                 job.setStatus(ExpenseInputJob.Status.FAILED);
-                job.setErrorMessage("Processing failed");
+                job.setErrorMessage("Processing failed: " + e.getMessage());
                 jobRepository.save(job);
             }
         }
@@ -285,12 +327,15 @@ public class ExpenseInputJobService {
         dto.setErrorMessage(job.getErrorMessage());
         dto.setCreatedAt(job.getCreatedAt());
         dto.setUpdatedAt(job.getUpdatedAt());
-        TemporaryExpenseRecord record = job.getTemporaryRecord();
-        if (record == null) {
-            record = tempRepository.findByJobId(job.getId()).orElse(null);
+
+        List<TemporaryExpenseRecord> records = job.getTemporaryRecords();
+        if (records == null || records.isEmpty()) {
+            records = tempRepository.findByJobId(job.getId());
         }
-        if (record != null) {
-            dto.setTemporaryRecord(toTemporaryDTO(record));
+        if (records != null && !records.isEmpty()) {
+            dto.setTemporaryRecords(records.stream()
+                    .map(this::toTemporaryDTO)
+                    .collect(Collectors.toList()));
         }
         return dto;
     }
@@ -309,19 +354,5 @@ public class ExpenseInputJobService {
         dto.setConfirmed(record.isConfirmed());
         dto.setConfirmedAt(record.getConfirmedAt());
         return dto;
-    }
-
-    private String randomDescription(Random random) {
-        String[] options = {
-                "Receipt scan",
-                "Store purchase",
-                "Online order",
-                "Travel expense",
-                "Food receipt",
-                "Service payment",
-                "Subscription",
-                "Medical receipt"
-        };
-        return options[random.nextInt(options.length)];
     }
 }

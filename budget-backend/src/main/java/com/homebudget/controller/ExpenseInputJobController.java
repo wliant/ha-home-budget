@@ -42,12 +42,12 @@ public class ExpenseInputJobController {
         return ResponseEntity.ok(jobService.getJobs());
     }
 
-    @PatchMapping("/{jobId}/temporary-record")
+    @PatchMapping("/temporary-records/{recordId}")
     public ResponseEntity<TemporaryExpenseRecordDTO> updateTemporaryRecord(
-            @PathVariable Long jobId,
+            @PathVariable Long recordId,
             @Valid @RequestBody UpdateTemporaryExpenseRecordRequest request) {
 
-        TemporaryExpenseRecordDTO updated = jobService.updateTemporaryRecord(jobId, request);
+        TemporaryExpenseRecordDTO updated = jobService.updateTemporaryRecord(recordId, request);
         return ResponseEntity.ok(updated);
     }
 

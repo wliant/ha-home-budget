@@ -39,6 +39,17 @@ services:
       - homebudget-network
     restart: unless-stopped
 
+  ocr-processor:
+    build:
+      context: ./ocr-processor
+      dockerfile: Dockerfile
+    container_name: homebudget-ocr-processor
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-192.168.1.248:11434}
+    networks:
+      - homebudget-network
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./budget-frontend

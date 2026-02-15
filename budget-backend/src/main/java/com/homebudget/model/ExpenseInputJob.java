@@ -45,8 +45,8 @@ public class ExpenseInputJob {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToOne(mappedBy = "job", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private TemporaryExpenseRecord temporaryRecord;
+    @OneToMany(mappedBy = "job", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<TemporaryExpenseRecord> temporaryRecords = new java.util.ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
@@ -123,11 +123,11 @@ public class ExpenseInputJob {
         this.updatedAt = updatedAt;
     }
 
-    public TemporaryExpenseRecord getTemporaryRecord() {
-        return temporaryRecord;
+    public java.util.List<TemporaryExpenseRecord> getTemporaryRecords() {
+        return temporaryRecords;
     }
 
-    public void setTemporaryRecord(TemporaryExpenseRecord temporaryRecord) {
-        this.temporaryRecord = temporaryRecord;
+    public void setTemporaryRecords(java.util.List<TemporaryExpenseRecord> temporaryRecords) {
+        this.temporaryRecords = temporaryRecords;
     }
 }

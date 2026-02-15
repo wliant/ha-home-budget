@@ -1,0 +1,190 @@
+openapi: 3.0.3
+info:
+  title: Receipt OCR Processor API
+  description: |
+    Processes receipt images and PDFs to extract structured expense data.
+    Called internally by the Spring Boot backend during ExpenseInputJob processing.
+  version: 1.0.0
+
+servers:
+  - url: http://ocr-processor:8082
+    description: Docker internal (dev/prod)
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  ollama_reachable:
+                    type: boolean
+                    example: true
+
+  /process:
+    post:
+      summary: Process a receipt image or PDF
+      operationId: processReceipt
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - categories
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Receipt image (JPEG, PNG) or PDF file. Max 10MB.
+                categories:
+                  type: string
+                  description: |
+                    JSON string containing an array of category objects.
+                    Example: [{"id": 1, "name": "Groceries"}, {"id": 2, "name": "Dining"}]
+      responses:
+        '200':
+          description: Receipt processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResponse'
+        '422':
+          description: Non-retryable error (bad input or data quality issue)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_a_receipt:
+                  summary: File is not a receipt
+                  value:
+                    error_code: NOT_A_RECEIPT
+                    message: "The uploaded file does not appear to be a receipt"
+                    retryable: false
+                unsupported_format:
+                  summary: Unsupported file format
+                  value:
+                    error_code: UNSUPPORTED_FORMAT
+                    message: "Only JPEG, PNG, and PDF files are accepted"
+                    retryable: false
+                empty_categories:
+                  summary: No categories provided
+                  value:
+                    error_code: EMPTY_CATEGORIES
+                    message: "At least one category must be provided"
+                    retryable: false
+                file_too_large:
+                  summary: File exceeds size limit
+                  value:
+                    error_code: FILE_TOO_LARGE
+                    message: "File size exceeds 10MB limit"
+                    retryable: false
+                no_expense_data:
+                  summary: Cannot extract expense data
+                  value:
+                    error_code: NO_EXPENSE_DATA
+                    message: "Could not extract any expense data from the receipt"
+                    retryable: false
+        '503':
+          description: Retryable error (temporary service issue)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ollama_unreachable:
+                  summary: AI model server unreachable
+                  value:
+                    error_code: MODEL_SERVER_UNREACHABLE
+                    message: "The AI model server is temporarily unavailable"
+                    retryable: true
+                processing_timeout:
+                  summary: Processing timed out
+                  value:
+                    error_code: PROCESSING_TIMEOUT
+                    message: "Receipt processing timed out, please try again"
+                    retryable: true
+
+components:
+  schemas:
+    CategoryInput:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Groceries
+
+    ExpenseOutput:
+      type: object
+      required:
+        - amount
+        - description
+        - expense_date
+        - category_id
+        - category_name
+      properties:
+        amount:
+          type: number
+          format: decimal
+          example: 45.99
+        description:
+          type: string
+          example: "Grocery store purchase"
+        expense_date:
+          type: string
+          format: date
+          example: "2026-02-15"
+        category_id:
+          type: integer
+          format: int64
+          example: 1
+        category_name:
+          type: string
+          example: Groceries
+
+    ProcessResponse:
+      type: object
+      required:
+        - expenses
+      properties:
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseOutput'
+          minItems: 1
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+        - retryable
+      properties:
+        error_code:
+          type: string
+          example: NOT_A_RECEIPT
+        message:
+          type: string
+          example: "The uploaded file does not appear to be a receipt"
+        retryable:
+          type: boolean
+          example: false

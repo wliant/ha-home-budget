@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy project files
+COPY pyproject.toml uv.lock .python-version ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
+
+# Copy source code (will be overridden by volume mount in dev)
+COPY src/ src/
+
+EXPOSE 8082
+
+CMD ["uv", "run", "uvicorn", "ocr_processor.main:app", "--host", "0.0.0.0", "--port", "8082", "--reload"]
