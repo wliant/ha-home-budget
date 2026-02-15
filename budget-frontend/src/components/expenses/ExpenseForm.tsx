@@ -29,7 +29,6 @@ import { categoryService, CategoryDTO } from '@/services/categoryService';
 interface ExpenseFormProps {
   onSubmit: (data: CreateExpenseRequest | UpdateExpenseRequest) => Promise<void>;
   onCancel: () => void;
-  budgetId: number;
   initialValues?: {
     amount?: number;
     description?: string;
@@ -42,7 +41,6 @@ interface ExpenseFormProps {
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   onSubmit,
   onCancel,
-  budgetId,
   initialValues,
   isEdit = false,
 }) => {
@@ -135,8 +133,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         amount: parseFloat(formData.amount),
         description: formData.description.trim(),
         expenseDate: formData.expenseDate,
-        budgetId: budgetId,
-        categoryId: formData.categoryId,
+        categoryId: formData.categoryId!,
       };
 
       await onSubmit(requestData);

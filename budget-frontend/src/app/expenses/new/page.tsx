@@ -18,7 +18,6 @@ import {
 import { AddCard as AddCardIcon, Add, Remove, AttachFile } from '@mui/icons-material';
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { expenseService, getTodayISO } from '@/services/expenseService';
-import { budgetService } from '@/services/budgetService';
 import { ExpenseFormState } from '@/types/expense';
 
 /**
@@ -26,9 +25,8 @@ import { ExpenseFormState } from '@/types/expense';
  *
  * Features:
  * - Standalone expense entry form
- * - Budget auto-selection based on date
+ * - Category selection (required)
  * - Date defaults to today (editable)
- * - Category selection
  * - Client-side validation
  * - Success/error feedback
  */
@@ -36,13 +34,12 @@ import { ExpenseFormState } from '@/types/expense';
 export default function NewExpensePage() {
   const router = useIngressRouter();
 
-  // Form state (T009)
+  // Form state
   const [formState, setFormState] = useState<ExpenseFormState>({
     amount: '',
     description: '',
     expenseDate: getTodayISO(),
     categoryId: null,
-    budgetId: null,
     files: [],
     errors: {},
     loading: false,
@@ -52,73 +49,7 @@ export default function NewExpensePage() {
   const maxFiles = 5;
   const maxFileSize = 5 * 1024 * 1024;
 
-  // Budget auto-selection logic (T010)
-  useEffect(() => {
-    const selectBudget = async () => {
-      if (!formState.expenseDate) {
-        return;
-      }
-
-      if (!formState.categoryId) {
-        setFormState((prev) => ({
-          ...prev,
-          budgetId: null,
-          errorMessage: null,
-        }));
-        return;
-      }
-
-      try {
-        const budgets = await budgetService.getAllBudgets();
-        const expenseDate = new Date(formState.expenseDate);
-        const year = expenseDate.getFullYear();
-        const month = expenseDate.getMonth() + 1;
-
-        const categoryBudgets = budgets.filter((b) => b.categoryId === formState.categoryId);
-        const monthlyBudget = categoryBudgets.find(
-          (b) => b.year === year && b.month === month,
-        );
-        const yearlyBudget = categoryBudgets.find(
-          (b) => b.year === year && !b.month,
-        );
-
-        if (monthlyBudget) {
-          setFormState((prev) => ({
-            ...prev,
-            budgetId: monthlyBudget.id!,
-            errorMessage: null,
-          }));
-          return;
-        }
-
-        if (yearlyBudget) {
-          setFormState((prev) => ({
-            ...prev,
-            budgetId: yearlyBudget.id!,
-            errorMessage: null,
-          }));
-          return;
-        }
-
-        setFormState((prev) => ({
-          ...prev,
-          budgetId: null,
-          errorMessage: `No budget found for ${formState.expenseDate}. Please create a budget first.`,
-        }));
-      } catch (err) {
-        console.error('Failed to fetch budgets:', err);
-        setFormState((prev) => ({
-          ...prev,
-          budgetId: null,
-          errorMessage: 'Failed to load budgets. Please try again.',
-        }));
-      }
-    };
-
-    selectBudget();
-  }, [formState.expenseDate, formState.categoryId]);
-
-  // Client-side form validation (T011)
+  // Client-side form validation
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -139,10 +70,6 @@ export default function NewExpensePage() {
 
     if (!formState.expenseDate) {
       errors.date = 'Date is required';
-    }
-
-    if (!formState.budgetId) {
-      errors.budget = 'A budget must exist for the selected date';
     }
 
     if (formState.files.length > maxFiles) {
@@ -184,8 +111,7 @@ export default function NewExpensePage() {
           amount: parseFloat(formState.amount),
           description: formState.description.trim(),
           expenseDate: formState.expenseDate,
-          budgetId: formState.budgetId!,
-          categoryId: formState.categoryId,
+          categoryId: formState.categoryId!,
         },
         formState.files
       );
@@ -205,7 +131,6 @@ export default function NewExpensePage() {
           description: '',
           expenseDate: getTodayISO(),
           categoryId: null,
-          budgetId: null,
           files: [],
           errors: {},
           loading: false,
@@ -315,17 +240,10 @@ export default function NewExpensePage() {
           Recording expense as: Current User
         </Typography>
 
-        {/* Error alert for no budget found (T013) */}
-        {formState.errorMessage && !formState.budgetId && (
+        {/* Error alert */}
+        {formState.errorMessage && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {formState.errorMessage}
-          </Alert>
-        )}
-
-        {/* Budget selection feedback (T023) */}
-        {formState.budgetId && !formState.errorMessage && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Budget auto-selected for {formState.expenseDate}
           </Alert>
         )}
 
@@ -472,7 +390,7 @@ export default function NewExpensePage() {
             type="submit"
             variant="contained"
             fullWidth
-            disabled={formState.loading || !formState.budgetId}
+            disabled={formState.loading || !formState.categoryId}
             sx={{ mt: 3 }}
             aria-label={formState.loading ? 'Creating expense' : 'Create expense'} // Accessibility (T034)
             aria-busy={formState.loading} // Accessibility (T034)
@@ -493,9 +411,9 @@ export default function NewExpensePage() {
         </Alert>
       </Snackbar>
 
-      {/* Error message (T013) */}
+      {/* Error message */}
       <Snackbar
-        open={!!formState.errorMessage && !!formState.budgetId}
+        open={!!formState.errorMessage}
         autoHideDuration={6000}
         onClose={() => updateField('errorMessage', null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}

@@ -20,19 +20,6 @@ import java.util.List;
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
     /**
-     * Find all expenses for a specific budget.
-     *
-     * @param budgetId the budget ID
-     * @return list of expenses
-     */
-    List<Expense> findByBudgetIdOrderByExpenseDateDesc(Long budgetId);
-
-    /**
-     * Alias for findByBudgetIdOrderByExpenseDateDesc
-     */
-    List<Expense> findByBudgetId(Long budgetId);
-
-    /**
      * Find all expenses for a specific category.
      *
      * @param categoryId the category ID
@@ -79,44 +66,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findAllOrderByExpenseDateDesc();
 
     /**
-     * Find expenses by budget and category.
-     */
-    List<Expense> findByBudgetIdAndCategoryId(Long budgetId, Long categoryId);
-
-    /**
-     * Find expenses by budget and created by user.
-     */
-    List<Expense> findByBudgetIdAndCreatedBy(Long budgetId, String createdBy);
-
-    /**
-     * Find expenses by budget and date range.
-     */
-    List<Expense> findByBudgetIdAndExpenseDateBetween(Long budgetId, LocalDate startDate, LocalDate endDate);
-
-    /**
-     * Find expenses by budget, category, date range, and user (all filters).
-     */
-    List<Expense> findByBudgetIdAndCategoryIdAndExpenseDateBetweenAndCreatedBy(
-            Long budgetId, Long categoryId, LocalDate startDate, LocalDate endDate, String createdBy);
-
-    /**
-     * Calculate total spending for a budget.
-     *
-     * @param budgetId the budget ID
-     * @return total amount spent, or BigDecimal.ZERO if no expenses
-     */
-    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e WHERE e.budget.id = :budgetId")
-    BigDecimal sumAmountByBudgetId(@Param("budgetId") Long budgetId);
-
-    /**
-     * Count expenses for a specific budget.
-     *
-     * @param budgetId the budget ID
-     * @return count of expenses
-     */
-    long countByBudgetId(Long budgetId);
-
-    /**
      * Count expenses for a specific category.
      *
      * @param categoryId the category ID
@@ -128,7 +77,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
      * Find expenses by multiple filter criteria.
      * Used for filtering API with optional parameters.
      *
-     * @param budgetId optional budget filter
      * @param categoryId optional category filter
      * @param startDate optional start date filter
      * @param endDate optional end date filter
@@ -136,14 +84,12 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
      * @return list of matching expenses
      */
     @Query("SELECT e FROM Expense e WHERE " +
-            "(:budgetId IS NULL OR e.budget.id = :budgetId) AND " +
             "(:categoryId IS NULL OR e.category.id = :categoryId) AND " +
             "(:startDate IS NULL OR e.expenseDate >= :startDate) AND " +
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:createdBy IS NULL OR e.createdBy = :createdBy) " +
             "ORDER BY e.expenseDate DESC")
-    List<Expense> findByFilters(@Param("budgetId") Long budgetId,
-                                 @Param("categoryId") Long categoryId,
+    List<Expense> findByFilters(@Param("categoryId") Long categoryId,
                                  @Param("startDate") LocalDate startDate,
                                  @Param("endDate") LocalDate endDate,
                                  @Param("createdBy") String createdBy);
@@ -226,28 +172,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<String> findDistinctCreators();
 
     /**
-     * Get spending breakdown by category for a budget.
-     *
-     * @param budgetId the budget ID
-     * @return list of [categoryId, totalAmount] pairs
-     */
-    @Query("SELECT e.category.id, SUM(e.amount) FROM Expense e " +
-            "WHERE e.budget.id = :budgetId " +
-            "GROUP BY e.category.id")
-    List<Object[]> getCategoryBreakdown(@Param("budgetId") Long budgetId);
-
-    /**
-     * Sum expense amounts across all budgets whose category's parent is the given parentCategoryId,
-     * for a given year and month.
-     */
-    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e " +
-            "WHERE e.budget.category.parentCategory.id = :parentCategoryId " +
-            "AND e.budget.year = :year AND e.budget.month = :month")
-    BigDecimal sumExpensesByParentCategoryBudgets(@Param("parentCategoryId") Long parentCategoryId,
-                                                   @Param("year") Integer year,
-                                                   @Param("month") Integer month);
-
-    /**
      * Paginated expense query filtering by multiple category IDs.
      * Used when filtering by a parent category (includes parent + all child category IDs).
      */
@@ -299,4 +223,52 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                                                       @Param("minAmount") BigDecimal minAmount,
                                                       @Param("maxAmount") BigDecimal maxAmount,
                                                       @Param("createdBy") String createdBy);
+
+    // ========================================================================
+    // Category Expense Aggregate Queries (Feature 016)
+    // ========================================================================
+
+    /**
+     * Monthly aggregate: SUM(amount) grouped by category_id and month for a given year.
+     * Returns Object[] with [categoryId (Long), month (Integer), totalAmount (BigDecimal)].
+     */
+    @Query("SELECT e.category.id, MONTH(e.expenseDate), COALESCE(SUM(e.amount), 0) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year " +
+            "GROUP BY e.category.id, MONTH(e.expenseDate)")
+    List<Object[]> getMonthlyAggregatesByYear(@Param("year") Integer year);
+
+    /**
+     * Monthly aggregate for a specific month: SUM(amount) grouped by category_id.
+     * Returns Object[] with [categoryId (Long), totalAmount (BigDecimal)].
+     */
+    @Query("SELECT e.category.id, COALESCE(SUM(e.amount), 0) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month " +
+            "GROUP BY e.category.id")
+    List<Object[]> getMonthlyAggregatesByYearAndMonth(@Param("year") Integer year, @Param("month") Integer month);
+
+    /**
+     * Single category monthly aggregate.
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e " +
+            "WHERE e.category.id = :categoryId AND YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month")
+    BigDecimal sumByCategoryAndMonth(@Param("categoryId") Long categoryId,
+                                      @Param("year") int year,
+                                      @Param("month") int month);
+
+    /**
+     * Yearly aggregate: SUM(amount) grouped by category_id for a given year.
+     * Returns Object[] with [categoryId (Long), totalAmount (BigDecimal)].
+     */
+    @Query("SELECT e.category.id, COALESCE(SUM(e.amount), 0) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year " +
+            "GROUP BY e.category.id")
+    List<Object[]> getYearlyAggregatesByYear(@Param("year") Integer year);
+
+    /**
+     * Single category yearly aggregate.
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e " +
+            "WHERE e.category.id = :categoryId AND YEAR(e.expenseDate) = :year")
+    BigDecimal sumByCategoryAndYear(@Param("categoryId") Long categoryId,
+                                     @Param("year") int year);
 }

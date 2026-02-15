@@ -40,4 +40,7 @@
     <!-- Feature 009: Expense Input Jobs -->
     <include file="db/changelog/changes/009-create-expense-input-jobs.xml"/>
 
+    <!-- Feature 016: Category Expense Aggregates - Decouple expenses from budgets -->
+    <include file="db/changelog/changes/010-remove-budget-fk-from-expenses.xml"/>
+
 </databaseChangeLog>

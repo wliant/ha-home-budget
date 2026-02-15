@@ -3,14 +3,11 @@ package com.homebudget.service;
 import com.homebudget.dto.ExpenseDTO;
 import com.homebudget.dto.ExpenseFileDTO;
 import com.homebudget.dto.ExpenseListResponse;
-import com.homebudget.exception.BudgetNotFoundException;
 import com.homebudget.exception.CategoryNotFoundException;
 import com.homebudget.exception.ExpenseNotFoundException;
-import com.homebudget.model.Budget;
 import com.homebudget.model.Category;
 import com.homebudget.model.Expense;
 import com.homebudget.model.ExpenseFile;
-import com.homebudget.repository.BudgetRepository;
 import com.homebudget.repository.CategoryRepository;
 import com.homebudget.repository.ExpenseFileRepository;
 import com.homebudget.repository.ExpenseRepository;
@@ -38,11 +35,8 @@ import java.util.stream.Collectors;
 /**
  * Service for managing expenses.
  *
- * Implements User Story 2: Record Expenses Against Budgets
- * - Create, read, update, delete expenses
- * - Associate expenses with budgets
- * - Track expense dates and categories
- * - Validate expense dates against budget months
+ * Handles expense CRUD operations with category-based organization.
+ * Expenses are associated with categories (not budgets directly).
  */
 @Service
 @Transactional
@@ -56,9 +50,6 @@ public class ExpenseService {
     private ExpenseRepository expenseRepository;
 
     @Autowired
-    private BudgetRepository budgetRepository;
-
-    @Autowired
     private CategoryRepository categoryRepository;
 
     @Autowired
@@ -70,48 +61,42 @@ public class ExpenseService {
     /**
      * Create a new expense.
      *
-     * @param dto Expense data
+     * @param dto Expense data (amount, description, expenseDate, categoryId)
      * @param username User creating the expense (from X-Hass-User header)
-     * @return Created expense DTO with date mismatch warning if applicable
-     * @throws BudgetNotFoundException if budget not found
-     * @throws CategoryNotFoundException if category specified but not found
+     * @return Created expense DTO
+     * @throws CategoryNotFoundException if category not found
      */
     public ExpenseDTO createExpense(ExpenseDTO dto, String username) {
-        logger.info("Creating expense for budget ID: {}, user: {}", dto.getBudgetId(), username);
-
-        Budget budget = resolveBudgetForExpense(dto);
-
-        logger.debug("Budget attribution: selected budgetId={}, period={}-{}, amount={}",
-                budget.getId(), budget.getYear(), budget.getMonth(), budget.getTotalAmount());
+        logger.info("Creating expense for user: {}", username);
 
         // Create expense entity
         Expense expense = new Expense();
         expense.setAmount(dto.getAmount());
         expense.setDescription(dto.getDescription());
         expense.setExpenseDate(dto.getExpenseDate());
-        expense.setBudget(budget);
         expense.setCreatedBy(username);
 
-        logger.debug("Expense details: amount={}, date={}, description='{}'",
-                dto.getAmount(), dto.getExpenseDate(), dto.getDescription());
-
-        // Set category if provided
+        // Set category - required; fall back to system "Uncategorized" if null
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new CategoryNotFoundException(dto.getCategoryId()));
             expense.setCategory(category);
             logger.debug("Category assigned: ID={}, name='{}'", category.getId(), category.getName());
+        } else {
+            Category uncategorized = categoryRepository.findByName("Uncategorized")
+                    .orElseThrow(() -> new IllegalStateException("System 'Uncategorized' category not found"));
+            expense.setCategory(uncategorized);
+            logger.debug("No category provided, assigned system 'Uncategorized' category ID={}", uncategorized.getId());
         }
+
+        logger.debug("Expense details: amount={}, date={}, description='{}'",
+                dto.getAmount(), dto.getExpenseDate(), dto.getDescription());
 
         // Save expense
         Expense saved = expenseRepository.save(expense);
-        logger.info("Created expense ID: {} for budget ID: {}", saved.getId(), budget.getId());
+        logger.info("Created expense ID: {}", saved.getId());
 
-        // Convert to DTO with date mismatch check
-        ExpenseDTO result = toDTO(saved);
-        checkDateMismatch(result, budget);
-
-        return result;
+        return toDTO(saved);
     }
 
     public ExpenseDTO createExpenseWithFiles(ExpenseDTO dto, List<MultipartFile> files, String username) {
@@ -127,7 +112,6 @@ public class ExpenseService {
     /**
      * Get all expenses with optional filtering.
      *
-     * @param budgetId Filter by budget ID (optional)
      * @param categoryId Filter by category ID (optional)
      * @param startDate Filter by date range start (optional)
      * @param endDate Filter by date range end (optional)
@@ -135,27 +119,16 @@ public class ExpenseService {
      * @return List of expenses matching filters
      */
     @Transactional(readOnly = true)
-    public List<ExpenseDTO> getAllExpenses(Long budgetId, Long categoryId,
+    public List<ExpenseDTO> getAllExpenses(Long categoryId,
                                           LocalDate startDate, LocalDate endDate,
                                           String createdBy) {
-        logger.info("Finding expenses with filters - budgetId: {}, categoryId: {}, dateRange: {}-{}, createdBy: {}",
-                   budgetId, categoryId, startDate, endDate, createdBy);
+        logger.info("Finding expenses with filters - categoryId: {}, dateRange: {}-{}, createdBy: {}",
+                   categoryId, startDate, endDate, createdBy);
 
         List<Expense> expenses;
 
         // Apply filters based on what's provided
-        if (budgetId != null && categoryId != null && startDate != null && endDate != null && createdBy != null) {
-            expenses = expenseRepository.findByBudgetIdAndCategoryIdAndExpenseDateBetweenAndCreatedBy(
-                    budgetId, categoryId, startDate, endDate, createdBy);
-        } else if (budgetId != null && startDate != null && endDate != null) {
-            expenses = expenseRepository.findByBudgetIdAndExpenseDateBetween(budgetId, startDate, endDate);
-        } else if (budgetId != null && categoryId != null) {
-            expenses = expenseRepository.findByBudgetIdAndCategoryId(budgetId, categoryId);
-        } else if (budgetId != null && createdBy != null) {
-            expenses = expenseRepository.findByBudgetIdAndCreatedBy(budgetId, createdBy);
-        } else if (budgetId != null) {
-            expenses = expenseRepository.findByBudgetId(budgetId);
-        } else if (categoryId != null) {
+        if (categoryId != null) {
             List<Long> expandedIds = expandCategoryIds(categoryId);
             if (expandedIds != null) {
                 expenses = new ArrayList<>();
@@ -204,7 +177,6 @@ public class ExpenseService {
      * @param dto Updated expense data
      * @return Updated expense DTO
      * @throws ExpenseNotFoundException if expense not found
-     * @throws BudgetNotFoundException if new budget not found
      * @throws CategoryNotFoundException if new category not found
      */
     public ExpenseDTO updateExpense(Long id, ExpenseDTO dto) {
@@ -219,11 +191,6 @@ public class ExpenseService {
         expense.setDescription(dto.getDescription());
         expense.setExpenseDate(dto.getExpenseDate());
 
-        Budget targetBudget = resolveBudgetForExpense(dto);
-        if (!expense.getBudget().getId().equals(targetBudget.getId())) {
-            expense.setBudget(targetBudget);
-        }
-
         // Update category if changed
         if (dto.getCategoryId() != null) {
             if (expense.getCategory() == null || !expense.getCategory().getId().equals(dto.getCategoryId())) {
@@ -232,18 +199,17 @@ public class ExpenseService {
                 expense.setCategory(newCategory);
             }
         } else {
-            expense.setCategory(null);
+            // Fall back to system "Uncategorized" category
+            Category uncategorized = categoryRepository.findByName("Uncategorized")
+                    .orElseThrow(() -> new IllegalStateException("System 'Uncategorized' category not found"));
+            expense.setCategory(uncategorized);
         }
 
         // Save updated expense
         Expense updated = expenseRepository.save(expense);
         logger.info("Updated expense ID: {}", id);
 
-        // Convert to DTO with date mismatch check
-        ExpenseDTO result = toDTO(updated);
-        checkDateMismatch(result, updated.getBudget());
-
-        return result;
+        return toDTO(updated);
     }
 
     public ExpenseDTO updateExpenseWithFiles(Long id, ExpenseDTO dto, List<MultipartFile> files) {
@@ -383,7 +349,6 @@ public class ExpenseService {
         dto.setAmount(expense.getAmount());
         dto.setDescription(expense.getDescription());
         dto.setExpenseDate(expense.getExpenseDate());
-        dto.setBudgetId(expense.getBudget().getId());
         dto.setCreatedBy(expense.getCreatedBy());
         dto.setCreatedAt(expense.getCreatedAt());
         dto.setUpdatedAt(expense.getUpdatedAt());
@@ -515,32 +480,6 @@ public class ExpenseService {
         return normalized.isBlank() ? "uncategorized" : normalized;
     }
 
-    private Budget resolveBudgetForExpense(ExpenseDTO dto) {
-        if (dto.getCategoryId() != null && dto.getExpenseDate() != null) {
-            int year = dto.getExpenseDate().getYear();
-            int month = dto.getExpenseDate().getMonthValue();
-
-            Budget monthly = budgetRepository.findByCategoryIdAndYearAndMonth(dto.getCategoryId(), year, month)
-                    .orElse(null);
-            if (monthly != null) {
-                return monthly;
-            }
-
-            Budget parent = budgetRepository.findParentBudget(dto.getCategoryId(), year)
-                    .orElse(null);
-            if (parent != null) {
-                return parent;
-            }
-        }
-
-        if (dto.getBudgetId() == null) {
-            throw new IllegalArgumentException("Budget ID is required for expense creation");
-        }
-
-        return budgetRepository.findById(dto.getBudgetId())
-                .orElseThrow(() -> new BudgetNotFoundException(dto.getBudgetId()));
-    }
-
     /**
      * If the given categoryId is a parent category (has children), expand to a list
      * containing the parent + all child category IDs. Returns null if not a parent category
@@ -562,33 +501,5 @@ public class ExpenseService {
         }
         logger.debug("Expanded category filter: parent={} -> {} category IDs", categoryId, ids.size());
         return ids;
-    }
-
-    /**
-     * Check if expense date falls outside budget month and set warning.
-     *
-     * Implements FR-018: Warn users when expense dates don't fall within budget's month
-     */
-    private void checkDateMismatch(ExpenseDTO dto, Budget budget) {
-        if (budget.getMonth() == null) {
-            return;
-        }
-        YearMonth budgetMonth = YearMonth.of(budget.getYear(), budget.getMonth());
-        YearMonth expenseMonth = YearMonth.from(dto.getExpenseDate());
-
-        logger.debug("Checking date match: expense date={} ({}), budget period={} ({})",
-                dto.getExpenseDate(), expenseMonth, budgetMonth, budgetMonth);
-
-        if (!budgetMonth.equals(expenseMonth)) {
-            String warning = String.format(
-                "Warning: Expense date %s does not fall within budget month %s",
-                dto.getExpenseDate(),
-                budgetMonth
-            );
-            dto.setDateMismatchWarning(warning);
-            logger.warn("Date mismatch for expense ID {}: {}", dto.getId(), warning);
-        } else {
-            logger.debug("Date match confirmed: expense falls within budget period");
-        }
     }
 }

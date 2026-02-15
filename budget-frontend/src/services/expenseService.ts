@@ -11,15 +11,13 @@ export interface ExpenseDTO {
   amount: number;
   description: string;
   expenseDate: string; // ISO date string (YYYY-MM-DD)
-  budgetId: number;
-  categoryId?: number | null;
+  categoryId: number;
   categoryName?: string;
   categoryIcon?: string;
   createdBy?: string;
   createdAt?: string;
   updatedAt?: string;
   version?: number;
-  warnings?: string[];
   files?: ExpenseFileDTO[];
 }
 
@@ -32,20 +30,17 @@ export interface CreateExpenseRequest {
   amount: number;
   description: string;
   expenseDate: string;
-  budgetId: number;
-  categoryId?: number | null;
+  categoryId: number;
 }
 
 export interface UpdateExpenseRequest {
   amount: number;
   description: string;
   expenseDate: string;
-  budgetId: number;
-  categoryId?: number | null;
+  categoryId: number;
 }
 
 export interface ExpenseFilters {
-  budgetId?: number;
   categoryId?: number;
   startDate?: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
@@ -76,6 +71,18 @@ export interface ExpenseListResponse {
   sortDirection: string;
 }
 
+export interface CategoryExpenseAggregate {
+  categoryId: number;
+  categoryName: string;
+  categoryIcon?: string;
+  parentCategoryId?: number | null;
+  directAmount: number;
+  childrenAmount: number;
+  totalAmount: number;
+  year: number;
+  month?: number | null;
+}
+
 export const expenseService = {
   /**
    * Get all expenses with optional filters
@@ -83,7 +90,6 @@ export const expenseService = {
   getAllExpenses: async (filters?: ExpenseFilters): Promise<ExpenseDTO[]> => {
     const params = new URLSearchParams();
 
-    if (filters?.budgetId) params.append('budgetId', filters.budgetId.toString());
     if (filters?.categoryId) params.append('categoryId', filters.categoryId.toString());
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
@@ -181,6 +187,24 @@ export const expenseService = {
     const response = await api.get<string[]>('/api/expenses/creators');
     return response.data;
   },
+
+  /**
+   * Get monthly expense aggregates per category (Feature 016)
+   */
+  getMonthlyAggregates: async (year: number, month?: number): Promise<CategoryExpenseAggregate[]> => {
+    const params = new URLSearchParams({ year: year.toString() });
+    if (month != null) params.append('month', month.toString());
+    const response = await api.get<CategoryExpenseAggregate[]>(`/api/expenses/aggregates/monthly?${params.toString()}`);
+    return response.data;
+  },
+
+  /**
+   * Get yearly expense aggregates per category (Feature 016)
+   */
+  getYearlyAggregates: async (year: number): Promise<CategoryExpenseAggregate[]> => {
+    const response = await api.get<CategoryExpenseAggregate[]>(`/api/expenses/aggregates/yearly?year=${year}`);
+    return response.data;
+  },
 };
 
 /**
@@ -213,19 +237,3 @@ export const getTodayISO = (): string => {
   return today.toISOString().split('T')[0];
 };
 
-/**
- * Check if expense has date mismatch warning
- */
-export const hasDateMismatchWarning = (expense: ExpenseDTO): boolean => {
-  return !!(expense.warnings && expense.warnings.length > 0);
-};
-
-/**
- * Get the first warning message if any
- */
-export const getWarningMessage = (expense: ExpenseDTO): string | null => {
-  if (expense.warnings && expense.warnings.length > 0) {
-    return expense.warnings[0];
-  }
-  return null;
-};

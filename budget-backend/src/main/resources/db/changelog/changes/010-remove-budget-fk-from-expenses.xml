@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Feature 016: Category Expense Aggregates - Decouple expenses from budgets -->
+
+    <!-- Changeset 1: Populate category_id from budget's category where NULL -->
+    <changeSet id="010-01-populate-expense-categories" author="claude">
+        <comment>Copy budget's category to expenses that have no category set</comment>
+        <sql>
+            UPDATE expenses e
+            JOIN budgets b ON e.budget_id = b.id
+            SET e.category_id = b.category_id
+            WHERE e.category_id IS NULL
+        </sql>
+        <rollback>
+            <comment>No rollback needed - category_id was NULL before</comment>
+        </rollback>
+    </changeSet>
+
+    <!-- Changeset 2: Make category_id NOT NULL -->
+    <changeSet id="010-02-make-category-not-null" author="claude">
+        <comment>Make category_id required on all expenses</comment>
+        <addNotNullConstraint
+            tableName="expenses"
+            columnName="category_id"
+            columnDataType="BIGINT"/>
+    </changeSet>
+
+    <!-- Changeset 3: Drop budget_id FK, index, and column -->
+    <changeSet id="010-03-drop-budget-fk-from-expenses" author="claude">
+        <comment>Remove budget foreign key, index, and column from expenses table</comment>
+        <dropForeignKeyConstraint
+            baseTableName="expenses"
+            constraintName="fk_expenses_budget"/>
+        <dropIndex
+            tableName="expenses"
+            indexName="idx_expenses_budget_id"/>
+        <dropColumn
+            tableName="expenses"
+            columnName="budget_id"/>
+    </changeSet>
+
+    <!-- Changeset 4: Add composite index for category + date aggregate queries -->
+    <changeSet id="010-04-add-category-date-index" author="claude">
+        <comment>Composite index for efficient category expense aggregate queries</comment>
+        <createIndex tableName="expenses" indexName="idx_expenses_category_date">
+            <column name="category_id"/>
+            <column name="expense_date"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

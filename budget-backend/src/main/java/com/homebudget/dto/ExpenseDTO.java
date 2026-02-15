@@ -27,9 +27,7 @@ public class ExpenseDTO {
     @NotNull(message = "Expense date is required")
     private LocalDate expenseDate;
 
-    @NotNull(message = "Budget ID is required")
-    private Long budgetId;
-
+    @NotNull(message = "Category ID is required")
     private Long categoryId;
 
     private CategoryDTO category;
@@ -46,8 +44,6 @@ public class ExpenseDTO {
 
     private Long version;
 
-    private List<String> warnings = new ArrayList<>();
-
     private List<ExpenseFileDTO> files = new ArrayList<>();
 
     // Constructors
@@ -55,13 +51,12 @@ public class ExpenseDTO {
     }
 
     public ExpenseDTO(Long id, BigDecimal amount, String description, LocalDate expenseDate,
-                      Long budgetId, Long categoryId, String createdBy, LocalDateTime createdAt,
+                      Long categoryId, String createdBy, LocalDateTime createdAt,
                       LocalDateTime updatedAt, Long version) {
         this.id = id;
         this.amount = amount;
         this.description = description;
         this.expenseDate = expenseDate;
-        this.budgetId = budgetId;
         this.categoryId = categoryId;
         this.createdBy = createdBy;
         this.createdAt = createdAt;
@@ -100,14 +95,6 @@ public class ExpenseDTO {
 
     public void setExpenseDate(LocalDate expenseDate) {
         this.expenseDate = expenseDate;
-    }
-
-    public Long getBudgetId() {
-        return budgetId;
-    }
-
-    public void setBudgetId(Long budgetId) {
-        this.budgetId = budgetId;
     }
 
     public Long getCategoryId() {
@@ -158,18 +145,6 @@ public class ExpenseDTO {
         this.version = version;
     }
 
-    public List<String> getWarnings() {
-        return warnings;
-    }
-
-    public void setWarnings(List<String> warnings) {
-        this.warnings = warnings;
-    }
-
-    public void addWarning(String warning) {
-        this.warnings.add(warning);
-    }
-
     public String getCategoryName() {
         return categoryName;
     }
@@ -184,13 +159,6 @@ public class ExpenseDTO {
 
     public void setCategoryIcon(String categoryIcon) {
         this.categoryIcon = categoryIcon;
-    }
-
-    /**
-     * Convenience method to set date mismatch warning.
-     */
-    public void setDateMismatchWarning(String warning) {
-        addWarning(warning);
     }
 
     public List<ExpenseFileDTO> getFiles() {
