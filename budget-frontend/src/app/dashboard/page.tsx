@@ -1,172 +1,299 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Container,
   Typography,
   Box,
-  Grid,
-  Card,
-  CardContent,
   CircularProgress,
   Alert,
-  Chip,
+  Paper,
+  ToggleButtonGroup,
+  ToggleButton,
+  IconButton,
 } from '@mui/material';
-import { Dashboard as DashboardIcon } from '@mui/icons-material';
-import { budgetService, BudgetSummaryDTO, formatBudgetPeriod, formatCurrency, getSpendingStatusColor, getSpendingStatusText } from '@/services/budgetService';
-import BudgetPieChart from '@/components/dashboard/BudgetPieChart';
+import {
+  Dashboard as DashboardIcon,
+  ChevronLeft,
+  ChevronRight,
+} from '@mui/icons-material';
+import { expenseService, CategoryExpenseAggregate } from '@/services/expenseService';
+import SpendingTrendChart from '@/components/dashboard/SpendingTrendChart';
 
-/**
- * Dashboard page - User Story 4: Budget Dashboard and Insights
- *
- * Shows budget progress for the current month and 2 previous months.
- */
+type Granularity = 'daily' | 'monthly' | 'yearly';
 
-interface MonthEntry {
-  year: number;
-  month: number;
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+const MONTH_FULL_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function formatMonthLabel(value: unknown): string {
+  const num = Number(value);
+  if (num >= 1 && num <= 12) return MONTH_NAMES[num - 1];
+  return String(value);
 }
 
-function getPast3Months(): MonthEntry[] {
-  const now = new Date();
-  const months: MonthEntry[] = [];
-  for (let i = 0; i < 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
+function formatDayLabel(value: unknown): string {
+  return String(Number(value));
+}
+
+function formatYearLabel(value: unknown): string {
+  return String(Number(value));
+}
+
+interface TransformedData {
+  chartData: Record<string, unknown>[];
+  categories: string[];
+}
+
+function transformAggregates(
+  aggregates: CategoryExpenseAggregate[],
+  granularity: Granularity,
+  daysInMonth?: number,
+): TransformedData {
+  const categories = new Set<string>();
+  const bucketMap: Record<number, Record<string, number>> = {};
+
+  for (const agg of aggregates) {
+    categories.add(agg.categoryName);
+    let bucket: number;
+    if (granularity === 'daily') {
+      bucket = agg.day ?? 0;
+    } else if (granularity === 'monthly') {
+      bucket = agg.month ?? 0;
+    } else {
+      bucket = agg.year;
+    }
+    if (!bucketMap[bucket]) bucketMap[bucket] = {};
+    bucketMap[bucket][agg.categoryName] = agg.totalAmount;
   }
-  return months;
+
+  const categoryList = Array.from(categories).sort();
+  const chartData: Record<string, unknown>[] = [];
+
+  if (granularity === 'daily') {
+    const days = daysInMonth ?? 31;
+    for (let d = 1; d <= days; d++) {
+      const point: Record<string, unknown> = { day: d };
+      for (const cat of categoryList) {
+        point[cat] = bucketMap[d]?.[cat] ?? 0;
+      }
+      chartData.push(point);
+    }
+  } else if (granularity === 'monthly') {
+    for (let m = 1; m <= 12; m++) {
+      const point: Record<string, unknown> = { month: m };
+      for (const cat of categoryList) {
+        point[cat] = bucketMap[m]?.[cat] ?? 0;
+      }
+      chartData.push(point);
+    }
+  } else {
+    // Yearly: use only years that exist in data
+    const years = Object.keys(bucketMap).map(Number).sort();
+    for (const y of years) {
+      const point: Record<string, unknown> = { year: y };
+      for (const cat of categoryList) {
+        point[cat] = bucketMap[y]?.[cat] ?? 0;
+      }
+      chartData.push(point);
+    }
+  }
+
+  return { chartData, categories: categoryList };
+}
+
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
 }
 
 export default function DashboardPage() {
-  const [monthlyBudgets, setMonthlyBudgets] = useState<(BudgetSummaryDTO | null)[]>([]);
-  const [months] = useState<MonthEntry[]>(getPast3Months);
+  const now = new Date();
+  const [granularity, setGranularity] = useState<Granularity>('monthly');
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [aggregates, setAggregates] = useState<CategoryExpenseAggregate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadBudgets();
-  }, []);
-
-  const loadBudgets = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
+    setError('');
     try {
-      const results = await Promise.all(
-        months.map(async ({ year, month }) => {
-          try {
-            return await budgetService.getMonthlyBudgetSummary(year, month);
-          } catch (err: any) {
-            if (err.response?.status === 404) {
-              return null;
-            }
-            throw err;
-          }
-        })
-      );
-      setMonthlyBudgets(results);
-      if (results.every((r) => r === null)) {
-        setError('No budgets found for the past 3 months');
+      let data: CategoryExpenseAggregate[];
+      if (granularity === 'daily') {
+        data = await expenseService.getDailyAggregates(selectedYear, selectedMonth);
+      } else if (granularity === 'monthly') {
+        data = await expenseService.getMonthlyAggregates(selectedYear);
+      } else {
+        // Yearly: get all years, then aggregate each
+        const years = await expenseService.getExpenseYears();
+        if (years.length === 0) {
+          setAggregates([]);
+          setIsLoading(false);
+          return;
+        }
+        const allAggregates = await Promise.all(
+          years.map((y) => expenseService.getYearlyAggregates(y))
+        );
+        data = allAggregates.flat();
       }
-    } catch (err: any) {
-      console.error('Failed to load budgets:', err);
-      setError('Failed to load dashboard data');
+      setAggregates(data);
+    } catch (err: unknown) {
+      console.error('Failed to load spending data:', err);
+      setError('Failed to load spending data');
     } finally {
       setIsLoading(false);
     }
+  }, [granularity, selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const daysInMonth = useMemo(
+    () => getDaysInMonth(selectedYear, selectedMonth),
+    [selectedYear, selectedMonth]
+  );
+
+  const { chartData, categories } = useMemo(
+    () => transformAggregates(aggregates, granularity, daysInMonth),
+    [aggregates, granularity, daysInMonth]
+  );
+
+  const handleGranularityChange = (_: React.MouseEvent<HTMLElement>, value: Granularity | null) => {
+    if (value) {
+      setGranularity(value);
+      setHiddenCategories(new Set());
+    }
   };
 
-  if (isLoading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
+  const handlePrev = () => {
+    if (granularity === 'daily') {
+      if (selectedMonth === 1) {
+        setSelectedMonth(12);
+        setSelectedYear((y) => y - 1);
+      } else {
+        setSelectedMonth((m) => m - 1);
+      }
+    } else if (granularity === 'monthly') {
+      setSelectedYear((y) => y - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (granularity === 'daily') {
+      if (selectedMonth === 12) {
+        setSelectedMonth(1);
+        setSelectedYear((y) => y + 1);
+      } else {
+        setSelectedMonth((m) => m + 1);
+      }
+    } else if (granularity === 'monthly') {
+      setSelectedYear((y) => y + 1);
+    }
+  };
+
+  const handleToggleCategory = (categoryName: string) => {
+    setHiddenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryName)) {
+        next.delete(categoryName);
+      } else {
+        next.add(categoryName);
+      }
+      return next;
+    });
+  };
+
+  const getPeriodLabel = (): string => {
+    if (granularity === 'daily') {
+      return `${MONTH_FULL_NAMES[selectedMonth - 1]} ${selectedYear}`;
+    } else if (granularity === 'monthly') {
+      return String(selectedYear);
+    }
+    return 'All Years';
+  };
+
+  const xAxisKey = granularity === 'daily' ? 'day' : granularity === 'monthly' ? 'month' : 'year';
+  const xAxisFormatter = granularity === 'daily' ? formatDayLabel : granularity === 'monthly' ? formatMonthLabel : formatYearLabel;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <DashboardIcon sx={{ fontSize: 32, color: 'primary.main' }} />
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" component="h1">
           Dashboard
         </Typography>
       </Box>
 
-      {error && monthlyBudgets.every((b) => b === null) && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          {error}. Create a budget to see dashboard insights.
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
         </Alert>
       )}
 
-      <Grid container spacing={3}>
-        {months.map((entry, index) => {
-          const budget = monthlyBudgets[index];
-          if (!budget) return null;
+      <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: 2,
+        }}>
+          <Typography variant="h6">
+            Spending Trends
+          </Typography>
 
-          const remaining = budget.totalAmount - budget.totalSpending;
-          const isCurrentMonth = index === 0;
+          <ToggleButtonGroup
+            value={granularity}
+            exclusive
+            onChange={handleGranularityChange}
+            size="small"
+          >
+            <ToggleButton value="daily">Daily</ToggleButton>
+            <ToggleButton value="monthly">Monthly</ToggleButton>
+            <ToggleButton value="yearly">Yearly</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
 
-          return (
-            <Grid item xs={12} md={4} key={`${entry.year}-${entry.month}`}>
-              <Card sx={isCurrentMonth ? { border: 2, borderColor: 'primary.main' } : {}}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    {isCurrentMonth ? 'Current Month' : formatBudgetPeriod(entry.year, entry.month)}
-                    {isCurrentMonth && (
-                      <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        {formatBudgetPeriod(entry.year, entry.month)}
-                      </Typography>
-                    )}
-                  </Typography>
+        {granularity !== 'yearly' && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+            <IconButton onClick={handlePrev} size="small">
+              <ChevronLeft />
+            </IconButton>
+            <Typography variant="subtitle1" sx={{ minWidth: 150, textAlign: 'center' }}>
+              {getPeriodLabel()}
+            </Typography>
+            <IconButton onClick={handleNext} size="small">
+              <ChevronRight />
+            </IconButton>
+          </Box>
+        )}
 
-                  <Box sx={{ mb: 2 }}>
-                    <Chip
-                      label={getSpendingStatusText(budget.spendingPercentage)}
-                      color={getSpendingStatusColor(budget.spendingPercentage) as any}
-                      size="small"
-                    />
-                  </Box>
-
-                  <BudgetPieChart
-                    totalBudget={budget.totalAmount}
-                    totalSpending={budget.totalSpending}
-                  />
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Budget</Typography>
-                      <Typography variant="subtitle2">{formatCurrency(budget.totalAmount)}</Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">Spent</Typography>
-                      <Typography variant="subtitle2">{formatCurrency(budget.totalSpending)}</Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {remaining >= 0 ? 'Remaining' : 'Over'}
-                      </Typography>
-                      <Typography variant="subtitle2" color={remaining >= 0 ? 'success.main' : 'error.main'}>
-                        {formatCurrency(Math.abs(remaining))}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {budget.spendingPercentage >= 90 && (
-                    <Alert severity="warning" sx={{ mt: 2 }}>
-                      {budget.spendingPercentage.toFixed(1)}% of budget used!
-                    </Alert>
-                  )}
-
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    {budget.expenseCount} {budget.expenseCount === 1 ? 'expense' : 'expenses'} recorded
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
-      </Grid>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <SpendingTrendChart
+            chartData={chartData}
+            xAxisKey={xAxisKey}
+            categories={categories}
+            xAxisFormatter={xAxisFormatter}
+            granularity={granularity}
+            hiddenCategories={hiddenCategories}
+            onToggleCategory={handleToggleCategory}
+          />
+        )}
+      </Paper>
     </Container>
   );
 }

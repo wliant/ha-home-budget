@@ -270,6 +270,8 @@ All bash scripts support:
 - MySQL 8.0 (existing database with budgets, categories, expenses tables) (017-parent-budget-rollup)
 - Python 3.11+ (OCR processor), Java 17 (backend integration) + FastAPI, LangGraph, LangChain, langchain-ollama, Pillow, PyMuPDF (fitz), uvicorn, httpx (018-receipt-ocr-processor)
 - N/A (stateless service; files passed by backend) (018-receipt-ocr-processor)
+- TypeScript 5.x (frontend), Java 17 (backend) + Next.js 14.x, Material-UI v5, Recharts 3.7.0 (existing), Spring Boot 3.2.0, Spring Data JPA (019-dashboard-spending-trends)
+- MySQL 8.0 (existing database with expenses and categories tables) (019-dashboard-spending-trends)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

@@ -82,6 +82,7 @@ export interface CategoryExpenseAggregate {
   totalAmount: number;
   year: number;
   month?: number | null;
+  day?: number | null;
 }
 
 export const expenseService = {
@@ -204,6 +205,16 @@ export const expenseService = {
    */
   getYearlyAggregates: async (year: number): Promise<CategoryExpenseAggregate[]> => {
     const response = await api.get<CategoryExpenseAggregate[]>(`/api/expenses/aggregates/yearly?year=${year}`);
+    return response.data;
+  },
+
+  /**
+   * Get daily expense aggregates per category (Feature 019)
+   */
+  getDailyAggregates: async (year: number, month: number): Promise<CategoryExpenseAggregate[]> => {
+    const response = await api.get<CategoryExpenseAggregate[]>(
+      `/api/expenses/aggregates/daily?year=${year}&month=${month}`
+    );
     return response.data;
   },
 };

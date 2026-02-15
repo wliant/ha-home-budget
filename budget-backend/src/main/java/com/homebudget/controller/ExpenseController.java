@@ -305,6 +305,29 @@ public class ExpenseController {
     }
 
     /**
+     * Get daily expense aggregates per category with parent rollup for a specific month.
+     *
+     * @param year  required year
+     * @param month required month (1-12)
+     * @return list of category expense aggregates with day field populated
+     */
+    @GetMapping("/aggregates/daily")
+    public ResponseEntity<List<CategoryExpenseAggregateDTO>> getDailyAggregates(
+            @RequestParam int year,
+            @RequestParam int month) {
+
+        logger.info("GET /api/expenses/aggregates/daily - year={}, month={}", year, month);
+
+        if (month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<CategoryExpenseAggregateDTO> aggregates = expenseAggregateService.getDailyAggregates(year, month);
+        logger.info("Returning {} daily aggregates", aggregates.size());
+        return ResponseEntity.ok(aggregates);
+    }
+
+    /**
      * Delete an expense.
      *
      * @param id Expense ID
