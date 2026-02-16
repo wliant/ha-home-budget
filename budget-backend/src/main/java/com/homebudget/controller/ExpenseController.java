@@ -131,7 +131,7 @@ public class ExpenseController {
      */
     @GetMapping("/list")
     public ResponseEntity<?> getExpenseList(
-            @RequestParam int year,
+            @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) BigDecimal minAmount,

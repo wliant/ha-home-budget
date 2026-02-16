@@ -193,6 +193,8 @@ export default function Home() {
   const currentYear = now.getFullYear();
   const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
   const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+  const prevPrevMonth = prevMonth === 1 ? 12 : prevMonth - 1;
+  const prevPrevYear = prevMonth === 1 ? prevYear - 1 : prevYear;
 
   const currentMonthBudgets = useMemo(
     () => budgets.filter((b) => b.month === currentMonth && b.year === currentYear),
@@ -202,6 +204,11 @@ export default function Home() {
   const prevMonthBudgets = useMemo(
     () => budgets.filter((b) => b.month === prevMonth && b.year === prevYear),
     [budgets, prevMonth, prevYear],
+  );
+
+  const prevPrevMonthBudgets = useMemo(
+    () => budgets.filter((b) => b.month === prevPrevMonth && b.year === prevPrevYear),
+    [budgets, prevPrevMonth, prevPrevYear],
   );
 
   const handleSpentClick = (budget: BudgetSummaryDTO) => {
@@ -250,7 +257,13 @@ export default function Home() {
               defaultExpanded={false}
               onSpentClick={handleSpentClick}
             />
-            {currentMonthBudgets.length === 0 && prevMonthBudgets.length === 0 && (
+            <MonthlyBudgetSection
+              title={`${getMonthName(prevPrevMonth)} ${prevPrevYear}`}
+              budgets={prevPrevMonthBudgets}
+              defaultExpanded={false}
+              onSpentClick={handleSpentClick}
+            />
+            {currentMonthBudgets.length === 0 && prevMonthBudgets.length === 0 && prevPrevMonthBudgets.length === 0 && (
               <Paper sx={{ p: 4, textAlign: 'center', mb: 3 }}>
                 <Typography variant="body1" color="text.secondary">
                   No monthly budgets configured. Create monthly budgets to see them here.

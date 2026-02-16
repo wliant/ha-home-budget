@@ -267,7 +267,7 @@ public class ExpenseService {
      * @return ExpenseListResponse with paginated content and summary
      */
     @Transactional(readOnly = true)
-    public ExpenseListResponse getExpenseList(int year, Integer month, Long categoryId,
+    public ExpenseListResponse getExpenseList(Integer year, Integer month, Long categoryId,
                                                BigDecimal minAmount, BigDecimal maxAmount,
                                                String createdBy, Pageable pageable,
                                                String sortBy, String sortDirection) {
@@ -277,13 +277,17 @@ public class ExpenseService {
         // Convert year/month to date range
         LocalDate startDate;
         LocalDate endDate;
-        if (month != null) {
+        if (year != null && month != null) {
             YearMonth ym = YearMonth.of(year, month);
             startDate = ym.atDay(1);
             endDate = ym.atEndOfMonth();
-        } else {
+        } else if (year != null) {
             startDate = LocalDate.of(year, 1, 1);
             endDate = LocalDate.of(year, 12, 31);
+        } else {
+            // All years - use wide date range
+            startDate = LocalDate.of(2000, 1, 1);
+            endDate = LocalDate.of(2200, 12, 31);
         }
 
         logger.debug("Date range: {} to {}", startDate, endDate);

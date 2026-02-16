@@ -16,7 +16,8 @@ import { Clear as ClearIcon } from '@mui/icons-material';
 import { expenseService } from '@/services/expenseService';
 import { categoryService } from '@/services/categoryService';
 import type { ExpenseListFilters } from '@/services/expenseService';
-import type { CategoryDTO } from '@/services/categoryService';
+import type { CategoryDTO } from '@/types/category';
+import CategoryChipFilter from '@/components/CategoryChipFilter';
 
 interface ExpenseFiltersProps {
   filters: ExpenseListFilters;
@@ -54,7 +55,7 @@ export default function ExpenseFilters({
       try {
         const [years, cats, crtrs] = await Promise.all([
           expenseService.getExpenseYears(),
-          categoryService.getAllCategories(),
+          categoryService.getCategoryHierarchy(),
           expenseService.getExpenseCreators(),
         ]);
         const yearSet = new Set([currentYear, ...years]);
@@ -69,8 +70,9 @@ export default function ExpenseFilters({
     loadFilterOptions();
   }, []);
 
-  const handleYearChange = (event: SelectChangeEvent<number>) => {
-    onFilterChange({ ...filters, year: event.target.value as number });
+  const handleYearChange = (event: SelectChangeEvent<string>) => {
+    const value = event.target.value;
+    onFilterChange({ ...filters, year: value === '' ? undefined : Number(value) });
   };
 
   const handleMonthChange = (event: SelectChangeEvent<string>) => {
@@ -81,11 +83,10 @@ export default function ExpenseFilters({
     });
   };
 
-  const handleCategoryChange = (event: SelectChangeEvent<string>) => {
-    const value = event.target.value;
+  const handleCategorySelect = (categoryId?: number) => {
     onFilterChange({
       ...filters,
-      categoryId: value === '' ? undefined : Number(value),
+      categoryId,
     });
   };
 
@@ -139,29 +140,33 @@ export default function ExpenseFilters({
     filters.minAmount != null ||
     filters.maxAmount != null ||
     filters.createdBy != null ||
+    filters.year == null ||
     filters.year !== currentYear;
 
   return (
+    <>
     <Box sx={{
       display: 'flex',
       flexWrap: 'wrap',
       gap: 2,
-      mb: 3,
+      mb: 2,
       alignItems: 'flex-start',
       '& > *': {
         minWidth: { xs: '100%', sm: 'auto' },
       },
     }}>
       <FormControl size="small" sx={{ minWidth: 100 }}>
-        <InputLabel id="year-filter-label">Year</InputLabel>
+        <InputLabel id="year-filter-label" shrink>Year</InputLabel>
         <Select
           labelId="year-filter-label"
-          value={filters.year}
+          value={filters.year != null ? String(filters.year) : ''}
           onChange={handleYearChange}
           label="Year"
+          displayEmpty
         >
+          <MenuItem value="">All years</MenuItem>
           {availableYears.map((year) => (
-            <MenuItem key={year} value={year}>
+            <MenuItem key={year} value={String(year)}>
               {year}
             </MenuItem>
           ))}
@@ -183,26 +188,6 @@ export default function ExpenseFilters({
           {MONTHS.map((m) => (
             <MenuItem key={m.value} value={String(m.value)}>
               {m.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      <FormControl size="small" sx={{ minWidth: 150 }}>
-        <InputLabel id="category-filter-label" shrink>
-          Category
-        </InputLabel>
-        <Select
-          labelId="category-filter-label"
-          value={filters.categoryId != null ? String(filters.categoryId) : ''}
-          onChange={handleCategoryChange}
-          label="Category"
-          displayEmpty
-        >
-          <MenuItem value="">All categories</MenuItem>
-          {categories.map((cat) => (
-            <MenuItem key={cat.id} value={String(cat.id)}>
-              {cat.icon ? `${cat.icon} ` : ''}{cat.name}
             </MenuItem>
           ))}
         </Select>
@@ -269,5 +254,15 @@ export default function ExpenseFilters({
         </Typography>
       )}
     </Box>
+    {categories.length > 0 && (
+      <Box sx={{ mb: 2 }}>
+        <CategoryChipFilter
+          categories={categories}
+          selectedCategoryId={filters.categoryId}
+          onSelect={handleCategorySelect}
+        />
+      </Box>
+    )}
+    </>
   );
 }

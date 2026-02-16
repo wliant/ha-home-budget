@@ -25,6 +25,7 @@ import { Add as AddIcon, Clear as ClearIcon, AccountBalanceWallet as WalletIcon 
 import { budgetService, BudgetSummaryDTO, formatBudgetPeriod } from '@/services/budgetService';
 import { categoryService } from '@/services/categoryService';
 import type { CategoryDTO } from '@/services/categoryService';
+import CategoryChipFilter from '@/components/CategoryChipFilter';
 import BudgetGroup from './components/BudgetGroup';
 import type { CategoryBudgetGroup } from './components/BudgetGroup';
 
@@ -237,23 +238,9 @@ export default function BudgetsPage() {
     return getDateSortValue(b) - getDateSortValue(a);
   });
 
-  const categoryOptions: { id: number; label: string }[] = [];
-  const buildCategoryOptions = (categoryList: CategoryDTO[], prefix: string) => {
-    categoryList.forEach((category) => {
-      if (category.id == null) return;
-      const iconPrefix = category.icon ? `${category.icon} ` : '';
-      categoryOptions.push({
-        id: category.id,
-        label: `${prefix}${iconPrefix}${category.name}`,
-      });
-      const children = getCategoryChildren(category);
-      if (children.length > 0) {
-        buildCategoryOptions(children, `${prefix}-- `);
-      }
-    });
+  const handleCategorySelect = (categoryId?: number) => {
+    setSelectedCategoryId(categoryId != null ? String(categoryId) : '');
   };
-
-  buildCategoryOptions(categories, '');
 
   const handleYearChange = (event: SelectChangeEvent<string>) => {
     setSelectedYear(event.target.value);
@@ -261,10 +248,6 @@ export default function BudgetsPage() {
 
   const handleMonthChange = (event: SelectChangeEvent<string>) => {
     setSelectedMonth(event.target.value);
-  };
-
-  const handleCategoryChange = (event: SelectChangeEvent<string>) => {
-    setSelectedCategoryId(event.target.value);
   };
 
   const handleStatusChange = (event: SelectChangeEvent<string>) => {
@@ -470,26 +453,6 @@ export default function BudgetsPage() {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="budget-category-filter-label" shrink>
-              Category
-            </InputLabel>
-            <Select
-              labelId="budget-category-filter-label"
-              value={selectedCategoryId}
-              onChange={handleCategoryChange}
-              label="Category"
-              displayEmpty
-            >
-              <MenuItem value="">All categories</MenuItem>
-              {categoryOptions.map((option) => (
-                <MenuItem key={option.id} value={String(option.id)}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
           <FormControl size="small" sx={{ minWidth: 170 }}>
             <InputLabel id="budget-status-filter-label" shrink>
               Status
@@ -554,6 +517,17 @@ export default function BudgetsPage() {
               Clear Filters
             </Button>
           )}
+        </Box>
+      )}
+
+      {/* Category Filter Chips */}
+      {!isLoading && budgets.length > 0 && categories.length > 0 && (
+        <Box sx={{ mb: 3 }}>
+          <CategoryChipFilter
+            categories={categories}
+            selectedCategoryId={selectedCategoryId ? Number(selectedCategoryId) : undefined}
+            onSelect={handleCategorySelect}
+          />
         </Box>
       )}
 

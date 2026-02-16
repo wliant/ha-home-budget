@@ -49,7 +49,7 @@ export interface ExpenseFilters {
 }
 
 export interface ExpenseListFilters {
-  year: number;
+  year?: number;
   month?: number;
   categoryId?: number;
   minAmount?: number;
@@ -158,7 +158,7 @@ export const expenseService = {
    */
   getExpenseList: async (filters: ExpenseListFilters): Promise<ExpenseListResponse> => {
     const params = new URLSearchParams();
-    params.append('year', filters.year.toString());
+    if (filters.year != null) params.append('year', filters.year.toString());
 
     if (filters.month != null) params.append('month', filters.month.toString());
     if (filters.categoryId != null) params.append('categoryId', filters.categoryId.toString());

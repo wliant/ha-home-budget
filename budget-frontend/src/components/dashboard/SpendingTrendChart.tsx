@@ -11,7 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Box, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 const CHART_COLORS = [
@@ -21,6 +21,11 @@ const CHART_COLORS = [
   '#CDDC39', '#FF6F00', '#1B5E20', '#880E4F', '#311B92',
 ];
 
+export interface CategoryGroupInfo {
+  parentName: string;
+  children: string[];
+}
+
 export interface SpendingTrendChartProps {
   chartData: Record<string, unknown>[];
   xAxisKey: string;
@@ -29,6 +34,9 @@ export interface SpendingTrendChartProps {
   granularity?: 'daily' | 'monthly' | 'yearly';
   hiddenCategories?: Set<string>;
   onToggleCategory?: (categoryName: string) => void;
+  onSelectAll?: () => void;
+  onDeselectAll?: () => void;
+  categoryGroups?: CategoryGroupInfo[];
 }
 
 export default function SpendingTrendChart({
@@ -39,6 +47,9 @@ export default function SpendingTrendChart({
   granularity = 'monthly',
   hiddenCategories,
   onToggleCategory,
+  onSelectAll,
+  onDeselectAll,
+  categoryGroups,
 }: SpendingTrendChartProps) {
   const theme = useTheme();
 
@@ -63,43 +74,96 @@ export default function SpendingTrendChart({
     }
   };
 
+  const renderLegendItem = (entry: { value: string; color: string }) => {
+    const isHidden = hiddenCategories?.has(entry.value);
+    return (
+      <Box
+        key={entry.value}
+        onClick={() => onToggleCategory?.(entry.value)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          cursor: onToggleCategory ? 'pointer' : 'default',
+          opacity: isHidden ? 0.4 : 1,
+          textDecoration: isHidden ? 'line-through' : 'none',
+          '&:hover': onToggleCategory ? { opacity: isHidden ? 0.6 : 0.8 } : {},
+        }}
+      >
+        <Box
+          sx={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            backgroundColor: entry.color,
+          }}
+        />
+        <Typography variant="caption" color="text.secondary">
+          {entry.value}
+        </Typography>
+      </Box>
+    );
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderLegend = (props: any) => {
     const { payload } = props;
     if (!payload) return null;
 
+    const colorMap = new Map<string, string>();
+    payload.forEach((entry: { value: string; color: string }) => {
+      colorMap.set(entry.value, entry.color);
+    });
+
+    const hasHidden = hiddenCategories && hiddenCategories.size > 0;
+
     return (
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5, mt: 1 }}>
-        {payload.map((entry: { value: string; color: string }) => {
-          const isHidden = hiddenCategories?.has(entry.value);
-          return (
-            <Box
-              key={entry.value}
-              onClick={() => onToggleCategory?.(entry.value)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                cursor: onToggleCategory ? 'pointer' : 'default',
-                opacity: isHidden ? 0.4 : 1,
-                textDecoration: isHidden ? 'line-through' : 'none',
-                '&:hover': onToggleCategory ? { opacity: isHidden ? 0.6 : 0.8 } : {},
-              }}
+      <Box sx={{ mt: 1 }}>
+        {/* Select All / Deselect All buttons */}
+        {onSelectAll && onDeselectAll && categories.length > 3 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mb: 1 }}>
+            <Button size="small" variant="text" onClick={onSelectAll} sx={{ minWidth: 'auto', px: 1, py: 0, fontSize: '0.7rem' }}>
+              Select All
+            </Button>
+            <Button size="small" variant="text" onClick={onDeselectAll} sx={{ minWidth: 'auto', px: 1, py: 0, fontSize: '0.7rem' }}
+              disabled={!hasHidden}
             >
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  backgroundColor: entry.color,
-                }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                {entry.value}
-              </Typography>
-            </Box>
-          );
-        })}
+              Deselect All
+            </Button>
+          </Box>
+        )}
+
+        {/* Grouped legend */}
+        {categoryGroups && categoryGroups.length > 0 ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {categoryGroups.map((group) => {
+              // Categories in this group that are in the chart data
+              const groupCategories = [group.parentName, ...group.children].filter(name => colorMap.has(name));
+              if (groupCategories.length === 0) return null;
+
+              return (
+                <Box key={group.parentName} sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5 }}>
+                  {groupCategories.map((name) => renderLegendItem({ value: name, color: colorMap.get(name) || '#999' }))}
+                </Box>
+              );
+            })}
+            {/* Ungrouped categories (not in any group) */}
+            {(() => {
+              const groupedNames = new Set(categoryGroups.flatMap(g => [g.parentName, ...g.children]));
+              const ungrouped = payload.filter((e: { value: string }) => !groupedNames.has(e.value));
+              if (ungrouped.length === 0) return null;
+              return (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5 }}>
+                  {ungrouped.map((entry: { value: string; color: string }) => renderLegendItem(entry))}
+                </Box>
+              );
+            })()}
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5 }}>
+            {payload.map((entry: { value: string; color: string }) => renderLegendItem(entry))}
+          </Box>
+        )}
       </Box>
     );
   };

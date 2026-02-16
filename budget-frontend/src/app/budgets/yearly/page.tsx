@@ -6,12 +6,13 @@ import {
   Autocomplete,
   Box,
   Button,
-  Checkbox,
   Chip,
   CircularProgress,
   Container,
+  FormControlLabel,
   IconButton,
   Paper,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -24,8 +25,6 @@ import {
 import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
-import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import { budgetService, formatCurrency, YearlyBudgetViewDTO, YearlyCategoryBudgetDTO } from '@/services/budgetService';
 import { useIngressRouter } from '@/lib/navigation';
 
@@ -60,7 +59,24 @@ export default function YearlyBudgetPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
-  const [selectedCategories, setSelectedCategories] = useState<YearlyCategoryBudgetDTO[]>([]);
+  const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('yearlyView.hiddenCategories');
+        if (stored) return new Set(JSON.parse(stored));
+      } catch {}
+    }
+    return new Set();
+  });
+  const [hideEmptyCategories, setHideEmptyCategories] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('yearlyView.hideEmptyCategories');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return false;
+  });
   const [hiddenMonths, setHiddenMonths] = useState<Set<number>>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -76,6 +92,30 @@ export default function YearlyBudgetPage() {
       localStorage.setItem('yearlyView.hiddenMonths', JSON.stringify([...hiddenMonths]));
     }
   }, [hiddenMonths]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yearlyView.hiddenCategories', JSON.stringify([...hiddenCategories]));
+    }
+  }, [hiddenCategories]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('yearlyView.hideEmptyCategories', JSON.stringify(hideEmptyCategories));
+    }
+  }, [hideEmptyCategories]);
+
+  const toggleCategory = (categoryId: number) => {
+    setHiddenCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
+  };
 
   const toggleMonth = (month: number) => {
     setHiddenMonths(prev => {
@@ -168,12 +208,38 @@ export default function YearlyBudgetPage() {
     return { groups: result, filterOptions: rootCategories };
   }, [data]);
 
+  // Check if a category group is "empty" (no budget and no spending for parent + all children)
+  const isGroupEmpty = (group: CategoryGroup): boolean => {
+    const parentEmpty = group.parent.yearlyBudgetAmount === 0 && group.parent.yearlySpending === 0;
+    const childrenEmpty = group.children.every(c => c.yearlyBudgetAmount === 0 && c.yearlySpending === 0);
+    return parentEmpty && childrenEmpty;
+  };
+
+  // Determine which categories to show in chips (respects hideEmptyCategories)
+  const visibleFilterOptions = useMemo(() => {
+    if (!hideEmptyCategories) return filterOptions;
+    return filterOptions.filter(opt => {
+      const group = groups.find(g => g.parent.categoryId === opt.categoryId);
+      return group ? !isGroupEmpty(group) : true;
+    });
+  }, [filterOptions, groups, hideEmptyCategories]);
+
   // Apply category filter
   const filteredGroups = useMemo(() => {
-    if (selectedCategories.length === 0) return groups;
-    const selectedIds = new Set(selectedCategories.map(c => c.categoryId));
-    return groups.filter(g => selectedIds.has(g.parent.categoryId));
-  }, [groups, selectedCategories]);
+    let result = groups;
+
+    // Apply hide empty categories
+    if (hideEmptyCategories) {
+      result = result.filter(g => !isGroupEmpty(g));
+    }
+
+    // Apply hidden categories filter
+    if (hiddenCategories.size > 0) {
+      result = result.filter(g => !hiddenCategories.has(g.parent.categoryId));
+    }
+
+    return result;
+  }, [groups, hiddenCategories, hideEmptyCategories]);
 
   const goToExpenses = (categoryId: number, month?: number) => {
     const params = new URLSearchParams({ year: String(year), categoryId: String(categoryId) });
@@ -229,33 +295,6 @@ export default function YearlyBudgetPage() {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Autocomplete
-            multiple
-            size="small"
-            options={filterOptions}
-            value={selectedCategories}
-            onChange={(_, newValue) => setSelectedCategories(newValue)}
-            getOptionLabel={(option) =>
-              option.categoryIcon ? `${option.categoryIcon} ${option.categoryName}` : option.categoryName
-            }
-            isOptionEqualToValue={(option, value) => option.categoryId === value.categoryId}
-            disableCloseOnSelect
-            renderOption={(props, option, { selected }) => (
-              <li {...props}>
-                <Checkbox
-                  icon={<CheckBoxOutlineBlankIcon fontSize="small" />}
-                  checkedIcon={<CheckBoxIcon fontSize="small" />}
-                  style={{ marginRight: 8 }}
-                  checked={selected}
-                />
-                {option.categoryIcon ? `${option.categoryIcon} ` : ''}{option.categoryName}
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField {...params} label="Filter Categories" placeholder="All categories" />
-            )}
-            sx={{ minWidth: 280 }}
-          />
           <Autocomplete
             size="small"
             freeSolo
@@ -353,6 +392,44 @@ export default function YearlyBudgetPage() {
                 Show All
               </Button>
             )}
+          </Box>
+
+          {/* Category visibility toggles */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+              Categories:
+            </Typography>
+            {visibleFilterOptions.map((opt) => {
+              const isHidden = hiddenCategories.has(opt.categoryId);
+              return (
+                <Chip
+                  key={opt.categoryId}
+                  label={`${opt.categoryIcon ? opt.categoryIcon + ' ' : ''}${opt.categoryName}`}
+                  size="small"
+                  color={isHidden ? 'default' : 'primary'}
+                  variant={isHidden ? 'outlined' : 'filled'}
+                  onClick={() => toggleCategory(opt.categoryId)}
+                  sx={isHidden ? { opacity: 0.5 } : {}}
+                />
+              );
+            })}
+            {hiddenCategories.size > 0 && (
+              <Button size="small" variant="text" onClick={() => setHiddenCategories(new Set())}>
+                Show All
+              </Button>
+            )}
+            <Box sx={{ ml: 'auto' }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={hideEmptyCategories}
+                    onChange={(e) => setHideEmptyCategories(e.target.checked)}
+                  />
+                }
+                label={<Typography variant="body2" color="text.secondary">Hide empty</Typography>}
+              />
+            </Box>
           </Box>
 
           <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>

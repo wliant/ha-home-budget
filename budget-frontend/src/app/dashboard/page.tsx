@@ -18,7 +18,13 @@ import {
   ChevronRight,
 } from '@mui/icons-material';
 import { expenseService, CategoryExpenseAggregate } from '@/services/expenseService';
+import { categoryService } from '@/services/categoryService';
+import type { CategoryDTO } from '@/types/category';
 import SpendingTrendChart from '@/components/dashboard/SpendingTrendChart';
+import type { CategoryGroupInfo } from '@/components/dashboard/SpendingTrendChart';
+import BudgetAllocationChart from '@/components/dashboard/BudgetAllocationChart';
+import type { BudgetAllocationItem } from '@/components/dashboard/BudgetAllocationChart';
+import { budgetService, BudgetSummaryDTO } from '@/services/budgetService';
 
 type Granularity = 'daily' | 'monthly' | 'yearly';
 
@@ -121,6 +127,36 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+  const [categoryHierarchy, setCategoryHierarchy] = useState<CategoryDTO[]>([]);
+
+  // Budget allocation pie chart state
+  type PieGranularity = 'yearly' | 'monthly';
+  const [pieGranularity, setPieGranularity] = useState<PieGranularity>('monthly');
+  const [pieYear, setPieYear] = useState(now.getFullYear());
+  const [pieMonth, setPieMonth] = useState(now.getMonth() + 1);
+  const [allBudgets, setAllBudgets] = useState<BudgetSummaryDTO[]>([]);
+  const [pieBudgetsLoading, setPieBudgetsLoading] = useState(true);
+
+  useEffect(() => {
+    categoryService.getCategoryHierarchy()
+      .then(setCategoryHierarchy)
+      .catch((err) => console.error('Failed to load categories:', err));
+  }, []);
+
+  useEffect(() => {
+    setPieBudgetsLoading(true);
+    budgetService.getAllBudgets()
+      .then(setAllBudgets)
+      .catch((err) => console.error('Failed to load budgets:', err))
+      .finally(() => setPieBudgetsLoading(false));
+  }, []);
+
+  const categoryGroups = useMemo<CategoryGroupInfo[]>(() => {
+    return categoryHierarchy.map((parent) => ({
+      parentName: parent.name,
+      children: (parent.childCategories ?? []).map((c) => c.name),
+    }));
+  }, [categoryHierarchy]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -212,6 +248,14 @@ export default function DashboardPage() {
     });
   };
 
+  const handleSelectAll = () => {
+    setHiddenCategories(new Set());
+  };
+
+  const handleDeselectAll = () => {
+    setHiddenCategories(new Set(categories));
+  };
+
   const getPeriodLabel = (): string => {
     if (granularity === 'daily') {
       return `${MONTH_FULL_NAMES[selectedMonth - 1]} ${selectedYear}`;
@@ -223,6 +267,57 @@ export default function DashboardPage() {
 
   const xAxisKey = granularity === 'daily' ? 'day' : granularity === 'monthly' ? 'month' : 'year';
   const xAxisFormatter = granularity === 'daily' ? formatDayLabel : granularity === 'monthly' ? formatMonthLabel : formatYearLabel;
+
+  // Budget allocation pie chart data
+  const { pieData, pieTotalBudget } = useMemo(() => {
+    let filtered: BudgetSummaryDTO[];
+    if (pieGranularity === 'yearly') {
+      filtered = allBudgets.filter(b => b.year === pieYear && !b.month);
+    } else {
+      filtered = allBudgets.filter(b => b.year === pieYear && b.month === pieMonth);
+    }
+
+    const items: BudgetAllocationItem[] = filtered
+      .filter(b => b.totalAmount > 0)
+      .map(b => ({
+        name: b.category?.name ?? 'Unknown',
+        icon: b.category?.icon,
+        amount: b.totalAmount,
+      }));
+
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+    return { pieData: items, pieTotalBudget: total };
+  }, [allBudgets, pieGranularity, pieYear, pieMonth]);
+
+  const piePeriodLabel = pieGranularity === 'monthly'
+    ? `${MONTH_FULL_NAMES[pieMonth - 1]} ${pieYear}`
+    : String(pieYear);
+
+  const handlePiePrev = () => {
+    if (pieGranularity === 'monthly') {
+      if (pieMonth === 1) {
+        setPieMonth(12);
+        setPieYear(y => y - 1);
+      } else {
+        setPieMonth(m => m - 1);
+      }
+    } else {
+      setPieYear(y => y - 1);
+    }
+  };
+
+  const handlePieNext = () => {
+    if (pieGranularity === 'monthly') {
+      if (pieMonth === 12) {
+        setPieMonth(1);
+        setPieYear(y => y + 1);
+      } else {
+        setPieMonth(m => m + 1);
+      }
+    } else {
+      setPieYear(y => y + 1);
+    }
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -291,7 +386,56 @@ export default function DashboardPage() {
             granularity={granularity}
             hiddenCategories={hiddenCategories}
             onToggleCategory={handleToggleCategory}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            categoryGroups={categoryGroups}
           />
+        )}
+      </Paper>
+
+      {/* Budget Allocation Pie Chart */}
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mt: 3 }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: 2,
+        }}>
+          <Typography variant="h6">
+            Budget Allocation
+          </Typography>
+
+          <ToggleButtonGroup
+            value={pieGranularity}
+            exclusive
+            onChange={(_, val) => { if (val) setPieGranularity(val); }}
+            size="small"
+          >
+            <ToggleButton value="monthly">Monthly</ToggleButton>
+            <ToggleButton value="yearly">Yearly</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+          <IconButton onClick={handlePiePrev} size="small">
+            <ChevronLeft />
+          </IconButton>
+          <Typography variant="subtitle1" sx={{ minWidth: 150, textAlign: 'center' }}>
+            {piePeriodLabel}
+          </Typography>
+          <IconButton onClick={handlePieNext} size="small">
+            <ChevronRight />
+          </IconButton>
+        </Box>
+
+        {pieBudgetsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <BudgetAllocationChart data={pieData} totalBudget={pieTotalBudget} />
         )}
       </Paper>
     </Container>
