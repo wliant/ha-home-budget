@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import { ReceiptLong as ReceiptLongIcon } from '@mui/icons-material';
@@ -12,11 +12,12 @@ import { useIngressRouter } from '@/lib/navigation';
 import type { ExpenseListResponse, ExpenseListFilters } from '@/services/expenseService';
 
 const currentYear = new Date().getFullYear();
+const PAGE_SIZE = 50;
 
 const defaultFilters: ExpenseListFilters = {
   year: currentYear,
   page: 0,
-  size: 50,
+  size: PAGE_SIZE,
   sortBy: 'expenseDate',
   sortDirection: 'DESC',
 };
@@ -43,16 +44,30 @@ export default function ExpensesPage() {
   const [currentUser, setCurrentUser] = useState<string>('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
 
+  // Track whether we're in "fetch all" mode for client-side category filtering
+  const hasCategoryFilter = selectedCategoryIds.size > 0;
+  const prevHasCategoryFilter = useRef(hasCategoryFilter);
+
   useEffect(() => {
     userService.getCurrentUser().then(setCurrentUser).catch(() => {});
   }, []);
 
-  const fetchExpenses = useCallback(async (currentFilters: ExpenseListFilters, pageNum: number) => {
+  // Re-fetch when toggling between chip filter on/off
+  useEffect(() => {
+    if (prevHasCategoryFilter.current !== hasCategoryFilter) {
+      prevHasCategoryFilter.current = hasCategoryFilter;
+      setPage(0);
+    }
+  }, [hasCategoryFilter]);
+
+  const fetchExpenses = useCallback(async (currentFilters: ExpenseListFilters, pageNum: number, fetchAll: boolean) => {
     setLoading(true);
     try {
       const result = await expenseService.getExpenseList({
         ...currentFilters,
-        page: pageNum,
+        // When category chips are active, fetch all data for client-side filtering
+        page: fetchAll ? 0 : pageNum,
+        size: fetchAll ? 10000 : PAGE_SIZE,
       });
       setData(result);
     } catch (error) {
@@ -64,27 +79,44 @@ export default function ExpensesPage() {
   }, []);
 
   useEffect(() => {
-    fetchExpenses(filters, page);
-  }, [filters, page, fetchExpenses]);
+    fetchExpenses(filters, page, hasCategoryFilter);
+  }, [filters, page, hasCategoryFilter, fetchExpenses]);
 
-  // Client-side filter by selected categories
+  // Client-side filter + pagination when category chips are active
   const filteredData = useMemo(() => {
-    if (!data || selectedCategoryIds.size === 0) return data;
-    const filtered = data.content.filter(
+    if (!data) return data;
+    if (!hasCategoryFilter) return data;
+
+    // Filter all fetched expenses by selected categories
+    const allFiltered = data.content.filter(
       (expense) => expense.categoryId != null && selectedCategoryIds.has(expense.categoryId)
     );
-    const totalAmount = filtered.reduce((sum, expense) => sum + expense.amount, 0);
+
+    const totalAmount = allFiltered.reduce((sum, expense) => sum + expense.amount, 0);
+
+    // Client-side pagination
+    const start = page * PAGE_SIZE;
+    const pageContent = allFiltered.slice(start, start + PAGE_SIZE);
+
     return {
       ...data,
-      content: filtered,
-      totalElements: filtered.length,
+      content: pageContent,
+      totalElements: allFiltered.length,
       totalAmount,
+      totalPages: Math.ceil(allFiltered.length / PAGE_SIZE),
+      currentPage: page,
+      pageSize: PAGE_SIZE,
     };
-  }, [data, selectedCategoryIds]);
+  }, [data, selectedCategoryIds, hasCategoryFilter, page]);
 
   const handleFilterChange = (newFilters: ExpenseListFilters) => {
     setPage(0);
     setFilters(newFilters);
+  };
+
+  const handleCategorySelectionChange = (ids: Set<number>) => {
+    setSelectedCategoryIds(ids);
+    setPage(0);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -104,7 +136,7 @@ export default function ExpensesPage() {
     if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
       await expenseService.deleteExpense(id);
-      fetchExpenses(filters, page);
+      fetchExpenses(filters, page, hasCategoryFilter);
     } catch (error) {
       console.error('Failed to delete expense:', error);
     }
@@ -123,7 +155,7 @@ export default function ExpensesPage() {
           filters={filters}
           onFilterChange={handleFilterChange}
           selectedCategoryIds={selectedCategoryIds}
-          onCategorySelectionChange={setSelectedCategoryIds}
+          onCategorySelectionChange={handleCategorySelectionChange}
         />
         {loading && !data && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
