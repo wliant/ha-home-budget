@@ -1,4 +1,5 @@
 import io
+import json
 from datetime import date
 
 import fitz
@@ -30,7 +31,10 @@ EXTRACT_PROMPT = ChatPromptTemplate.from_messages([
         "- Extract every distinct line item with its description and amount\n"
         "- If there's only a total and no line items, create one line item with the total\n"
         "- Amounts should be positive numbers\n"
-        "- Date should be in YYYY-MM-DD format if visible, null otherwise"
+        "- Date should be in YYYY-MM-DD format if visible, null otherwise\n\n"
+        "Return JSON with this exact schema:\n"
+        '{{"is_receipt": true, "date": "YYYY-MM-DD or null", "total": 0.00, '
+        '"line_items": [{{"description": "item", "amount": 0.00}}]}}'
     )),
     ("human", "Receipt text:\n{receipt_text}"),
 ])
@@ -93,16 +97,16 @@ def _extract_text_with_ocr(image_bytes: bytes) -> str:
 
 
 async def _parse_text_with_llm(raw_text: str) -> ReceiptExtraction:
-    """Parse raw receipt text into structured data using the text LLM with structured output."""
+    """Parse raw receipt text into structured data using the text LLM with JSON format."""
     try:
         llm = ChatOllama(
             model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
+            format="json",
         )
-        structured_llm = llm.with_structured_output(ReceiptExtraction)
-        chain = EXTRACT_PROMPT | structured_llm
-        result = await chain.ainvoke({"receipt_text": raw_text})
+        chain = EXTRACT_PROMPT | llm
+        response = await chain.ainvoke({"receipt_text": raw_text})
     except NonRetryableError:
         raise
     except Exception as e:
@@ -122,7 +126,10 @@ async def _parse_text_with_llm(raw_text: str) -> ReceiptExtraction:
             f"Failed to communicate with AI model server: {e}",
         )
 
-    if result is None:
+    try:
+        parsed = json.loads(response.content)
+        result = ReceiptExtraction(**parsed)
+    except (json.JSONDecodeError, ValueError, TypeError):
         raise NonRetryableError(
             NO_EXPENSE_DATA,
             "Could not extract any expense data from the receipt",

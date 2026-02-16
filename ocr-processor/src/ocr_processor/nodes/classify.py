@@ -1,3 +1,5 @@
+import json
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
@@ -23,7 +25,9 @@ CLASSIFY_PROMPT = ChatPromptTemplate.from_messages([
         "- Use the exact category id and name from the provided list\n"
         "- If you are not confident about a category for an item, set category_id and category_name to null\n"
         "- Amounts should be positive numbers\n"
-        "- Keep the original description and amount from the line items"
+        "- Keep the original description and amount from the line items\n\n"
+        "Return JSON with this exact schema:\n"
+        '{{"items": [{{"description": "item", "amount": 0.00, "category_id": 1, "category_name": "Name"}}]}}'
     )),
     ("human", (
         "Categories (id and name):\n{categories}\n\n"
@@ -54,10 +58,10 @@ async def classify_node(state: dict) -> dict:
             model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
+            format="json",
         )
-        structured_llm = llm.with_structured_output(ClassificationResult)
-        chain = CLASSIFY_PROMPT | structured_llm
-        result = await chain.ainvoke({
+        chain = CLASSIFY_PROMPT | llm
+        response = await chain.ainvoke({
             "categories": categories_str,
             "line_items": items_str,
         })
@@ -80,7 +84,16 @@ async def classify_node(state: dict) -> dict:
             f"Failed to communicate with AI model server: {e}",
         )
 
-    if result is None or not result.items:
+    try:
+        parsed = json.loads(response.content)
+        result = ClassificationResult(**parsed)
+    except (json.JSONDecodeError, ValueError, TypeError):
+        raise NonRetryableError(
+            NO_EXPENSE_DATA,
+            "Could not classify expense data from the receipt",
+        )
+
+    if not result.items:
         raise NonRetryableError(
             NO_EXPENSE_DATA,
             "Could not classify expense data from the receipt",
