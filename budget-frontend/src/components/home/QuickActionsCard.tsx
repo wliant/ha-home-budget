@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useIngressRouter } from '../../lib/navigation';
 import {
   Card,
@@ -17,6 +17,7 @@ import {
   Dashboard as DashboardIcon,
   AccountBalanceWallet as WalletIcon,
 } from '@mui/icons-material';
+import { RecordExpenseDialog } from '@/components/expenses/RecordExpenseDialog';
 
 /**
  * Quick Actions Card Component
@@ -30,13 +31,14 @@ import {
  */
 export function QuickActionsCard() {
   const router = useIngressRouter();
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
 
   const handleCreateBudget = () => {
     router.push('/budgets/new');
   };
 
   const handleRecordExpense = () => {
-    router.push('/expenses/new');
+    setExpenseDialogOpen(true);
   };
 
   const handleViewCategories = () => {
@@ -222,6 +224,11 @@ export function QuickActionsCard() {
           </Button>
         </Box>
       </CardContent>
+
+      <RecordExpenseDialog
+        open={expenseDialogOpen}
+        onClose={() => setExpenseDialogOpen(false)}
+      />
     </Card>
   );
 }

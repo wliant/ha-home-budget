@@ -23,6 +23,7 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import { useTheme } from '@mui/material/styles';
 import { getBreadcrumbs, navItems } from './navConfig';
+import { RecordExpenseDialog } from '@/components/expenses/RecordExpenseDialog';
 
 const drawerWidth = 240;
 
@@ -33,6 +34,7 @@ type AppShellProps = {
 export default function AppShell({ children }: AppShellProps) {
   const pathname = useAppPathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const breadcrumbs = useMemo(() => getBreadcrumbs(pathname), [pathname]);
@@ -112,9 +114,8 @@ export default function AppShell({ children }: AppShellProps) {
             Home Budget Tracker
           </Typography>
           <Button
-            component={Link}
-            href="/expenses/new"
             variant="contained"
+            onClick={() => setExpenseDialogOpen(true)}
             sx={{
               bgcolor: 'rgba(255,255,255,0.15)',
               color: '#ffffff',
@@ -192,6 +193,11 @@ export default function AppShell({ children }: AppShellProps) {
           {children}
         </Box>
       </Box>
+
+      <RecordExpenseDialog
+        open={expenseDialogOpen}
+        onClose={() => setExpenseDialogOpen(false)}
+      />
     </Box>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useIngressRouter } from '../../lib/navigation';
+import { RecordExpenseDialog } from '@/components/expenses/RecordExpenseDialog';
 import {
   Card,
   CardContent,
@@ -40,10 +40,10 @@ import {
  * - Error handling with retry
  */
 export function RecentActivityCard() {
-  const router = useIngressRouter();
   const [expenses, setExpenses] = useState<ExpenseDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
 
   useEffect(() => {
     loadRecentExpenses();
@@ -75,7 +75,7 @@ export function RecentActivityCard() {
   };
 
   const handleRecordExpense = () => {
-    router.push('/expenses/new');
+    setExpenseDialogOpen(true);
   };
 
   const truncateDescription = (description: string, maxLength: number = 50): string => {
@@ -147,6 +147,11 @@ export function RecentActivityCard() {
             </Button>
           </Box>
         </CardContent>
+        <RecordExpenseDialog
+          open={expenseDialogOpen}
+          onClose={() => setExpenseDialogOpen(false)}
+          onSuccess={loadRecentExpenses}
+        />
       </Card>
     );
   }
@@ -237,6 +242,12 @@ export function RecentActivityCard() {
           </Button>
         </Box>
       </CardContent>
+
+      <RecordExpenseDialog
+        open={expenseDialogOpen}
+        onClose={() => setExpenseDialogOpen(false)}
+        onSuccess={loadRecentExpenses}
+      />
     </Card>
   );
 }

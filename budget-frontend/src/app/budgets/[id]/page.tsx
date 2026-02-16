@@ -30,6 +30,7 @@ import {
   getSpendingStatusColor,
   getSpendingStatusText,
 } from '@/services/budgetService';
+import { RecordExpenseDialog } from '@/components/expenses/RecordExpenseDialog';
 
 /**
  * Budget detail page - User Story 1: Create and View Budgets
@@ -48,6 +49,7 @@ export default function BudgetDetailPage() {
   const budgetId = params?.id ? parseInt(params.id as string) : null;
 
   const [budget, setBudget] = useState<BudgetSummaryDTO | null>(null);
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -87,7 +89,7 @@ export default function BudgetDetailPage() {
   };
 
   const handleAddExpense = () => {
-    router.push('/expenses/new');
+    setExpenseDialogOpen(true);
   };
 
   const handleViewExpenses = () => {
@@ -281,6 +283,11 @@ export default function BudgetDetailPage() {
           </Paper>
         </Grid>
       </Grid>
+
+      <RecordExpenseDialog
+        open={expenseDialogOpen}
+        onClose={() => setExpenseDialogOpen(false)}
+      />
     </Container>
   );
 }

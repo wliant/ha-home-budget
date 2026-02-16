@@ -37,6 +37,7 @@ import {
 import { expenseInputJobService, ExpenseInputJobDTO, TemporaryExpenseRecordDTO } from '@/services/expenseInputJobService';
 import { categoryService } from '@/services/categoryService';
 import { CategoryDTO } from '@/types/category';
+import { BulkUploadDialog } from '@/components/expenses/BulkUploadDialog';
 
 const statusColor = (status: ExpenseInputJobDTO['status']): 'default' | 'warning' | 'error' | 'info' | 'success' => {
   switch (status) {
@@ -72,6 +73,7 @@ export default function BulkUploadExpensePage() {
   const [jobs, setJobs] = useState<ExpenseInputJobDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [expandedJobIds, setExpandedJobIds] = useState<Set<number>>(new Set());
   const [editedRecords, setEditedRecords] = useState<Map<number, EditedFields>>(new Map());
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
@@ -105,9 +107,7 @@ export default function BulkUploadExpensePage() {
     return () => clearInterval(timer);
   }, [jobs, fetchJobs]);
 
-  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
+  const handleUpload = async (files: File[]) => {
     setLoading(true);
     setError('');
     try {
@@ -115,10 +115,9 @@ export default function BulkUploadExpensePage() {
       await fetchJobs();
     } catch (err) {
       console.error('Failed to upload files', err);
-      setError('Failed to upload files. Please try again.');
+      throw err;
     } finally {
       setLoading(false);
-      event.target.value = '';
     }
   };
 
@@ -331,12 +330,11 @@ export default function BulkUploadExpensePage() {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="contained"
-            component="label"
             startIcon={<CloudUploadIcon />}
             disabled={loading}
+            onClick={() => setUploadDialogOpen(true)}
           >
             Bulk Upload
-            <input hidden type="file" multiple accept="application/pdf,image/*" onChange={handleUpload} />
           </Button>
           <Button
             variant="outlined"
@@ -582,6 +580,12 @@ export default function BulkUploadExpensePage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <BulkUploadDialog
+        open={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+        onUpload={handleUpload}
+      />
     </Container>
   );
 }
