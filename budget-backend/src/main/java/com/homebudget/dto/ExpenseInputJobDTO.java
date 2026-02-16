@@ -11,6 +11,7 @@ public class ExpenseInputJobDTO {
     private String errorMessage;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long defaultCategoryId;
     private List<TemporaryExpenseRecordDTO> temporaryRecords;
 
     public ExpenseInputJobDTO() {}
@@ -69,6 +70,14 @@ public class ExpenseInputJobDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getDefaultCategoryId() {
+        return defaultCategoryId;
+    }
+
+    public void setDefaultCategoryId(Long defaultCategoryId) {
+        this.defaultCategoryId = defaultCategoryId;
     }
 
     public List<TemporaryExpenseRecordDTO> getTemporaryRecords() {

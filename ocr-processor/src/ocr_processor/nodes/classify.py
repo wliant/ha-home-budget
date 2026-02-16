@@ -1,6 +1,4 @@
-import json
-
-from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
 from ocr_processor.config import settings
@@ -12,38 +10,26 @@ from ocr_processor.errors import (
     RetryableError,
 )
 from ocr_processor.logging import get_logger, log_agent_step
+from ocr_processor.models import ClassificationResult, ClassifiedLineItem
 
 logger = get_logger(__name__)
 
-CLASSIFY_PROMPT_TEMPLATE = """You are a household expense classifier. Given receipt line items and a list of spending categories, assign each line item to the most appropriate category.
-
-Categories (id and name):
-{categories}
-
-Line items from receipt:
-{line_items}
-
-Group the line items by category. For items in the same category, sum their amounts into one expense.
-
-Return ONLY valid JSON in this format:
-{{
-  "expenses": [
-    {{
-      "description": "brief description of what was purchased",
-      "amount": 0.00,
-      "category_id": 1,
-      "category_name": "Category Name"
-    }}
-  ]
-}}
-
-Rules:
-- Every line item must be assigned to exactly one category
-- If all items belong to the same category, return one expense with the summed total
-- If items span multiple categories, return multiple expenses grouped by category
-- Use the exact category id and name from the list above
-- Amounts should be positive numbers
-- Return ONLY valid JSON, no other text"""
+CLASSIFY_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", (
+        "You are a household expense classifier. Given receipt line items and a list "
+        "of spending categories, assign each line item to the most appropriate category.\n\n"
+        "Rules:\n"
+        "- Each line item should be assigned to exactly one category from the list\n"
+        "- Use the exact category id and name from the provided list\n"
+        "- If you are not confident about a category for an item, set category_id and category_name to null\n"
+        "- Amounts should be positive numbers\n"
+        "- Keep the original description and amount from the line items"
+    )),
+    ("human", (
+        "Categories (id and name):\n{categories}\n\n"
+        "Line items from receipt:\n{line_items}"
+    )),
+])
 
 
 async def classify_node(state: dict) -> dict:
@@ -51,11 +37,10 @@ async def classify_node(state: dict) -> dict:
     categories = state["categories"]
 
     categories_str = "\n".join(
-        f"- id: {c.id if hasattr(c, 'id') else c['id']}, name: {c.name if hasattr(c, 'name') else c['name']}"
-        for c in categories
+        f"- id: {c.id}, name: {c.name}" for c in categories
     )
     items_str = "\n".join(
-        f"- {item['description']}: ${item['amount']:.2f}" for item in line_items
+        f"- {item.description}: ${item.amount:.2f}" for item in line_items
     )
 
     log_agent_step(
@@ -64,19 +49,20 @@ async def classify_node(state: dict) -> dict:
         input_summary=f"items={len(line_items)}, categories={len(categories)}",
     )
 
-    prompt = CLASSIFY_PROMPT_TEMPLATE.format(
-        categories=categories_str,
-        line_items=items_str,
-    )
-
     try:
         llm = ChatOllama(
             model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
         )
-
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        structured_llm = llm.with_structured_output(ClassificationResult)
+        chain = CLASSIFY_PROMPT | structured_llm
+        result = await chain.ainvoke({
+            "categories": categories_str,
+            "line_items": items_str,
+        })
+    except NonRetryableError:
+        raise
     except Exception as e:
         error_msg = str(e).lower()
         if "timeout" in error_msg or "timed out" in error_msg:
@@ -94,41 +80,29 @@ async def classify_node(state: dict) -> dict:
             f"Failed to communicate with AI model server: {e}",
         )
 
-    raw_text = response.content
-    log_agent_step(logger, "classify", output_summary=f"raw_length={len(raw_text)}")
-
-    try:
-        json_start = raw_text.find("{")
-        json_end = raw_text.rfind("}") + 1
-        if json_start == -1 or json_end == 0:
-            raise ValueError("No JSON found")
-        parsed = json.loads(raw_text[json_start:json_end])
-    except (json.JSONDecodeError, ValueError):
+    if result is None or not result.items:
         raise NonRetryableError(
             NO_EXPENSE_DATA,
             "Could not classify expense data from the receipt",
         )
 
-    classified_expenses = parsed.get("expenses", [])
-    if not classified_expenses:
-        raise NonRetryableError(
-            NO_EXPENSE_DATA,
-            "Could not classify expense data from the receipt",
-        )
-
-    # Validate category IDs exist in input
-    valid_ids = {c.id if hasattr(c, "id") else c["id"] for c in categories}
-    for exp in classified_expenses:
-        if exp.get("category_id") not in valid_ids:
-            # Fall back to first category if LLM hallucinated an ID
-            first = categories[0]
-            exp["category_id"] = first.id if hasattr(first, "id") else first["id"]
-            exp["category_name"] = first.name if hasattr(first, "name") else first["name"]
+    # Validate category IDs — set to null if LLM hallucinated an ID
+    valid_ids = {c.id for c in categories}
+    classified_items = []
+    for item in result.items:
+        if item.category_id is not None and item.category_id not in valid_ids:
+            item = ClassifiedLineItem(
+                description=item.description,
+                amount=item.amount,
+                category_id=None,
+                category_name=None,
+            )
+        classified_items.append(item)
 
     log_agent_step(
         logger,
         "classify",
-        output_summary=f"classified_expenses={len(classified_expenses)}",
+        output_summary=f"classified_items={len(classified_items)}",
     )
 
-    return {"line_items": classified_expenses}
+    return {"classified_items": classified_items}

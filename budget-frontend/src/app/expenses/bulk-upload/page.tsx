@@ -107,11 +107,11 @@ export default function BulkUploadExpensePage() {
     return () => clearInterval(timer);
   }, [jobs, fetchJobs]);
 
-  const handleUpload = async (files: File[]) => {
+  const handleUpload = async (files: File[], categoryId: number | null) => {
     setLoading(true);
     setError('');
     try {
-      await expenseInputJobService.uploadJobs(files);
+      await expenseInputJobService.uploadJobs(files, categoryId);
       await fetchJobs();
     } catch (err) {
       console.error('Failed to upload files', err);

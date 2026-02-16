@@ -276,6 +276,7 @@ All bash scripts support:
 - N/A (stateless processor) (020-ocr-extraction-upgrade)
 - MySQL 8.0 (existing database with expenses, categories tables) (021-expense-server-filtering)
 - MySQL 8.0 (existing tables: `expense_input_jobs`, `temporary_expense_records`, `expense_files`) (022-bulk-upload-enhancement)
+- Python 3.11+ (OCR processor), Java 17 (backend integration) + FastAPI, LangGraph >=0.2.0, LangChain >=0.3.0, langchain-ollama >=0.2.0, langchain-anthropic (new, for paid agent), pytesseract, PyMuPDF, Pillow, structlog, pydantic-settings (023-ocr-agent-refactor)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

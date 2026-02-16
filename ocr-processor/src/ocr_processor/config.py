@@ -2,8 +2,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    agent_name: str = "self-hosted"
     ollama_host: str = "192.168.1.248:11434"
     text_model: str = "llama3.1:latest"
+    anthropic_api_key: str = ""
+    paid_model: str = "claude-sonnet-4-5-20250929"
     max_file_size_mb: int = 10
     log_level: str = "INFO"
     request_timeout: int = 60

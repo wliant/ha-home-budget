@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="014-add-job-default-category" author="codex">
+        <comment>Add optional default_category_id to expense_input_jobs for bulk upload category pre-selection</comment>
+
+        <addColumn tableName="expense_input_jobs">
+            <column name="default_category_id" type="BIGINT"/>
+        </addColumn>
+
+        <addForeignKeyConstraint
+            baseTableName="expense_input_jobs"
+            baseColumnNames="default_category_id"
+            constraintName="fk_expense_input_job_default_category"
+            referencedTableName="categories"
+            referencedColumnNames="id"
+            onDelete="SET NULL"/>
+
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="expense_input_jobs" constraintName="fk_expense_input_job_default_category"/>
+            <dropColumn tableName="expense_input_jobs" columnName="default_category_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

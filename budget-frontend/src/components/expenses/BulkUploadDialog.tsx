@@ -23,15 +23,17 @@ import {
   InsertDriveFile as FileIcon,
   CameraAlt as CameraAltIcon,
 } from '@mui/icons-material';
+import { CategorySelect } from './CategorySelect';
 
 interface BulkUploadDialogProps {
   open: boolean;
   onClose: () => void;
-  onUpload: (files: File[]) => Promise<void>;
+  onUpload: (files: File[], categoryId: number | null) => Promise<void>;
 }
 
 export function BulkUploadDialog({ open, onClose, onUpload }: BulkUploadDialogProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -86,8 +88,9 @@ export function BulkUploadDialog({ open, onClose, onUpload }: BulkUploadDialogPr
     setUploading(true);
     setError('');
     try {
-      await onUpload(selectedFiles);
+      await onUpload(selectedFiles, selectedCategoryId);
       setSelectedFiles([]);
+      setSelectedCategoryId(null);
       onClose();
     } catch {
       setError('Failed to upload files. Please try again.');
@@ -99,6 +102,7 @@ export function BulkUploadDialog({ open, onClose, onUpload }: BulkUploadDialogPr
   const handleClose = () => {
     if (!uploading) {
       setSelectedFiles([]);
+      setSelectedCategoryId(null);
       setError('');
       onClose();
     }
@@ -127,6 +131,19 @@ export function BulkUploadDialog({ open, onClose, onUpload }: BulkUploadDialogPr
             {error}
           </Alert>
         )}
+
+        {/* Default category selection */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Default Category (optional)
+          </Typography>
+          <CategorySelect
+            value={selectedCategoryId}
+            onChange={setSelectedCategoryId}
+            disabled={uploading}
+            year={new Date().getFullYear()}
+          />
+        </Box>
 
         {/* Drag-and-drop zone */}
         <Box

@@ -51,6 +51,10 @@ public class ExpenseInputJob {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_category_id")
+    private Category defaultCategory;
+
     @OneToMany(mappedBy = "job", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private java.util.List<TemporaryExpenseRecord> temporaryRecords = new java.util.ArrayList<>();
 
@@ -135,6 +139,14 @@ public class ExpenseInputJob {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Category getDefaultCategory() {
+        return defaultCategory;
+    }
+
+    public void setDefaultCategory(Category defaultCategory) {
+        this.defaultCategory = defaultCategory;
     }
 
     public java.util.List<TemporaryExpenseRecord> getTemporaryRecords() {

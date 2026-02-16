@@ -42,7 +42,12 @@ public class OcrProcessorClient {
     }
 
     public OcrResult processReceipt(Path filePath, String originalFilename, List<Category> categories) {
-        logger.info("Calling OCR processor for file: {}", originalFilename);
+        return processReceipt(filePath, originalFilename, categories, null);
+    }
+
+    public OcrResult processReceipt(Path filePath, String originalFilename, List<Category> categories, Category selectedCategory) {
+        logger.info("Calling OCR processor for file: {}, selectedCategory: {}", originalFilename,
+                selectedCategory != null ? selectedCategory.getName() : "none");
 
         byte[] fileBytes;
         try {
@@ -61,6 +66,10 @@ public class OcrProcessorClient {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", new NamedByteArrayResource(fileBytes, originalFilename, contentType));
         body.add("categories", categoriesJson);
+
+        if (selectedCategory != null) {
+            body.add("selected_category", buildSelectedCategoryJson(selectedCategory));
+        }
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
 
@@ -89,6 +98,15 @@ public class OcrProcessorClient {
             // Connection errors - retryable
             logger.warn("Cannot reach OCR processor: {}", e.getMessage());
             return OcrResult.retryableError("OCR processor unreachable");
+        }
+    }
+
+    private String buildSelectedCategoryJson(Category category) {
+        try {
+            Map<String, Object> cat = Map.of("id", category.getId(), "name", category.getName());
+            return objectMapper.writeValueAsString(cat);
+        } catch (Exception e) {
+            return "{}";
         }
     }
 

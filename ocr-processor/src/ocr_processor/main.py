@@ -44,6 +44,7 @@ async def health():
 async def process_receipt(
     file: UploadFile = File(...),
     categories: str = Form(...),
+    selected_category: str | None = Form(None),
 ):
     from ocr_processor.agent import process_receipt as run_agent
 
@@ -55,10 +56,15 @@ async def process_receipt(
     logger.info("process_request_received", filename=file.filename, content_type=file.content_type)
 
     category_list = [CategoryInput(**c) for c in json.loads(categories)]
+
+    selected_cat = None
+    if selected_category:
+        selected_cat = CategoryInput(**json.loads(selected_category))
+
     file_bytes = await file.read()
     content_type = file.content_type or ""
 
-    result = await run_agent(file_bytes, content_type, category_list)
+    result = await run_agent(file_bytes, content_type, category_list, selected_cat)
 
     logger.info("process_request_completed", expense_count=len(result.expenses))
     return result

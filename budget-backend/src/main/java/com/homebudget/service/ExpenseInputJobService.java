@@ -63,12 +63,18 @@ public class ExpenseInputJobService {
         this.ocrProcessorClient = ocrProcessorClient;
     }
 
-    public List<ExpenseInputJobDTO> createJobs(List<MultipartFile> files, String username) {
+    public List<ExpenseInputJobDTO> createJobs(List<MultipartFile> files, String username, Long defaultCategoryId) {
         if (files == null || files.isEmpty()) {
             throw new IllegalArgumentException("At least one file is required");
         }
         if (files.size() > MAX_FILES) {
             throw new IllegalArgumentException("Maximum 20 files allowed per upload");
+        }
+
+        Category defaultCategory = null;
+        if (defaultCategoryId != null) {
+            defaultCategory = categoryRepository.findById(defaultCategoryId)
+                    .orElseThrow(() -> new CategoryNotFoundException(defaultCategoryId));
         }
 
         List<ExpenseInputJob> jobs = new ArrayList<>();
@@ -80,6 +86,7 @@ public class ExpenseInputJobService {
             job.setOriginalFilename(file.getOriginalFilename() == null ? "unnamed" : file.getOriginalFilename());
             job.setCreatedBy(username);
             job.setFilePath("temp");
+            job.setDefaultCategory(defaultCategory);
             job = jobRepository.save(job);
 
             Path target = resolveJobPath(job);
@@ -307,7 +314,7 @@ public class ExpenseInputJobService {
 
             try {
                 OcrProcessorClient.OcrResult result = ocrProcessorClient.processReceipt(
-                        filePath, job.getOriginalFilename(), categories);
+                        filePath, job.getOriginalFilename(), categories, job.getDefaultCategory());
 
                 if (result.isSuccess()) {
                     Map<Long, Category> categoryMap = categories.stream()
@@ -331,6 +338,10 @@ public class ExpenseInputJobService {
                             if (cat != null) {
                                 record.setCategory(cat);
                             }
+                        }
+                        // Fall back to job's default category if OCR didn't extract one
+                        if (record.getCategory() == null && job.getDefaultCategory() != null) {
+                            record.setCategory(job.getDefaultCategory());
                         }
 
                         tempRepository.save(record);
@@ -463,6 +474,9 @@ public class ExpenseInputJobService {
         dto.setErrorMessage(job.getErrorMessage());
         dto.setCreatedAt(job.getCreatedAt());
         dto.setUpdatedAt(job.getUpdatedAt());
+        if (job.getDefaultCategory() != null) {
+            dto.setDefaultCategoryId(job.getDefaultCategory().getId());
+        }
 
         List<TemporaryExpenseRecord> records = job.getTemporaryRecords();
         if (records == null || records.isEmpty()) {

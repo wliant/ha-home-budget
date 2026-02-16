@@ -31,10 +31,15 @@ public class ExpenseInputJobController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<ExpenseInputJobDTO>> createJobs(
             @RequestPart("files") MultipartFile[] files,
+            @RequestPart(value = "categoryId", required = false) String categoryId,
             @RequestHeader(HASS_USER_HEADER) String username) {
 
-        logger.info("POST /api/expense-input-jobs - {} files", files.length);
-        List<ExpenseInputJobDTO> jobs = jobService.createJobs(List.of(files), username);
+        logger.info("POST /api/expense-input-jobs - {} files, categoryId={}", files.length, categoryId);
+        Long parsedCategoryId = null;
+        if (categoryId != null && !categoryId.isBlank()) {
+            parsedCategoryId = Long.parseLong(categoryId);
+        }
+        List<ExpenseInputJobDTO> jobs = jobService.createJobs(List.of(files), username, parsedCategoryId);
         return ResponseEntity.ok(jobs);
     }
 

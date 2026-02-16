@@ -17,6 +17,7 @@ export interface ExpenseInputJobDTO {
   status: 'UPLOADED' | 'PROCESSING' | 'RETRYABLE' | 'FAILED' | 'PROCESSED' | 'COMPLETED';
   originalFilename: string;
   errorMessage?: string | null;
+  defaultCategoryId?: number | null;
   createdAt: string;
   updatedAt: string;
   temporaryRecords?: TemporaryExpenseRecordDTO[] | null;
@@ -30,9 +31,12 @@ export interface UpdateTemporaryExpenseRecordRequest {
 }
 
 export const expenseInputJobService = {
-  uploadJobs: async (files: File[]): Promise<ExpenseInputJobDTO[]> => {
+  uploadJobs: async (files: File[], categoryId?: number | null): Promise<ExpenseInputJobDTO[]> => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
+    if (categoryId != null) {
+      formData.append('categoryId', String(categoryId));
+    }
     const response = await api.post<ExpenseInputJobDTO[]>('/api/expense-input-jobs', formData);
     return response.data;
   },

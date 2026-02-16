@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: Receipt OCR Processor API
+  version: 2.0.0
+  description: |
+    Receipt OCR processor with dual agent support (self-hosted and paid).
+    Accepts receipt images/PDFs, extracts expense data, and optionally classifies into categories.
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  ollama_reachable:
+                    type: boolean
+
+  /process:
+    post:
+      summary: Process a receipt file
+      description: |
+        Upload a receipt file for OCR extraction and optional category classification.
+        If selected_category is provided, classification is skipped and the given category
+        is applied to all extracted line items.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - categories
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Receipt file (JPEG, PNG, or PDF)
+                categories:
+                  type: string
+                  description: JSON array of category objects [{id, name}]
+                  example: '[{"id": 1, "name": "Groceries"}, {"id": 2, "name": "Dining"}]'
+                selected_category:
+                  type: string
+                  description: |
+                    Optional. JSON object with user-selected category {id, name}.
+                    When provided, classification is skipped and this category is assigned to all items.
+                  example: '{"id": 1, "name": "Groceries"}'
+      responses:
+        '200':
+          description: Successfully processed receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResponse'
+        '422':
+          description: Non-retryable error (invalid file, not a receipt, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Retryable error (model server unavailable, timeout)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ProcessResponse:
+      type: object
+      required:
+        - expenses
+      properties:
+        expenses:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ExpenseOutput'
+
+    ExpenseOutput:
+      type: object
+      required:
+        - amount
+        - description
+        - expense_date
+      properties:
+        amount:
+          type: number
+          format: decimal
+          description: Expense amount (2 decimal places)
+          example: 42.50
+        description:
+          type: string
+          description: Expense description (may be joined line items)
+          example: "Coffee, Sandwich, Water"
+        expense_date:
+          type: string
+          format: date
+          description: Receipt date in YYYY-MM-DD format
+          example: "2026-02-16"
+        category_id:
+          type: integer
+          nullable: true
+          description: Category ID (null if not classified or unconfident)
+          example: 1
+        category_name:
+          type: string
+          nullable: true
+          description: Category name (null if not classified or unconfident)
+          example: "Groceries"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+        - retryable
+      properties:
+        error_code:
+          type: string
+          example: "UNSUPPORTED_FORMAT"
+        message:
+          type: string
+          example: "Only JPEG, PNG, and PDF files are accepted"
+        retryable:
+          type: boolean
+          example: false

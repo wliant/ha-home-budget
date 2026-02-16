@@ -49,4 +49,10 @@ async def validate_node(state: dict) -> dict:
         output_summary="validation passed",
     )
 
-    return {"file_bytes": file_bytes, "file_type": file_type, "categories": categories}
+    result = {"file_bytes": file_bytes, "file_type": file_type, "categories": categories}
+
+    selected_category = state.get("selected_category")
+    if selected_category is not None:
+        result["selected_category"] = selected_category
+
+    return result

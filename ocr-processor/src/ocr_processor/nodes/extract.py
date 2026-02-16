@@ -1,10 +1,9 @@
 import io
-import json
 from datetime import date
 
 import fitz
 import pytesseract
-from langchain_core.messages import HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 from PIL import Image
 
@@ -18,33 +17,23 @@ from ocr_processor.errors import (
     RetryableError,
 )
 from ocr_processor.logging import get_logger, log_agent_step
+from ocr_processor.models import ExtractedLineItem, ReceiptExtraction
 
 logger = get_logger(__name__)
 
 
-PARSE_PROMPT = """Analyze the following receipt text and extract the information as JSON:
-{
-  "is_receipt": true/false,
-  "date": "YYYY-MM-DD or null if not visible",
-  "line_items": [
-    {
-      "description": "item description",
-      "amount": 0.00
-    }
-  ],
-  "total": 0.00
-}
-
-Rules:
-- Set is_receipt to false if the text is clearly NOT from a receipt or invoice
-- Extract every distinct line item with its amount
-- If there's only a total and no line items, create one line item with the total
-- Amounts should be numbers (not strings)
-- Date should be in YYYY-MM-DD format if visible
-- Return ONLY valid JSON, no other text
-
-Receipt text:
-"""
+EXTRACT_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", (
+        "You are a receipt parser. Analyze the receipt text and extract structured data.\n"
+        "Rules:\n"
+        "- Set is_receipt to false if the text is clearly NOT from a receipt or invoice\n"
+        "- Extract every distinct line item with its description and amount\n"
+        "- If there's only a total and no line items, create one line item with the total\n"
+        "- Amounts should be positive numbers\n"
+        "- Date should be in YYYY-MM-DD format if visible, null otherwise"
+    )),
+    ("human", "Receipt text:\n{receipt_text}"),
+])
 
 MIN_STRUCTURED_TEXT_LENGTH = 50
 FULL_PAGE_IMAGE_COVERAGE_THRESHOLD = 0.95
@@ -103,17 +92,19 @@ def _extract_text_with_ocr(image_bytes: bytes) -> str:
     return text.strip()
 
 
-async def _parse_text_with_llm(raw_text: str) -> dict:
-    """Parse raw receipt text into structured data using the text LLM."""
+async def _parse_text_with_llm(raw_text: str) -> ReceiptExtraction:
+    """Parse raw receipt text into structured data using the text LLM with structured output."""
     try:
         llm = ChatOllama(
             model=settings.text_model,
             base_url=settings.ollama_base_url,
             timeout=settings.request_timeout,
         )
-
-        message = HumanMessage(content=PARSE_PROMPT + raw_text)
-        response = await llm.ainvoke([message])
+        structured_llm = llm.with_structured_output(ReceiptExtraction)
+        chain = EXTRACT_PROMPT | structured_llm
+        result = await chain.ainvoke({"receipt_text": raw_text})
+    except NonRetryableError:
+        raise
     except Exception as e:
         error_msg = str(e).lower()
         if "timeout" in error_msg or "timed out" in error_msg:
@@ -131,22 +122,15 @@ async def _parse_text_with_llm(raw_text: str) -> dict:
             f"Failed to communicate with AI model server: {e}",
         )
 
-    response_text = response.content
-    log_agent_step(logger, "extract", output_summary=f"llm_response_length={len(response_text)}")
-
-    try:
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-        if json_start == -1 or json_end == 0:
-            raise ValueError("No JSON found in response")
-        parsed = json.loads(response_text[json_start:json_end])
-    except (json.JSONDecodeError, ValueError):
+    if result is None:
         raise NonRetryableError(
             NO_EXPENSE_DATA,
             "Could not extract any expense data from the receipt",
         )
 
-    return parsed
+    log_agent_step(logger, "extract", output_summary=f"structured_items={len(result.line_items)}")
+
+    return result
 
 
 async def extract_node(state: dict) -> dict:
@@ -189,33 +173,34 @@ async def extract_node(state: dict) -> dict:
 
     log_agent_step(logger, "extract", output_summary=f"raw_text_length={len(raw_text)}")
 
-    parsed = await _parse_text_with_llm(raw_text)
+    result = await _parse_text_with_llm(raw_text)
 
-    if not parsed.get("is_receipt", True) is True:
+    if not result.is_receipt:
         raise NonRetryableError(
             NOT_A_RECEIPT,
             "The uploaded file does not appear to be a receipt",
         )
 
-    line_items = parsed.get("line_items", [])
+    line_items = result.line_items
     if not line_items:
-        total = parsed.get("total")
-        if total and float(total) > 0:
-            line_items = [{"description": "Receipt total", "amount": float(total)}]
+        if result.total and float(result.total) > 0:
+            line_items = [ExtractedLineItem(description="Receipt total", amount=result.total)]
         else:
             raise NonRetryableError(
                 NO_EXPENSE_DATA,
                 "Could not extract any expense data from the receipt",
             )
 
-    receipt_date = parsed.get("date")
+    receipt_date = result.date
     if not receipt_date:
         receipt_date = date.today().isoformat()
+
+    total_amount = str(result.total)
 
     log_agent_step(
         logger,
         "extract",
-        output_summary=f"items={len(line_items)}, date={receipt_date}",
+        output_summary=f"items={len(line_items)}, date={receipt_date}, total={total_amount}",
     )
 
     return {
@@ -223,4 +208,5 @@ async def extract_node(state: dict) -> dict:
         "extracted_text": raw_text,
         "line_items": line_items,
         "receipt_date": receipt_date,
+        "total_amount": total_amount,
     }

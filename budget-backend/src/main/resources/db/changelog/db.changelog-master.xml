@@ -52,4 +52,7 @@
     <!-- Feature 022: Bulk Upload Enhancement - rename job statuses -->
     <include file="db/changelog/changes/013-update-job-status-enum.xml"/>
 
+    <!-- Add default category to expense input jobs for bulk upload pre-selection -->
+    <include file="db/changelog/changes/014-add-job-default-category.xml"/>
+
 </databaseChangeLog>
