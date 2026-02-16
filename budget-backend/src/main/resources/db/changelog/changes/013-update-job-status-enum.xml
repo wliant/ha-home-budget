@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="013-rename-init-to-uploaded" author="homebudget">
+        <comment>Rename INIT status to UPLOADED for user-facing clarity</comment>
+        <update tableName="expense_input_jobs">
+            <column name="status" value="UPLOADED"/>
+            <where>status = 'INIT'</where>
+        </update>
+        <rollback>
+            <update tableName="expense_input_jobs">
+                <column name="status" value="INIT"/>
+                <where>status = 'UPLOADED'</where>
+            </update>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="013-rename-completed-to-processed" author="homebudget">
+        <comment>Rename COMPLETED status to PROCESSED (OCR extraction done, ready for review). New COMPLETED will mean user confirmed and records converted to expenses.</comment>
+        <update tableName="expense_input_jobs">
+            <column name="status" value="PROCESSED"/>
+            <where>status = 'COMPLETED'</where>
+        </update>
+        <rollback>
+            <update tableName="expense_input_jobs">
+                <column name="status" value="COMPLETED"/>
+                <where>status = 'PROCESSED'</where>
+            </update>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

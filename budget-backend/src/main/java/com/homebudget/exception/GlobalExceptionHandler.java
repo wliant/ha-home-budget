@@ -109,6 +109,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle illegal state errors (invalid operation for current state).
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
      * Handle illegal argument errors (bad user input).
      */
     @ExceptionHandler(IllegalArgumentException.class)

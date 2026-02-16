@@ -1,6 +1,5 @@
 package com.homebudget.service;
 
-import com.homebudget.dto.ConfirmExpenseInputJobsRequest;
 import com.homebudget.dto.ExpenseInputJobDTO;
 import com.homebudget.dto.TemporaryExpenseRecordDTO;
 import com.homebudget.dto.UpdateTemporaryExpenseRecordRequest;
@@ -76,7 +75,7 @@ public class ExpenseInputJobService {
         for (MultipartFile file : files) {
             validateFile(file);
             ExpenseInputJob job = new ExpenseInputJob();
-            job.setStatus(ExpenseInputJob.Status.INIT);
+            job.setStatus(ExpenseInputJob.Status.UPLOADED);
             job.setRetryCount(0);
             job.setOriginalFilename(file.getOriginalFilename() == null ? "unnamed" : file.getOriginalFilename());
             job.setCreatedBy(username);
@@ -131,26 +130,113 @@ public class ExpenseInputJobService {
         return toTemporaryDTO(saved);
     }
 
-    public List<Long> confirmJobs(ConfirmExpenseInputJobsRequest request, String username) {
-        List<Long> jobIds = request.getJobIds() == null ? List.of() : request.getJobIds();
-        if (jobIds.isEmpty()) {
-            return List.of();
+    public ExpenseInputJobDTO retryJob(Long jobId) {
+        ExpenseInputJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ExpenseNotFoundException(jobId));
+
+        if (job.getStatus() != ExpenseInputJob.Status.RETRYABLE) {
+            throw new IllegalStateException("Job is not in RETRYABLE status");
         }
 
-        List<TemporaryExpenseRecord> records = tempRepository.findByJobIdIn(jobIds);
-        List<Long> confirmed = new ArrayList<>();
-        for (TemporaryExpenseRecord record : records) {
-            if (record.isConfirmed()) {
-                continue;
-            }
-            ExpenseInputJob job = record.getJob();
-            createExpenseFromTemporary(record, job, username);
-            record.setConfirmed(true);
-            record.setConfirmedAt(LocalDateTime.now());
-            tempRepository.save(record);
-            confirmed.add(record.getId());
+        job.setStatus(ExpenseInputJob.Status.UPLOADED);
+        job.setErrorMessage(null);
+        jobRepository.save(job);
+        logger.info("Job {} queued for retry (attempt {})", jobId, job.getRetryCount() + 1);
+        return toDTO(job);
+    }
+
+    public ExpenseInputJobDTO completeJob(Long jobId, String username) {
+        ExpenseInputJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ExpenseNotFoundException(jobId));
+
+        if (job.getStatus() != ExpenseInputJob.Status.PROCESSED) {
+            throw new IllegalStateException("Job must be in PROCESSED status to complete");
         }
-        return confirmed;
+
+        List<TemporaryExpenseRecord> records = tempRepository.findByJobId(jobId);
+        if (records.isEmpty()) {
+            throw new IllegalStateException("No temporary records to finalize");
+        }
+
+        for (TemporaryExpenseRecord record : records) {
+            if (!record.isConfirmed()) {
+                createExpenseFromTemporary(record, job, username);
+                record.setConfirmed(true);
+                record.setConfirmedAt(LocalDateTime.now());
+                tempRepository.save(record);
+            }
+        }
+
+        job.setStatus(ExpenseInputJob.Status.COMPLETED);
+        jobRepository.save(job);
+        logger.info("Job {} completed by {} with {} record(s)", jobId, username, records.size());
+        return toDTO(job);
+    }
+
+    public TemporaryExpenseRecordDTO mergeTemporaryRecords(List<Long> recordIds) {
+        if (recordIds == null || recordIds.size() < 2) {
+            throw new IllegalArgumentException("At least 2 records are required to merge");
+        }
+
+        List<TemporaryExpenseRecord> records = tempRepository.findAllById(recordIds);
+        if (records.size() != recordIds.size()) {
+            throw new ExpenseNotFoundException(0L);
+        }
+
+        ExpenseInputJob job = records.get(0).getJob();
+        for (TemporaryExpenseRecord record : records) {
+            if (!record.getJob().getId().equals(job.getId())) {
+                throw new IllegalArgumentException("All records must belong to the same job");
+            }
+        }
+        if (job.getStatus() == ExpenseInputJob.Status.COMPLETED) {
+            throw new IllegalStateException("Cannot merge records of a completed job");
+        }
+
+        records.sort((a, b) -> a.getId().compareTo(b.getId()));
+
+        LocalDate earliestDate = records.stream()
+                .map(TemporaryExpenseRecord::getExpenseDate)
+                .min(LocalDate::compareTo)
+                .orElse(LocalDate.now());
+
+        String mergedDescription = records.stream()
+                .map(TemporaryExpenseRecord::getDescription)
+                .collect(Collectors.joining("\n"));
+
+        BigDecimal totalAmount = records.stream()
+                .map(TemporaryExpenseRecord::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        TemporaryExpenseRecord merged = new TemporaryExpenseRecord();
+        merged.setJob(job);
+        merged.setExpenseDate(earliestDate);
+        merged.setDescription(mergedDescription);
+        merged.setAmount(totalAmount);
+        merged.setCategory(records.get(0).getCategory());
+
+        merged = tempRepository.save(merged);
+        tempRepository.deleteByIdIn(recordIds);
+
+        logger.info("Merged {} records into record {} for job {}", recordIds.size(), merged.getId(), job.getId());
+        return toTemporaryDTO(merged);
+    }
+
+    public void deleteTemporaryRecords(List<Long> recordIds) {
+        if (recordIds == null || recordIds.isEmpty()) {
+            return;
+        }
+
+        List<TemporaryExpenseRecord> records = tempRepository.findAllById(recordIds);
+        if (!records.isEmpty()) {
+            ExpenseInputJob job = records.get(0).getJob();
+            if (job.getStatus() == ExpenseInputJob.Status.COMPLETED) {
+                throw new IllegalStateException("Cannot delete records of a completed job");
+            }
+        }
+
+        tempRepository.deleteByIdIn(recordIds);
+        logger.info("Deleted {} temporary records", recordIds.size());
     }
 
     public void deleteJobs(List<Long> jobIds) {
@@ -177,7 +263,7 @@ public class ExpenseInputJobService {
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 2000)
     public void processPendingJobs() {
         // Get jobs in INIT, PROCESSING, or RETRYABLE status
-        List<ExpenseInputJob> initJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.INIT);
+        List<ExpenseInputJob> initJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.UPLOADED);
         List<ExpenseInputJob> processingJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.PROCESSING);
         List<ExpenseInputJob> retryableJobs = jobRepository.findByStatusOrderByCreatedAtAsc(ExpenseInputJob.Status.RETRYABLE);
 
@@ -204,7 +290,7 @@ public class ExpenseInputJobService {
             }
 
             // Transition from INIT or RETRYABLE to PROCESSING
-            if (job.getStatus() == ExpenseInputJob.Status.INIT ||
+            if (job.getStatus() == ExpenseInputJob.Status.UPLOADED ||
                 job.getStatus() == ExpenseInputJob.Status.RETRYABLE) {
                 job.setStatus(ExpenseInputJob.Status.PROCESSING);
                 jobRepository.save(job);
@@ -250,10 +336,10 @@ public class ExpenseInputJobService {
                         tempRepository.save(record);
                     }
 
-                    job.setStatus(ExpenseInputJob.Status.COMPLETED);
+                    job.setStatus(ExpenseInputJob.Status.PROCESSED);
                     job.setErrorMessage(null); // Clear any previous error
                     jobRepository.save(job);
-                    logger.info("Job {} completed with {} expense(s)", job.getId(),
+                    logger.info("Job {} processed with {} expense(s)", job.getId(),
                             result.getResponse().getExpenses().size());
 
                 } else if (result.isRetryable()) {

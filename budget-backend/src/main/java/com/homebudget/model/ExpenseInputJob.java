@@ -10,11 +10,12 @@ import java.time.LocalDateTime;
 public class ExpenseInputJob {
 
     public enum Status {
-        INIT,           // Initial state when job is created
-        PROCESSING,     // Currently being processed
+        UPLOADED,       // Initial state when job is created/uploaded
+        PROCESSING,     // Currently being processed by OCR
         RETRYABLE,      // Processing failed but can retry
-        COMPLETED,      // Successfully processed
-        FAILED          // Failed after max retries or non-retryable error
+        FAILED,         // Failed after max retries or non-retryable error
+        PROCESSED,      // OCR extraction completed, records available for review
+        COMPLETED       // User confirmed, temp records converted to actual expenses
     }
 
     @Id
@@ -23,7 +24,7 @@ public class ExpenseInputJob {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
-    private Status status = Status.INIT;
+    private Status status = Status.UPLOADED;
 
     @NotNull
     @Column(name = "retry_count", nullable = false)

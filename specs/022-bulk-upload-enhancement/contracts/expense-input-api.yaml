@@ -1,0 +1,310 @@
+openapi: 3.0.3
+info:
+  title: Expense Input Job API - Bulk Upload Enhancement
+  version: 2.0.0
+  description: |
+    Enhanced API for bulk expense upload with job lifecycle tracking,
+    expandable records, inline editing, merge/delete, and job completion.
+
+paths:
+  /api/expense-input-jobs:
+    post:
+      summary: Upload files to create expense input jobs
+      description: |
+        Upload one or more files (images/PDFs). Each file creates one ExpenseInputJob
+        with status UPLOADED. Processing starts automatically via scheduled task.
+      operationId: createJobs
+      parameters:
+        - $ref: '#/components/parameters/XHassUser'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 20
+      responses:
+        '200':
+          description: Jobs created successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseInputJobDTO'
+
+    get:
+      summary: List all expense input jobs
+      description: Returns all jobs ordered by creation date (desc) with embedded temporary records.
+      operationId: getJobs
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseInputJobDTO'
+
+    delete:
+      summary: Delete jobs
+      description: Delete one or more jobs and their associated temporary records and files.
+      operationId: deleteJobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobIdsRequest'
+      responses:
+        '204':
+          description: Jobs deleted successfully
+
+  /api/expense-input-jobs/{jobId}/complete:
+    post:
+      summary: Complete a job
+      description: |
+        Convert all temporary records in a PROCESSED job into actual expenses.
+        Sets job status to COMPLETED. Requires at least one temporary record.
+      operationId: completeJob
+      parameters:
+        - $ref: '#/components/parameters/XHassUser'
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Job completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseInputJobDTO'
+        '400':
+          description: |
+            Bad request. Possible reasons:
+            - Job is not in PROCESSED status
+            - Job has zero temporary records
+            - Job has already been completed
+        '404':
+          description: Job not found
+
+  /api/expense-input-jobs/{jobId}/retry:
+    post:
+      summary: Retry a failed job
+      description: |
+        Reset a RETRYABLE job back to UPLOADED status for reprocessing.
+        Clears the error message. The scheduled task will pick it up.
+      operationId: retryJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Job queued for retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseInputJobDTO'
+        '400':
+          description: Job is not in RETRYABLE status
+        '404':
+          description: Job not found
+
+  /api/expense-input-jobs/temporary-records/{recordId}:
+    patch:
+      summary: Update a temporary record
+      description: Update fields of a single temporary expense record (inline edit save).
+      operationId: updateTemporaryRecord
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemporaryExpenseRecordRequest'
+      responses:
+        '200':
+          description: Record updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryExpenseRecordDTO'
+        '404':
+          description: Record not found
+
+  /api/expense-input-jobs/temporary-records/merge:
+    post:
+      summary: Merge temporary records
+      description: |
+        Merge 2 or more temporary records into one. The merged record uses:
+        - date: earliest selected date
+        - description: all descriptions joined by newline
+        - amount: sum of all amounts
+        - category: category of the first selected record (by ID order)
+        Original records are deleted; merged record is returned.
+      operationId: mergeTemporaryRecords
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordIdsRequest'
+      responses:
+        '200':
+          description: Merged record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryExpenseRecordDTO'
+        '400':
+          description: |
+            Bad request. Possible reasons:
+            - Fewer than 2 record IDs provided
+            - Records belong to different jobs
+            - Records belong to a COMPLETED job
+
+  /api/expense-input-jobs/temporary-records:
+    delete:
+      summary: Delete temporary records
+      description: Delete one or more temporary records by ID.
+      operationId: deleteTemporaryRecords
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordIdsRequest'
+      responses:
+        '204':
+          description: Records deleted successfully
+        '400':
+          description: Records belong to a COMPLETED job
+
+components:
+  parameters:
+    XHassUser:
+      name: X-Hass-User
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Home Assistant authenticated username
+
+  schemas:
+    ExpenseInputJobDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [UPLOADED, PROCESSING, RETRYABLE, FAILED, PROCESSED, COMPLETED]
+        retryCount:
+          type: integer
+        originalFilename:
+          type: string
+        errorMessage:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        temporaryRecords:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemporaryExpenseRecordDTO'
+          nullable: true
+
+    TemporaryExpenseRecordDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        expenseDate:
+          type: string
+          format: date
+        categoryId:
+          type: integer
+          format: int64
+          nullable: true
+        categoryName:
+          type: string
+          nullable: true
+        categoryIcon:
+          type: string
+          nullable: true
+        confirmed:
+          type: boolean
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateTemporaryExpenseRecordRequest:
+      type: object
+      required: [amount, description, expenseDate]
+      properties:
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+          maxLength: 500
+        expenseDate:
+          type: string
+          format: date
+        categoryId:
+          type: integer
+          format: int64
+          nullable: true
+
+    JobIdsRequest:
+      type: object
+      required: [jobIds]
+      properties:
+        jobIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    RecordIdsRequest:
+      type: object
+      required: [recordIds]
+      properties:
+        recordIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          minItems: 1

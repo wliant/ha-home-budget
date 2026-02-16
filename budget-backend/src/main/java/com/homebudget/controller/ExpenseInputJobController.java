@@ -2,6 +2,7 @@ package com.homebudget.controller;
 
 import com.homebudget.dto.ConfirmExpenseInputJobsRequest;
 import com.homebudget.dto.ExpenseInputJobDTO;
+import com.homebudget.dto.RecordIdsRequest;
 import com.homebudget.dto.TemporaryExpenseRecordDTO;
 import com.homebudget.dto.UpdateTemporaryExpenseRecordRequest;
 import com.homebudget.service.ExpenseInputJobService;
@@ -51,13 +52,37 @@ public class ExpenseInputJobController {
         return ResponseEntity.ok(updated);
     }
 
-    @PostMapping("/confirm")
-    public ResponseEntity<List<Long>> confirmJobs(
-            @RequestHeader(HASS_USER_HEADER) String username,
-            @RequestBody ConfirmExpenseInputJobsRequest request) {
+    @PostMapping("/temporary-records/merge")
+    public ResponseEntity<TemporaryExpenseRecordDTO> mergeRecords(
+            @RequestBody RecordIdsRequest request) {
 
-        List<Long> confirmed = jobService.confirmJobs(request, username);
-        return ResponseEntity.ok(confirmed);
+        logger.info("POST /api/expense-input-jobs/temporary-records/merge - {} records", request.getRecordIds().size());
+        TemporaryExpenseRecordDTO merged = jobService.mergeTemporaryRecords(request.getRecordIds());
+        return ResponseEntity.ok(merged);
+    }
+
+    @DeleteMapping("/temporary-records")
+    public ResponseEntity<Void> deleteRecords(@RequestBody RecordIdsRequest request) {
+        logger.info("DELETE /api/expense-input-jobs/temporary-records - {} records", request.getRecordIds().size());
+        jobService.deleteTemporaryRecords(request.getRecordIds());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{jobId}/complete")
+    public ResponseEntity<ExpenseInputJobDTO> completeJob(
+            @PathVariable Long jobId,
+            @RequestHeader(HASS_USER_HEADER) String username) {
+
+        logger.info("POST /api/expense-input-jobs/{}/complete by {}", jobId, username);
+        ExpenseInputJobDTO dto = jobService.completeJob(jobId, username);
+        return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/{jobId}/retry")
+    public ResponseEntity<ExpenseInputJobDTO> retryJob(@PathVariable Long jobId) {
+        logger.info("POST /api/expense-input-jobs/{}/retry", jobId);
+        ExpenseInputJobDTO dto = jobService.retryJob(jobId);
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping

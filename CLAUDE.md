@@ -275,6 +275,7 @@ All bash scripts support:
 - Python 3.11+ + FastAPI, LangGraph, LangChain, PaddleOCR 3.x, PaddlePaddle 3.x (CPU), PyMuPDF 1.25+, Pillow, structlog (020-ocr-extraction-upgrade)
 - N/A (stateless processor) (020-ocr-extraction-upgrade)
 - MySQL 8.0 (existing database with expenses, categories tables) (021-expense-server-filtering)
+- MySQL 8.0 (existing tables: `expense_input_jobs`, `temporary_expense_records`, `expense_files`) (022-bulk-upload-enhancement)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

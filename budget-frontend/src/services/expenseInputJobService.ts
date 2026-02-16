@@ -14,7 +14,7 @@ export interface TemporaryExpenseRecordDTO {
 
 export interface ExpenseInputJobDTO {
   id: number;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status: 'UPLOADED' | 'PROCESSING' | 'RETRYABLE' | 'FAILED' | 'PROCESSED' | 'COMPLETED';
   originalFilename: string;
   errorMessage?: string | null;
   createdAt: string;
@@ -53,12 +53,29 @@ export const expenseInputJobService = {
     return response.data;
   },
 
-  confirmJobs: async (jobIds: number[]): Promise<number[]> => {
-    const response = await api.post<number[]>('/api/expense-input-jobs/confirm', { jobIds });
+  deleteJobs: async (jobIds: number[]): Promise<void> => {
+    await api.delete('/api/expense-input-jobs', { data: { jobIds } });
+  },
+
+  retryJob: async (jobId: number): Promise<ExpenseInputJobDTO> => {
+    const response = await api.post<ExpenseInputJobDTO>(`/api/expense-input-jobs/${jobId}/retry`);
     return response.data;
   },
 
-  deleteJobs: async (jobIds: number[]): Promise<void> => {
-    await api.delete('/api/expense-input-jobs', { data: { jobIds } });
+  mergeRecords: async (recordIds: number[]): Promise<TemporaryExpenseRecordDTO> => {
+    const response = await api.post<TemporaryExpenseRecordDTO>(
+      '/api/expense-input-jobs/temporary-records/merge',
+      { recordIds }
+    );
+    return response.data;
+  },
+
+  deleteRecords: async (recordIds: number[]): Promise<void> => {
+    await api.delete('/api/expense-input-jobs/temporary-records', { data: { recordIds } });
+  },
+
+  completeJob: async (jobId: number): Promise<ExpenseInputJobDTO> => {
+    const response = await api.post<ExpenseInputJobDTO>(`/api/expense-input-jobs/${jobId}/complete`);
+    return response.data;
   },
 };

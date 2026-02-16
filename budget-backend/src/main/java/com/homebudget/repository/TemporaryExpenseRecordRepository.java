@@ -8,4 +8,6 @@ public interface TemporaryExpenseRecordRepository extends JpaRepository<Temporar
     List<TemporaryExpenseRecord> findByJobId(Long jobId);
 
     List<TemporaryExpenseRecord> findByJobIdIn(List<Long> jobIds);
+
+    void deleteByIdIn(List<Long> ids);
 }

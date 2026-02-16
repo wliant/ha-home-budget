@@ -49,4 +49,7 @@
     <!-- Add retry count and state transition support for expense input jobs -->
     <include file="db/changelog/changes/012-add-expense-job-retry-count.xml"/>
 
+    <!-- Feature 022: Bulk Upload Enhancement - rename job statuses -->
+    <include file="db/changelog/changes/013-update-job-status-enum.xml"/>
+
 </databaseChangeLog>
