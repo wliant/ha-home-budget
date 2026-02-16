@@ -37,6 +37,8 @@ export interface SpendingTrendChartProps {
   onSelectAll?: () => void;
   onDeselectAll?: () => void;
   categoryGroups?: CategoryGroupInfo[];
+  selectedYear?: number;
+  selectedMonth?: number;
 }
 
 export default function SpendingTrendChart({
@@ -50,6 +52,8 @@ export default function SpendingTrendChart({
   onSelectAll,
   onDeselectAll,
   categoryGroups,
+  selectedYear,
+  selectedMonth,
 }: SpendingTrendChartProps) {
   const theme = useTheme();
 
@@ -186,7 +190,25 @@ export default function SpendingTrendChart({
           <XAxis
             dataKey={xAxisKey}
             tickFormatter={xAxisFormatter}
-            tick={{ fontSize: 12, fill: theme.palette.text.secondary }}
+            tick={granularity === 'daily' && selectedYear && selectedMonth ? (props: any) => {
+              const { x, y, payload } = props;
+              const day = Number(payload.value);
+              const date = new Date(selectedYear, selectedMonth - 1, day);
+              const dayOfWeek = date.getDay();
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              return (
+                <text
+                  x={x}
+                  y={y + 12}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fill={isWeekend ? theme.palette.error.main : theme.palette.text.secondary}
+                  fontWeight={isWeekend ? 600 : 400}
+                >
+                  {xAxisFormatter ? xAxisFormatter(day) : String(day)}
+                </text>
+              );
+            } : { fontSize: 12, fill: theme.palette.text.secondary }}
             stroke={theme.palette.divider}
           />
           <YAxis

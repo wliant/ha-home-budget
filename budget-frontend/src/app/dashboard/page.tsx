@@ -61,6 +61,7 @@ function transformAggregates(
   aggregates: CategoryExpenseAggregate[],
   granularity: Granularity,
   daysInMonth?: number,
+  maxMonth?: number,
 ): TransformedData {
   const categories = new Set<string>();
   const bucketMap: Record<number, Record<string, number>> = {};
@@ -92,7 +93,8 @@ function transformAggregates(
       chartData.push(point);
     }
   } else if (granularity === 'monthly') {
-    for (let m = 1; m <= 12; m++) {
+    const endMonth = maxMonth ?? 12;
+    for (let m = 1; m <= endMonth; m++) {
       const point: Record<string, unknown> = { month: m };
       for (const cat of categoryList) {
         point[cat] = bucketMap[m]?.[cat] ?? 0;
@@ -198,9 +200,22 @@ export default function DashboardPage() {
     [selectedYear, selectedMonth]
   );
 
+  // For monthly view of current year, limit to latest expense month + 1
+  const maxMonth = useMemo(() => {
+    if (granularity !== 'monthly' || selectedYear !== now.getFullYear()) return undefined;
+    let latestMonth = 0;
+    for (const agg of aggregates) {
+      if (agg.month != null && agg.month > latestMonth) {
+        latestMonth = agg.month;
+      }
+    }
+    if (latestMonth === 0) return now.getMonth() + 1; // current month if no expenses
+    return Math.min(latestMonth + 1, 12);
+  }, [granularity, selectedYear, aggregates, now]);
+
   const { chartData, categories } = useMemo(
-    () => transformAggregates(aggregates, granularity, daysInMonth),
-    [aggregates, granularity, daysInMonth]
+    () => transformAggregates(aggregates, granularity, daysInMonth, maxMonth),
+    [aggregates, granularity, daysInMonth, maxMonth]
   );
 
   const handleGranularityChange = (_: React.MouseEvent<HTMLElement>, value: Granularity | null) => {
@@ -389,6 +404,8 @@ export default function DashboardPage() {
             onSelectAll={handleSelectAll}
             onDeselectAll={handleDeselectAll}
             categoryGroups={categoryGroups}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
           />
         )}
       </Paper>
