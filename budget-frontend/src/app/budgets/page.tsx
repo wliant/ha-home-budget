@@ -52,7 +52,7 @@ export default function BudgetsPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedSort, setSelectedSort] = useState<string>('');
   const [selectedSortDirection, setSelectedSortDirection] = useState<'ASC' | 'DESC'>('DESC');
@@ -173,27 +173,6 @@ export default function BudgetsPage() {
     return category.childCategories ?? category.children ?? [];
   };
 
-  const findCategoryById = (categoryList: CategoryDTO[], id: number): CategoryDTO | null => {
-    for (const category of categoryList) {
-      if (category.id === id) {
-        return category;
-      }
-      const childMatch = findCategoryById(getCategoryChildren(category), id);
-      if (childMatch) {
-        return childMatch;
-      }
-    }
-    return null;
-  };
-
-  const getDescendantIds = (category: CategoryDTO): number[] => {
-    const children = getCategoryChildren(category);
-    return children.flatMap((child) => [
-      child.id!,
-      ...getDescendantIds(child),
-    ]);
-  };
-
   const filteredBudgets = budgets.filter((budget) => {
     const yearMatches = selectedYear === '' || budget.year === Number(selectedYear);
 
@@ -203,15 +182,9 @@ export default function BudgetsPage() {
       selectedStatus === '' || getBudgetStatusKey(budget.spendingPercentage) === selectedStatus;
 
     const categoryMatches = (() => {
-      if (selectedCategoryId === '') return true;
+      if (selectedCategoryIds.size === 0) return true;
       if (!budget.categoryId) return false;
-      const selectedId = Number(selectedCategoryId);
-      const selectedCategory = findCategoryById(categories, selectedId);
-      if (!selectedCategory) {
-        return budget.categoryId === selectedId;
-      }
-      const allowedIds = new Set<number>([selectedId, ...getDescendantIds(selectedCategory)]);
-      return allowedIds.has(budget.categoryId);
+      return selectedCategoryIds.has(budget.categoryId);
     })();
 
     return yearMatches && monthMatches && statusMatches && categoryMatches;
@@ -238,8 +211,8 @@ export default function BudgetsPage() {
     return getDateSortValue(b) - getDateSortValue(a);
   });
 
-  const handleCategorySelect = (categoryId?: number) => {
-    setSelectedCategoryId(categoryId != null ? String(categoryId) : '');
+  const handleCategorySelectionChange = (ids: Set<number>) => {
+    setSelectedCategoryIds(ids);
   };
 
   const handleYearChange = (event: SelectChangeEvent<string>) => {
@@ -265,7 +238,7 @@ export default function BudgetsPage() {
   const handleClearFilters = () => {
     setSelectedYear('');
     setSelectedMonth('');
-    setSelectedCategoryId('');
+    setSelectedCategoryIds(new Set());
     setSelectedStatus('');
     setSelectedSort('');
     setSelectedSortDirection('DESC');
@@ -274,7 +247,7 @@ export default function BudgetsPage() {
   const hasFilters =
     selectedYear !== '' ||
     selectedMonth !== '' ||
-    selectedCategoryId !== '' ||
+    selectedCategoryIds.size > 0 ||
     selectedStatus !== '' ||
     selectedSort !== '';
 
@@ -525,8 +498,8 @@ export default function BudgetsPage() {
         <Box sx={{ mb: 3 }}>
           <CategoryChipFilter
             categories={categories}
-            selectedCategoryId={selectedCategoryId ? Number(selectedCategoryId) : undefined}
-            onSelect={handleCategorySelect}
+            selectedCategoryIds={selectedCategoryIds}
+            onSelectionChange={handleCategorySelectionChange}
           />
         </Box>
       )}

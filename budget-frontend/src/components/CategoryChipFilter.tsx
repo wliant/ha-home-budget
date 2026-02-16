@@ -1,80 +1,161 @@
 'use client';
 
-import React from 'react';
-import { Box, Chip, Typography } from '@mui/material';
+import React, { useState, useCallback } from 'react';
+import { Box, Chip, Typography, IconButton, Collapse } from '@mui/material';
+import { ExpandMore, ExpandLess } from '@mui/icons-material';
 import type { CategoryDTO } from '@/types/category';
 
 interface CategoryChipFilterProps {
   categories: CategoryDTO[]; // hierarchy (root categories with childCategories)
-  selectedCategoryId?: number;
-  onSelect: (categoryId?: number) => void;
+  selectedCategoryIds: Set<number>;
+  onSelectionChange: (ids: Set<number>) => void;
 }
 
 export default function CategoryChipFilter({
   categories,
-  selectedCategoryId,
-  onSelect,
+  selectedCategoryIds,
+  onSelectionChange,
 }: CategoryChipFilterProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const getChildren = (cat: CategoryDTO): CategoryDTO[] =>
     cat.childCategories ?? [];
 
-  const handleClick = (id: number) => {
-    onSelect(selectedCategoryId === id ? undefined : id);
+  const allCategoryIds = new Set<number>();
+  for (const parent of categories) {
+    if (parent.id != null) allCategoryIds.add(parent.id);
+    for (const child of getChildren(parent)) {
+      if (child.id != null) allCategoryIds.add(child.id);
+    }
+  }
+
+  const isAllSelected = selectedCategoryIds.size === 0;
+
+  const handleAllClick = () => {
+    onSelectionChange(new Set());
   };
+
+  const handleParentClick = useCallback((parent: CategoryDTO) => {
+    const children = getChildren(parent);
+    const parentId = parent.id!;
+    const childIds = children.map(c => c.id!);
+    const groupIds = [parentId, ...childIds];
+
+    const allGroupSelected = groupIds.every(id => selectedCategoryIds.has(id));
+
+    const next = new Set(selectedCategoryIds);
+    if (allGroupSelected) {
+      // Deselect entire group
+      for (const id of groupIds) next.delete(id);
+    } else {
+      // Select entire group
+      for (const id of groupIds) next.add(id);
+    }
+    onSelectionChange(next);
+  }, [selectedCategoryIds, onSelectionChange]);
+
+  const handleChildClick = useCallback((childId: number) => {
+    const next = new Set(selectedCategoryIds);
+    if (next.has(childId)) {
+      next.delete(childId);
+    } else {
+      next.add(childId);
+    }
+    onSelectionChange(next);
+  }, [selectedCategoryIds, onSelectionChange]);
+
+  // Summary text for collapsed state
+  const selectedCount = selectedCategoryIds.size;
+  const totalCount = allCategoryIds.size;
+  const summaryText = isAllSelected
+    ? 'All categories'
+    : `${selectedCount} of ${totalCount} categories`;
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-        <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
           Category:
         </Typography>
-        <Chip
-          label="All"
-          size="small"
-          color={selectedCategoryId == null ? 'primary' : 'default'}
-          variant={selectedCategoryId == null ? 'filled' : 'outlined'}
-          onClick={() => onSelect(undefined)}
-          sx={selectedCategoryId != null ? { opacity: 0.6 } : {}}
-        />
+        <Typography variant="caption" color="text.secondary">
+          {summaryText}
+        </Typography>
+        <IconButton size="small" sx={{ p: 0, ml: 0.5 }}>
+          {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+        </IconButton>
+        {!expanded && (
+          <Chip
+            label="All"
+            size="small"
+            color={isAllSelected ? 'primary' : 'default'}
+            variant={isAllSelected ? 'filled' : 'outlined'}
+            onClick={(e) => { e.stopPropagation(); handleAllClick(); }}
+            sx={{ ml: 1, ...(isAllSelected ? {} : { opacity: 0.6 }) }}
+          />
+        )}
       </Box>
-      {categories.map((parent) => {
-        const children = getChildren(parent);
-        const parentId = parent.id!;
-        const isParentSelected = selectedCategoryId === parentId;
-
-        return (
-          <Box key={parentId} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+      <Collapse in={expanded}>
+        <Box sx={{ mt: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
             <Chip
-              label={`${parent.icon ? parent.icon + ' ' : ''}${parent.name}`}
+              label="All"
               size="small"
-              color={isParentSelected ? 'primary' : 'default'}
-              variant={isParentSelected ? 'filled' : 'outlined'}
-              onClick={() => handleClick(parentId)}
-              sx={{
-                fontWeight: 600,
-                ...(selectedCategoryId != null && !isParentSelected && !children.some(c => c.id === selectedCategoryId)
-                  ? { opacity: 0.6 }
-                  : {}),
-              }}
+              color={isAllSelected ? 'primary' : 'default'}
+              variant={isAllSelected ? 'filled' : 'outlined'}
+              onClick={handleAllClick}
+              sx={isAllSelected ? {} : { opacity: 0.6 }}
             />
-            {children.map((child) => {
-              const childId = child.id!;
-              const isChildSelected = selectedCategoryId === childId;
-              return (
-                <Chip
-                  key={childId}
-                  label={`${child.icon ? child.icon + ' ' : ''}${child.name}`}
-                  size="small"
-                  color={isChildSelected ? 'primary' : 'default'}
-                  variant={isChildSelected ? 'filled' : 'outlined'}
-                  onClick={() => handleClick(childId)}
-                  sx={selectedCategoryId != null && !isChildSelected ? { opacity: 0.6 } : {}}
-                />
-              );
-            })}
           </Box>
-        );
-      })}
+          {categories.map((parent) => {
+            const children = getChildren(parent);
+            const parentId = parent.id!;
+            const childIds = children.map(c => c.id!);
+            const groupIds = [parentId, ...childIds];
+            const allGroupSelected = !isAllSelected && groupIds.every(id => selectedCategoryIds.has(id));
+            const someGroupSelected = !isAllSelected && groupIds.some(id => selectedCategoryIds.has(id));
+
+            return (
+              <Box key={parentId} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                <Chip
+                  label={`${parent.icon ? parent.icon + ' ' : ''}${parent.name}`}
+                  size="small"
+                  color={allGroupSelected || someGroupSelected ? 'primary' : 'default'}
+                  variant={allGroupSelected || someGroupSelected ? 'filled' : 'outlined'}
+                  onClick={() => handleParentClick(parent)}
+                  sx={{
+                    fontWeight: 600,
+                    ...(!isAllSelected && !someGroupSelected ? { opacity: 0.5 } : {}),
+                  }}
+                />
+                {children.map((child) => {
+                  const childId = child.id!;
+                  const isSelected = !isAllSelected && selectedCategoryIds.has(childId);
+                  return (
+                    <Chip
+                      key={childId}
+                      label={`${child.icon ? child.icon + ' ' : ''}${child.name}`}
+                      size="small"
+                      color={isSelected ? 'primary' : 'default'}
+                      variant={isSelected ? 'filled' : 'outlined'}
+                      onClick={() => handleChildClick(childId)}
+                      sx={!isAllSelected && !isSelected ? { opacity: 0.5 } : {}}
+                    />
+                  );
+                })}
+              </Box>
+            );
+          })}
+        </Box>
+      </Collapse>
     </Box>
   );
 }

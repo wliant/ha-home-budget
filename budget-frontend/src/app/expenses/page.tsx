@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import { ReceiptLong as ReceiptLongIcon } from '@mui/icons-material';
@@ -41,6 +41,7 @@ export default function ExpensesPage() {
   const [filters, setFilters] = useState<ExpenseListFilters>(initialFilters);
   const [page, setPage] = useState(0);
   const [currentUser, setCurrentUser] = useState<string>('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     userService.getCurrentUser().then(setCurrentUser).catch(() => {});
@@ -65,6 +66,19 @@ export default function ExpensesPage() {
   useEffect(() => {
     fetchExpenses(filters, page);
   }, [filters, page, fetchExpenses]);
+
+  // Client-side filter by selected categories
+  const filteredData = useMemo(() => {
+    if (!data || selectedCategoryIds.size === 0) return data;
+    const filtered = data.content.filter(
+      (expense) => expense.categoryId != null && selectedCategoryIds.has(expense.categoryId)
+    );
+    return {
+      ...data,
+      content: filtered,
+      totalElements: filtered.length,
+    };
+  }, [data, selectedCategoryIds]);
 
   const handleFilterChange = (newFilters: ExpenseListFilters) => {
     setPage(0);
@@ -103,14 +117,19 @@ export default function ExpensesPage() {
             Expenses
           </Typography>
         </Box>
-        <ExpenseFilters filters={filters} onFilterChange={handleFilterChange} />
+        <ExpenseFilters
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          selectedCategoryIds={selectedCategoryIds}
+          onCategorySelectionChange={setSelectedCategoryIds}
+        />
         {loading && !data && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </Box>
         )}
         <ExpenseListTable
-          data={data}
+          data={filteredData}
           loading={loading}
           page={page}
           onPageChange={handlePageChange}

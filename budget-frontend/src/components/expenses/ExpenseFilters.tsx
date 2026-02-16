@@ -22,6 +22,8 @@ import CategoryChipFilter from '@/components/CategoryChipFilter';
 interface ExpenseFiltersProps {
   filters: ExpenseListFilters;
   onFilterChange: (filters: ExpenseListFilters) => void;
+  selectedCategoryIds: Set<number>;
+  onCategorySelectionChange: (ids: Set<number>) => void;
 }
 
 const currentYear = new Date().getFullYear();
@@ -44,6 +46,8 @@ const MONTHS = [
 export default function ExpenseFilters({
   filters,
   onFilterChange,
+  selectedCategoryIds,
+  onCategorySelectionChange,
 }: ExpenseFiltersProps) {
   const [availableYears, setAvailableYears] = useState<number[]>([currentYear]);
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
@@ -83,11 +87,8 @@ export default function ExpenseFilters({
     });
   };
 
-  const handleCategorySelect = (categoryId?: number) => {
-    onFilterChange({
-      ...filters,
-      categoryId,
-    });
+  const handleCategorySelectionChange = (ids: Set<number>) => {
+    onCategorySelectionChange(ids);
   };
 
   const handleCreatedByChange = (event: SelectChangeEvent<string>) => {
@@ -132,11 +133,12 @@ export default function ExpenseFilters({
       sortBy: filters.sortBy,
       sortDirection: filters.sortDirection,
     });
+    onCategorySelectionChange(new Set());
   };
 
   const hasOptionalFilters =
     filters.month != null ||
-    filters.categoryId != null ||
+    selectedCategoryIds.size > 0 ||
     filters.minAmount != null ||
     filters.maxAmount != null ||
     filters.createdBy != null ||
@@ -258,8 +260,8 @@ export default function ExpenseFilters({
       <Box sx={{ mb: 2 }}>
         <CategoryChipFilter
           categories={categories}
-          selectedCategoryId={filters.categoryId}
-          onSelect={handleCategorySelect}
+          selectedCategoryIds={selectedCategoryIds}
+          onSelectionChange={handleCategorySelectionChange}
         />
       </Box>
     )}

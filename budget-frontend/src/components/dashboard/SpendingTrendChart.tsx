@@ -137,27 +137,26 @@ export default function SpendingTrendChart({
           </Box>
         )}
 
-        {/* Grouped legend */}
+        {/* Grouped legend - column per parent group */}
         {categoryGroups && categoryGroups.length > 0 ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 2 }}>
             {categoryGroups.map((group) => {
-              // Categories in this group that are in the chart data
               const groupCategories = [group.parentName, ...group.children].filter(name => colorMap.has(name));
               if (groupCategories.length === 0) return null;
 
               return (
-                <Box key={group.parentName} sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5 }}>
+                <Box key={group.parentName} sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
                   {groupCategories.map((name) => renderLegendItem({ value: name, color: colorMap.get(name) || '#999' }))}
                 </Box>
               );
             })}
-            {/* Ungrouped categories (not in any group) */}
+            {/* Ungrouped categories */}
             {(() => {
               const groupedNames = new Set(categoryGroups.flatMap(g => [g.parentName, ...g.children]));
               const ungrouped = payload.filter((e: { value: string }) => !groupedNames.has(e.value));
               if (ungrouped.length === 0) return null;
               return (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
                   {ungrouped.map((entry: { value: string; color: string }) => renderLegendItem(entry))}
                 </Box>
               );
