@@ -52,6 +52,7 @@ export interface ExpenseListFilters {
   year?: number;
   month?: number;
   categoryId?: number;
+  categoryIds?: number[];
   minAmount?: number;
   maxAmount?: number;
   createdBy?: string;
@@ -161,7 +162,11 @@ export const expenseService = {
     if (filters.year != null) params.append('year', filters.year.toString());
 
     if (filters.month != null) params.append('month', filters.month.toString());
-    if (filters.categoryId != null) params.append('categoryId', filters.categoryId.toString());
+    if (filters.categoryIds != null && filters.categoryIds.length > 0) {
+      params.append('categoryIds', filters.categoryIds.join(','));
+    } else if (filters.categoryId != null) {
+      params.append('categoryId', filters.categoryId.toString());
+    }
     if (filters.minAmount != null) params.append('minAmount', filters.minAmount.toString());
     if (filters.maxAmount != null) params.append('maxAmount', filters.maxAmount.toString());
     if (filters.createdBy) params.append('createdBy', filters.createdBy);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Box, Typography, CircularProgress, Container } from '@mui/material';
 import { ReceiptLong as ReceiptLongIcon } from '@mui/icons-material';
@@ -44,30 +44,18 @@ export default function ExpensesPage() {
   const [currentUser, setCurrentUser] = useState<string>('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
 
-  // Track whether we're in "fetch all" mode for client-side category filtering
-  const hasCategoryFilter = selectedCategoryIds.size > 0;
-  const prevHasCategoryFilter = useRef(hasCategoryFilter);
-
   useEffect(() => {
     userService.getCurrentUser().then(setCurrentUser).catch(() => {});
   }, []);
 
-  // Re-fetch when toggling between chip filter on/off
-  useEffect(() => {
-    if (prevHasCategoryFilter.current !== hasCategoryFilter) {
-      prevHasCategoryFilter.current = hasCategoryFilter;
-      setPage(0);
-    }
-  }, [hasCategoryFilter]);
-
-  const fetchExpenses = useCallback(async (currentFilters: ExpenseListFilters, pageNum: number, fetchAll: boolean) => {
+  const fetchExpenses = useCallback(async (currentFilters: ExpenseListFilters, pageNum: number, categoryIds: Set<number>) => {
     setLoading(true);
     try {
       const result = await expenseService.getExpenseList({
         ...currentFilters,
-        // When category chips are active, fetch all data for client-side filtering
-        page: fetchAll ? 0 : pageNum,
-        size: fetchAll ? 10000 : PAGE_SIZE,
+        categoryIds: categoryIds.size > 0 ? Array.from(categoryIds) : undefined,
+        page: pageNum,
+        size: PAGE_SIZE,
       });
       setData(result);
     } catch (error) {
@@ -79,35 +67,8 @@ export default function ExpensesPage() {
   }, []);
 
   useEffect(() => {
-    fetchExpenses(filters, page, hasCategoryFilter);
-  }, [filters, page, hasCategoryFilter, fetchExpenses]);
-
-  // Client-side filter + pagination when category chips are active
-  const filteredData = useMemo(() => {
-    if (!data) return data;
-    if (!hasCategoryFilter) return data;
-
-    // Filter all fetched expenses by selected categories
-    const allFiltered = data.content.filter(
-      (expense) => expense.categoryId != null && selectedCategoryIds.has(expense.categoryId)
-    );
-
-    const totalAmount = allFiltered.reduce((sum, expense) => sum + expense.amount, 0);
-
-    // Client-side pagination
-    const start = page * PAGE_SIZE;
-    const pageContent = allFiltered.slice(start, start + PAGE_SIZE);
-
-    return {
-      ...data,
-      content: pageContent,
-      totalElements: allFiltered.length,
-      totalAmount,
-      totalPages: Math.ceil(allFiltered.length / PAGE_SIZE),
-      currentPage: page,
-      pageSize: PAGE_SIZE,
-    };
-  }, [data, selectedCategoryIds, hasCategoryFilter, page]);
+    fetchExpenses(filters, page, selectedCategoryIds);
+  }, [filters, page, selectedCategoryIds, fetchExpenses]);
 
   const handleFilterChange = (newFilters: ExpenseListFilters) => {
     setPage(0);
@@ -136,7 +97,7 @@ export default function ExpensesPage() {
     if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
       await expenseService.deleteExpense(id);
-      fetchExpenses(filters, page, hasCategoryFilter);
+      fetchExpenses(filters, page, selectedCategoryIds);
     } catch (error) {
       console.error('Failed to delete expense:', error);
     }
@@ -163,7 +124,7 @@ export default function ExpensesPage() {
           </Box>
         )}
         <ExpenseListTable
-          data={filteredData}
+          data={data}
           loading={loading}
           page={page}
           onPageChange={handlePageChange}

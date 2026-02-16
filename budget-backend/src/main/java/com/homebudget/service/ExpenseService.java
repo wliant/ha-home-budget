@@ -268,11 +268,12 @@ public class ExpenseService {
      */
     @Transactional(readOnly = true)
     public ExpenseListResponse getExpenseList(Integer year, Integer month, Long categoryId,
+                                               List<Long> categoryIds,
                                                BigDecimal minAmount, BigDecimal maxAmount,
                                                String createdBy, Pageable pageable,
                                                String sortBy, String sortDirection) {
-        logger.info("Getting expense list - year: {}, month: {}, categoryId: {}, amountRange: {}-{}, createdBy: {}",
-                year, month, categoryId, minAmount, maxAmount, createdBy);
+        logger.info("Getting expense list - year: {}, month: {}, categoryId: {}, categoryIds: {}, amountRange: {}-{}, createdBy: {}",
+                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy);
 
         // Convert year/month to date range
         LocalDate startDate;
@@ -292,17 +293,27 @@ public class ExpenseService {
 
         logger.debug("Date range: {} to {}", startDate, endDate);
 
-        // Expand category filter to include child categories if parent category selected
-        List<Long> expandedCategoryIds = expandCategoryIds(categoryId);
+        // Determine effective category filter list
+        // Precedence: categoryIds (explicit list) > categoryId (single, with expansion) > none
+        List<Long> effectiveCategoryIds = null;
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            // Use client-provided list directly — no server-side expansion
+            effectiveCategoryIds = categoryIds;
+            logger.debug("Using client-provided categoryIds: {}", effectiveCategoryIds);
+        } else if (categoryId != null) {
+            // Backward compatible: expand parent category to include children
+            effectiveCategoryIds = expandCategoryIds(categoryId);
+            logger.debug("Expanded categoryId {} to: {}", categoryId, effectiveCategoryIds);
+        }
 
         // Get paginated results
         Page<Expense> page;
         BigDecimal totalAmount;
-        if (expandedCategoryIds != null) {
+        if (effectiveCategoryIds != null) {
             page = expenseRepository.findByFiltersPageableWithCategoryIds(
-                    expandedCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+                    effectiveCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
             totalAmount = expenseRepository.getFilteredTotalAmountWithCategoryIds(
-                    expandedCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy);
+                    effectiveCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy);
         } else {
             page = expenseRepository.findByFiltersPageable(
                     categoryId, startDate, endDate, minAmount, maxAmount, createdBy, pageable);

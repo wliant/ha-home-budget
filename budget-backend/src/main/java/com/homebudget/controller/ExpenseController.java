@@ -134,6 +134,7 @@ public class ExpenseController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) List<Long> categoryIds,
             @RequestParam(required = false) BigDecimal minAmount,
             @RequestParam(required = false) BigDecimal maxAmount,
             @RequestParam(required = false) String createdBy,
@@ -142,8 +143,8 @@ public class ExpenseController {
             @RequestParam(defaultValue = "expenseDate") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        logger.info("GET /api/expenses/list - year={}, month={}, categoryId={}, amount={}-{}, createdBy={}, page={}, size={}, sort={}:{}",
-                year, month, categoryId, minAmount, maxAmount, createdBy, page, size, sortBy, sortDirection);
+        logger.info("GET /api/expenses/list - year={}, month={}, categoryId={}, categoryIds={}, amount={}-{}, createdBy={}, page={}, size={}, sort={}:{}",
+                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy, page, size, sortBy, sortDirection);
 
         // Validate month
         if (month != null && (month < 1 || month > 12)) {
@@ -178,7 +179,7 @@ public class ExpenseController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, entitySortField));
 
         ExpenseListResponse response = expenseService.getExpenseList(
-                year, month, categoryId, minAmount, maxAmount, createdBy,
+                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy,
                 pageable, sortBy, sortDirection);
 
         return ResponseEntity.ok(response);
