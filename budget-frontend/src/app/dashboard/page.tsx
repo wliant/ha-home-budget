@@ -11,6 +11,11 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  ListSubheader,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -138,6 +143,15 @@ export default function DashboardPage() {
   const [pieMonth, setPieMonth] = useState(now.getMonth() + 1);
   const [allBudgets, setAllBudgets] = useState<BudgetSummaryDTO[]>([]);
   const [pieBudgetsLoading, setPieBudgetsLoading] = useState(true);
+  const [pieExpenseAggregates, setPieExpenseAggregates] = useState<CategoryExpenseAggregate[]>([]);
+  const [pieExpenseLoading, setPieExpenseLoading] = useState(true);
+
+  // Month trend across years state
+  const [trendCategoryId, setTrendCategoryId] = useState<number | ''>('');
+  const [trendYears, setTrendYears] = useState<number[]>([]);
+  const [trendAggregatesMap, setTrendAggregatesMap] = useState<Record<number, CategoryExpenseAggregate[]>>({});
+  const [trendHiddenYears, setTrendHiddenYears] = useState<Set<string>>(new Set());
+  const [trendLoading, setTrendLoading] = useState(false);
 
   useEffect(() => {
     categoryService.getCategoryHierarchy()
@@ -152,6 +166,62 @@ export default function DashboardPage() {
       .catch((err) => console.error('Failed to load budgets:', err))
       .finally(() => setPieBudgetsLoading(false));
   }, []);
+
+  // Load expense aggregates for pie chart when period changes
+  useEffect(() => {
+    setPieExpenseLoading(true);
+    const loadExpensePie = async () => {
+      try {
+        let data: CategoryExpenseAggregate[];
+        if (pieGranularity === 'monthly') {
+          data = await expenseService.getMonthlyAggregates(pieYear, pieMonth);
+        } else {
+          data = await expenseService.getYearlyAggregates(pieYear);
+        }
+        setPieExpenseAggregates(data);
+      } catch (err) {
+        console.error('Failed to load expense aggregates for pie:', err);
+      } finally {
+        setPieExpenseLoading(false);
+      }
+    };
+    loadExpensePie();
+  }, [pieYear, pieMonth, pieGranularity]);
+
+  // Load expense years for month trend
+  useEffect(() => {
+    expenseService.getExpenseYears()
+      .then((years) => {
+        setTrendYears(years);
+        // Auto-select first parent category
+        if (categoryHierarchy.length > 0 && trendCategoryId === '' && categoryHierarchy[0].id != null) {
+          setTrendCategoryId(categoryHierarchy[0].id);
+        }
+      })
+      .catch((err) => console.error('Failed to load expense years:', err));
+  }, [categoryHierarchy]);
+
+  // Load monthly aggregates for all years (for month trend chart)
+  useEffect(() => {
+    if (trendYears.length === 0) return;
+    setTrendLoading(true);
+    Promise.all(
+      trendYears.map(async (year) => {
+        const data = await expenseService.getMonthlyAggregates(year);
+        return { year, data };
+      })
+    ).then((results) => {
+      const map: Record<number, CategoryExpenseAggregate[]> = {};
+      for (const { year, data } of results) {
+        map[year] = data;
+      }
+      setTrendAggregatesMap(map);
+    }).catch((err) => {
+      console.error('Failed to load trend data:', err);
+    }).finally(() => {
+      setTrendLoading(false);
+    });
+  }, [trendYears]);
 
   const categoryGroups = useMemo<CategoryGroupInfo[]>(() => {
     return categoryHierarchy.map((parent) => ({
@@ -303,6 +373,72 @@ export default function DashboardPage() {
     return { pieData: items, pieTotalBudget: total };
   }, [allBudgets, pieGranularity, pieYear, pieMonth]);
 
+  // Expense pie chart data
+  const { expensePieData, expensePieTotal } = useMemo(() => {
+    const parentOnly = pieExpenseAggregates.filter(agg => !agg.parentCategoryId);
+    const items: BudgetAllocationItem[] = parentOnly
+      .filter(agg => agg.totalAmount > 0)
+      .map(agg => ({
+        name: agg.categoryName,
+        icon: agg.categoryIcon,
+        amount: agg.totalAmount,
+      }));
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+    return { expensePieData: items, expensePieTotal: total };
+  }, [pieExpenseAggregates]);
+
+  // Month trend chart data
+  const { trendChartData, trendYearStrings } = useMemo(() => {
+    if (trendCategoryId === '' || trendYears.length === 0) {
+      return { trendChartData: [], trendYearStrings: [] };
+    }
+
+    // Find selected category name
+    let selectedCatName = '';
+    for (const parent of categoryHierarchy) {
+      if (parent.id === trendCategoryId) {
+        selectedCatName = parent.name;
+        break;
+      }
+      for (const child of parent.childCategories ?? []) {
+        if (child.id === trendCategoryId) {
+          selectedCatName = child.name;
+          break;
+        }
+      }
+      if (selectedCatName) break;
+    }
+
+    const yearStrings = trendYears.map(String);
+    const chartData: Record<string, unknown>[] = [];
+
+    for (let m = 1; m <= 12; m++) {
+      const point: Record<string, unknown> = { month: m };
+      for (const year of trendYears) {
+        const yearAggs = trendAggregatesMap[year] ?? [];
+        const match = yearAggs.find(
+          agg => agg.categoryName === selectedCatName && agg.month === m
+        );
+        point[String(year)] = match?.totalAmount ?? 0;
+      }
+      chartData.push(point);
+    }
+
+    return { trendChartData: chartData, trendYearStrings: yearStrings };
+  }, [trendCategoryId, trendYears, trendAggregatesMap, categoryHierarchy]);
+
+  const handleTrendToggleYear = (yearStr: string) => {
+    setTrendHiddenYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(yearStr)) next.delete(yearStr);
+      else next.add(yearStr);
+      return next;
+    });
+  };
+
+  const handleTrendSelectAll = () => setTrendHiddenYears(new Set());
+  const handleTrendDeselectAll = () => setTrendHiddenYears(new Set(trendYearStrings));
+
   const piePeriodLabel = pieGranularity === 'monthly'
     ? `${MONTH_FULL_NAMES[pieMonth - 1]} ${pieYear}`
     : String(pieYear);
@@ -446,12 +582,79 @@ export default function DashboardPage() {
           </IconButton>
         </Box>
 
-        {pieBudgetsLoading ? (
+        {pieBudgetsLoading && pieExpenseLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />
           </Box>
         ) : (
-          <BudgetAllocationChart data={pieData} totalBudget={pieTotalBudget} />
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle2" textAlign="center" color="text.secondary" sx={{ mb: 1 }}>
+                Budget
+              </Typography>
+              <BudgetAllocationChart data={pieData} totalBudget={pieTotalBudget} label="total budget" />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle2" textAlign="center" color="text.secondary" sx={{ mb: 1 }}>
+                Expenses
+              </Typography>
+              <BudgetAllocationChart data={expensePieData} totalBudget={expensePieTotal} label="total spent" />
+            </Box>
+          </Box>
+        )}
+      </Paper>
+      {/* Monthly Trend Across Years */}
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mt: 3 }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: 2,
+        }}>
+          <Typography variant="h6">
+            Monthly Trend Across Years
+          </Typography>
+
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={trendCategoryId}
+              label="Category"
+              onChange={(e) => setTrendCategoryId(e.target.value as number)}
+            >
+              {categoryHierarchy.map((parent) => [
+                <ListSubheader key={`header-${parent.id}`}>{parent.icon} {parent.name}</ListSubheader>,
+                <MenuItem key={parent.id} value={parent.id} sx={{ pl: 3 }}>
+                  {parent.icon} {parent.name} (all)
+                </MenuItem>,
+                ...(parent.childCategories ?? []).map((child) => (
+                  <MenuItem key={child.id} value={child.id} sx={{ pl: 4 }}>
+                    {child.icon} {child.name}
+                  </MenuItem>
+                )),
+              ])}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {trendLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <SpendingTrendChart
+            chartData={trendChartData}
+            xAxisKey="month"
+            categories={trendYearStrings}
+            xAxisFormatter={formatMonthLabel}
+            granularity="monthly"
+            hiddenCategories={trendHiddenYears}
+            onToggleCategory={handleTrendToggleYear}
+            onSelectAll={handleTrendSelectAll}
+            onDeselectAll={handleTrendDeselectAll}
+          />
         )}
       </Paper>
     </Container>

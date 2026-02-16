@@ -22,9 +22,10 @@ export interface BudgetAllocationItem {
 interface BudgetAllocationChartProps {
   data: BudgetAllocationItem[];
   totalBudget: number;
+  label?: string;
 }
 
-export default function BudgetAllocationChart({ data, totalBudget }: BudgetAllocationChartProps) {
+export default function BudgetAllocationChart({ data, totalBudget, label = 'total budget' }: BudgetAllocationChartProps) {
   const theme = useTheme();
 
   if (data.length === 0 || totalBudget === 0) {
@@ -49,7 +50,7 @@ export default function BudgetAllocationChart({ data, totalBudget }: BudgetAlloc
           {formatCurrency(totalBudget)}
         </tspan>
         <tspan x={cx} dy="1.4em" fontSize="12" fill={theme.palette.text.secondary}>
-          total budget
+          {label}
         </tspan>
       </text>
     );
