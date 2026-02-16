@@ -221,7 +221,6 @@ export default function DashboardPage() {
   const handleGranularityChange = (_: React.MouseEvent<HTMLElement>, value: Granularity | null) => {
     if (value) {
       setGranularity(value);
-      setHiddenCategories(new Set());
     }
   };
 
@@ -293,7 +292,7 @@ export default function DashboardPage() {
     }
 
     const items: BudgetAllocationItem[] = filtered
-      .filter(b => b.totalAmount > 0)
+      .filter(b => b.totalAmount > 0 && !b.category?.parentCategoryId)
       .map(b => ({
         name: b.category?.name ?? 'Unknown',
         icon: b.category?.icon,

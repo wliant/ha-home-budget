@@ -73,10 +73,12 @@ export default function ExpensesPage() {
     const filtered = data.content.filter(
       (expense) => expense.categoryId != null && selectedCategoryIds.has(expense.categoryId)
     );
+    const totalAmount = filtered.reduce((sum, expense) => sum + expense.amount, 0);
     return {
       ...data,
       content: filtered,
       totalElements: filtered.length,
+      totalAmount,
     };
   }, [data, selectedCategoryIds]);
 
