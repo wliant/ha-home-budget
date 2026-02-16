@@ -1,4 +1,4 @@
-from langgraph.graph import CompiledGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from ocr_processor.agents.paid import build_graph as build_paid_graph
 from ocr_processor.agents.self_hosted import build_graph as build_self_hosted_graph
@@ -8,10 +8,10 @@ _AGENTS = {
     "paid": build_paid_graph,
 }
 
-_compiled_agents: dict[str, CompiledGraph] = {}
+_compiled_agents: dict[str, CompiledStateGraph] = {}
 
 
-def get_agent(name: str) -> CompiledGraph:
+def get_agent(name: str) -> CompiledStateGraph:
     """Return a compiled agent graph by name. Caches compiled graphs."""
     if name not in _AGENTS:
         valid = ", ".join(sorted(_AGENTS.keys()))
