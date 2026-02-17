@@ -277,6 +277,8 @@ All bash scripts support:
 - MySQL 8.0 (existing database with expenses, categories tables) (021-expense-server-filtering)
 - MySQL 8.0 (existing tables: `expense_input_jobs`, `temporary_expense_records`, `expense_files`) (022-bulk-upload-enhancement)
 - Python 3.11+ (OCR processor), Java 17 (backend integration) + FastAPI, LangGraph >=0.2.0, LangChain >=0.3.0, langchain-ollama >=0.2.0, langchain-anthropic (new, for paid agent), pytesseract, PyMuPDF, Pillow, structlog, pydantic-settings (023-ocr-agent-refactor)
+- Java 17 (backend), TypeScript 5.x (frontend — no changes needed) + Spring Boot 3.2.0, AWS SDK for Java v2 (`software.amazon.awssdk:s3`), MinIO (Docker container) (024-object-storage)
+- MinIO (S3-compatible object storage), MySQL 8.0 (existing — no schema changes) (024-object-storage)
 
 ## Recent Changes
 - 002-budget-management: Added MySQL 8.0 (via Docker Compose from Feature 001)

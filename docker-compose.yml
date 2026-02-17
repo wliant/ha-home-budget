@@ -20,6 +20,27 @@ services:
     networks:
       - homebudget-network
 
+  minio:
+    image: quay.io/minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - homebudget-network
+    restart: unless-stopped
+
   backend:
     build:
       context: ./budget-backend
@@ -29,10 +50,16 @@ services:
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-budget_user}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-budget_password}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-homebudget-files}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       mysql:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     volumes:
       - ./budget-backend/src:/app/src
@@ -76,6 +103,8 @@ services:
 
 volumes:
   mysql-data:
+    driver: local
+  minio-data:
     driver: local
   backend-m2:
     driver: local

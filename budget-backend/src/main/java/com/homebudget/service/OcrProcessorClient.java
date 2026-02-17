@@ -3,9 +3,6 @@ package com.homebudget.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.homebudget.dto.OcrResponseDTO;
 import com.homebudget.model.Category;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,21 +38,13 @@ public class OcrProcessorClient {
         this.objectMapper = new ObjectMapper();
     }
 
-    public OcrResult processReceipt(Path filePath, String originalFilename, List<Category> categories) {
-        return processReceipt(filePath, originalFilename, categories, null);
+    public OcrResult processReceipt(byte[] fileBytes, String originalFilename, List<Category> categories) {
+        return processReceipt(fileBytes, originalFilename, categories, null);
     }
 
-    public OcrResult processReceipt(Path filePath, String originalFilename, List<Category> categories, Category selectedCategory) {
+    public OcrResult processReceipt(byte[] fileBytes, String originalFilename, List<Category> categories, Category selectedCategory) {
         logger.info("Calling OCR processor for file: {}, selectedCategory: {}", originalFilename,
                 selectedCategory != null ? selectedCategory.getName() : "none");
-
-        byte[] fileBytes;
-        try {
-            fileBytes = Files.readAllBytes(filePath);
-        } catch (IOException e) {
-            logger.error("Failed to read file: {}", filePath, e);
-            return OcrResult.nonRetryableError("Failed to read file: " + e.getMessage());
-        }
 
         String contentType = guessContentType(originalFilename);
         String categoriesJson = buildCategoriesJson(categories);

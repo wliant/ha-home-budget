@@ -15,9 +15,6 @@ import com.homebudget.repository.ExpenseRepository;
 import com.homebudget.repository.TemporaryExpenseRecordRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,7 +23,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,21 +42,22 @@ public class ExpenseInputJobService {
     private final ExpenseService expenseService;
     private final ExpenseRepository expenseRepository;
     private final OcrProcessorClient ocrProcessorClient;
-    @Value("${EXPENSE_FILE_DIR:./data/expense-files}")
-    private String expenseFileDir;
+    private final StorageService storageService;
 
     public ExpenseInputJobService(ExpenseInputJobRepository jobRepository,
                                   TemporaryExpenseRecordRepository tempRepository,
                                   CategoryRepository categoryRepository,
                                   ExpenseService expenseService,
                                   ExpenseRepository expenseRepository,
-                                  OcrProcessorClient ocrProcessorClient) {
+                                  OcrProcessorClient ocrProcessorClient,
+                                  StorageService storageService) {
         this.jobRepository = jobRepository;
         this.tempRepository = tempRepository;
         this.categoryRepository = categoryRepository;
         this.expenseService = expenseService;
         this.expenseRepository = expenseRepository;
         this.ocrProcessorClient = ocrProcessorClient;
+        this.storageService = storageService;
     }
 
     public List<ExpenseInputJobDTO> createJobs(List<MultipartFile> files, String username, Long defaultCategoryId) {
@@ -89,10 +86,10 @@ public class ExpenseInputJobService {
             job.setDefaultCategory(defaultCategory);
             job = jobRepository.save(job);
 
-            Path target = resolveJobPath(job);
+            String objectKey = "input-jobs/" + LocalDate.now().getYear() + "/job-" + job.getId();
             try {
-                Files.createDirectories(target.getParent());
-                file.transferTo(target);
+                String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+                storageService.putObject(objectKey, file.getBytes(), contentType);
             } catch (IOException e) {
                 job.setStatus(ExpenseInputJob.Status.FAILED);
                 job.setErrorMessage("Failed to store file");
@@ -100,7 +97,7 @@ public class ExpenseInputJobService {
                 continue;
             }
 
-            job.setFilePath(target.toString());
+            job.setFilePath(objectKey);
             job.setStatus(ExpenseInputJob.Status.PROCESSING);
             jobRepository.save(job);
             jobs.add(job);
@@ -260,7 +257,7 @@ public class ExpenseInputJobService {
             }
 
             if (!anyConfirmed) {
-                deleteFileIfExists(job.getFilePath());
+                storageService.deleteObject(job.getFilePath());
             }
 
             jobRepository.delete(job);
@@ -303,9 +300,10 @@ public class ExpenseInputJobService {
                 jobRepository.save(job);
             }
 
-            Path filePath = Paths.get(job.getFilePath());
-            if (!Files.exists(filePath)) {
-                logger.error("File not found for job {}: {}", job.getId(), filePath);
+            String objectKey = job.getFilePath();
+            byte[] fileBytes = storageService.getObject(objectKey);
+            if (fileBytes == null) {
+                logger.error("File not found in storage for job {}: {}", job.getId(), objectKey);
                 job.setStatus(ExpenseInputJob.Status.FAILED);
                 job.setErrorMessage("Uploaded file not found");
                 jobRepository.save(job);
@@ -314,7 +312,7 @@ public class ExpenseInputJobService {
 
             try {
                 OcrProcessorClient.OcrResult result = ocrProcessorClient.processReceipt(
-                        filePath, job.getOriginalFilename(), categories, job.getDefaultCategory());
+                        fileBytes, job.getOriginalFilename(), categories, job.getDefaultCategory());
 
                 if (result.isSuccess()) {
                     Map<Long, Category> categoryMap = categories.stream()
@@ -415,17 +413,17 @@ public class ExpenseInputJobService {
         Expense expense = expenseRepository.findById(created.getId())
                 .orElseThrow(() -> new ExpenseNotFoundException(created.getId()));
 
-        Path source = Paths.get(job.getFilePath());
-        if (Files.exists(source)) {
+        String sourceKey = job.getFilePath();
+        if (storageService.objectExists(sourceKey)) {
             try {
-                expenseService.attachExistingFile(expense, source, job.getOriginalFilename());
+                expenseService.attachExistingFile(expense, sourceKey, job.getOriginalFilename());
             } catch (RuntimeException e) {
                 logger.warn("Failed to attach file for job {}. Continuing without file.", job.getId(), e);
                 job.setErrorMessage("File attachment failed");
                 jobRepository.save(job);
             }
         } else {
-            logger.warn("Missing source file for job {} at {}. Continuing without file.", job.getId(), source);
+            logger.warn("Missing source file for job {} at {}. Continuing without file.", job.getId(), sourceKey);
             job.setErrorMessage("Source file missing");
             jobRepository.save(job);
         }
@@ -447,21 +445,6 @@ public class ExpenseInputJobService {
         boolean isPdf = "application/pdf".equals(contentType);
         if (!isImage && !isPdf) {
             throw new IllegalArgumentException("Only PDF and image files are allowed");
-        }
-    }
-
-    private Path resolveJobPath(ExpenseInputJob job) {
-        int year = LocalDate.now().getYear();
-        String fileName = "job-" + job.getId();
-        return Paths.get(expenseFileDir, "input-jobs", String.valueOf(year), fileName);
-    }
-
-    private void deleteFileIfExists(String path) {
-        if (path == null || path.isBlank()) return;
-        try {
-            Files.deleteIfExists(Paths.get(path));
-        } catch (IOException e) {
-            logger.warn("Failed to delete job file {}", path, e);
         }
     }
 
