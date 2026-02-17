@@ -37,6 +37,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     networks:
       - homebudget-network
     restart: unless-stopped
