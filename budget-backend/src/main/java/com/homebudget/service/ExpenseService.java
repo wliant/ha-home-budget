@@ -44,8 +44,8 @@ import java.util.stream.Collectors;
 public class ExpenseService {
 
     private static final Logger logger = LoggerFactory.getLogger(ExpenseService.class);
-    private static final int MAX_FILES = 5;
-    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+    private static final int MAX_FILES = 1;
+    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
     @Autowired
     private ExpenseRepository expenseRepository;
@@ -452,7 +452,7 @@ public class ExpenseService {
             throw new IllegalArgumentException("File cannot be empty");
         }
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new IllegalArgumentException("File size exceeds 5MB limit");
+            throw new IllegalArgumentException("File size exceeds 10MB limit");
         }
         String contentType = file.getContentType();
         if (contentType == null) {

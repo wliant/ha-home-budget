@@ -37,7 +37,7 @@ public class ExpenseInputJobService {
 
     private static final Logger logger = LoggerFactory.getLogger(ExpenseInputJobService.class);
     private static final int MAX_FILES = 20;
-    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
     private static final int MAX_RETRIES = 3;
 
     private final ExpenseInputJobRepository jobRepository;
@@ -437,7 +437,7 @@ public class ExpenseInputJobService {
             throw new IllegalArgumentException("File cannot be empty");
         }
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new IllegalArgumentException("File size exceeds 5MB limit");
+            throw new IllegalArgumentException("File size exceeds 10MB limit");
         }
         String contentType = file.getContentType();
         if (contentType == null) {

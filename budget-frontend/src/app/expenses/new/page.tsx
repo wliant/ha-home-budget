@@ -49,8 +49,8 @@ export default function NewExpensePage() {
     successMessage: null,
     errorMessage: null,
   });
-  const maxFiles = 5;
-  const maxFileSize = 5 * 1024 * 1024;
+  const maxFiles = 1;
+  const maxFileSize = 10 * 1024 * 1024;
 
   // Client-side form validation
   const validateForm = (): boolean => {
@@ -186,7 +186,7 @@ export default function NewExpensePage() {
 
     const tooLarge = combined.find((file) => file.size > maxFileSize);
     if (tooLarge) {
-      errors.files = 'Each file must be 5MB or less';
+      errors.files = 'Each file must be 10MB or less';
     }
 
     setFormState((prev) => ({
@@ -370,11 +370,10 @@ export default function NewExpensePage() {
                 startIcon={<AttachFile />}
                 disabled={formState.files.length >= maxFiles}
               >
-                Add files
+                Add file
                 <input
                   type="file"
                   hidden
-                  multiple
                   accept="application/pdf,image/*"
                   onChange={handleFileChange}
                 />
@@ -396,7 +395,7 @@ export default function NewExpensePage() {
               </Button>
             </Box>
             <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              Up to {maxFiles} files, 5MB each
+              {maxFiles} file, 10MB max
             </Typography>
             {formState.errors.files && (
               <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>

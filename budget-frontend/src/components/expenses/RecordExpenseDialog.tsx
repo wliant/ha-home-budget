@@ -43,8 +43,8 @@ export function RecordExpenseDialog({ open, onClose, onSuccess }: RecordExpenseD
     errorMessage: null,
   });
 
-  const maxFiles = 5;
-  const maxFileSize = 5 * 1024 * 1024;
+  const maxFiles = 1;
+  const maxFileSize = 10 * 1024 * 1024;
 
   useEffect(() => {
     if (open) {
@@ -133,7 +133,7 @@ export function RecordExpenseDialog({ open, onClose, onSuccess }: RecordExpenseD
     const invalidType = combined.find((file) => !(file.type === 'application/pdf' || file.type.startsWith('image/')));
     if (invalidType) errors.files = 'Only PDF and image files are allowed';
     const tooLarge = combined.find((file) => file.size > maxFileSize);
-    if (tooLarge) errors.files = 'Each file must be 5MB or less';
+    if (tooLarge) errors.files = 'Each file must be 10MB or less';
     setFormState((prev) => ({ ...prev, files: combined.slice(0, maxFiles), errors }));
   };
 
@@ -293,8 +293,8 @@ export function RecordExpenseDialog({ open, onClose, onSuccess }: RecordExpenseD
                 disabled={formState.files.length >= maxFiles}
                 size="small"
               >
-                Add files
-                <input type="file" hidden multiple accept="application/pdf,image/*" onChange={handleFileChange} />
+                Add file
+                <input type="file" hidden accept="application/pdf,image/*" onChange={handleFileChange} />
               </Button>
               <Button
                 variant="outlined"
@@ -308,7 +308,7 @@ export function RecordExpenseDialog({ open, onClose, onSuccess }: RecordExpenseD
               </Button>
             </Box>
             <Typography variant="caption" color="text.secondary">
-              Up to {maxFiles} files, 5MB each
+              {maxFiles} file, 10MB max
             </Typography>
             {formState.errors.files && (
               <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
