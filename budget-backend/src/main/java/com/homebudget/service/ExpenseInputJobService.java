@@ -90,9 +90,10 @@ public class ExpenseInputJobService {
             try {
                 String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
                 storageService.putObject(objectKey, file.getBytes(), contentType);
-            } catch (IOException e) {
+            } catch (Exception e) {
+                logger.error("Failed to store file for job {}: {}", job.getId(), objectKey, e);
                 job.setStatus(ExpenseInputJob.Status.FAILED);
-                job.setErrorMessage("Failed to store file");
+                job.setErrorMessage("Failed to store file: " + e.getMessage());
                 jobRepository.save(job);
                 continue;
             }
@@ -257,7 +258,11 @@ public class ExpenseInputJobService {
             }
 
             if (!anyConfirmed) {
-                storageService.deleteObject(job.getFilePath());
+                try {
+                    storageService.deleteObject(job.getFilePath());
+                } catch (Exception e) {
+                    logger.warn("Failed to delete file from storage for job {}: {}", job.getId(), job.getFilePath(), e);
+                }
             }
 
             jobRepository.delete(job);

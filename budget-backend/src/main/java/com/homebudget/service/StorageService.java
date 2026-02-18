@@ -56,6 +56,10 @@ public class StorageService {
     }
 
     public void deleteObject(String key) {
+        if (key == null || key.isBlank() || key.equals("temp")) {
+            logger.warn("Skipping deleteObject for invalid/placeholder key: '{}'", key);
+            return;
+        }
         logger.debug("Deleting object: bucket={}, key={}", bucketName, key);
         DeleteObjectRequest request = DeleteObjectRequest.builder()
                 .bucket(bucketName)

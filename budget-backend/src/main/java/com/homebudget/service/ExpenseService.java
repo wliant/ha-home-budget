@@ -475,7 +475,11 @@ public class ExpenseService {
 
         String destKey = buildExpenseFileKey(expense, expenseFile.getId());
         storageService.copyObject(sourceKey, destKey);
-        storageService.deleteObject(sourceKey);
+        try {
+            storageService.deleteObject(sourceKey);
+        } catch (Exception e) {
+            logger.warn("Failed to delete source file from storage after copy: {}", sourceKey, e);
+        }
 
         expenseFile.setFilePath(destKey);
         return expenseFileRepository.save(expenseFile);
