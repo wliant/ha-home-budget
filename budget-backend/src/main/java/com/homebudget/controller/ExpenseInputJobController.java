@@ -90,6 +90,32 @@ public class ExpenseInputJobController {
         return ResponseEntity.ok(dto);
     }
 
+    @GetMapping("/{jobId}/file")
+    public ResponseEntity<byte[]> downloadJobFile(@PathVariable Long jobId) {
+        logger.info("GET /api/expense-input-jobs/{}/file - Downloading file", jobId);
+        ExpenseInputJobService.FileDownloadData data = jobService.downloadJobFile(jobId);
+        if (data == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String contentType = detectContentType(data.originalFilename());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header("Content-Disposition", "inline; filename=\"" + data.originalFilename() + "\"")
+                .body(data.bytes());
+    }
+
+    private static String detectContentType(String filename) {
+        if (filename == null) return "application/octet-stream";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".heic")) return "image/heic";
+        return "application/octet-stream";
+    }
+
     @DeleteMapping
     public ResponseEntity<Void> deleteJobs(@RequestBody ConfirmExpenseInputJobsRequest request) {
         jobService.deleteJobs(request.getJobIds());

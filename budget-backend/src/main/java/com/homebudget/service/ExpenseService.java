@@ -488,6 +488,16 @@ public class ExpenseService {
         return normalized.isBlank() ? "uncategorized" : normalized;
     }
 
+    public record FileDownloadData(byte[] bytes, String originalFilename) {}
+
+    public FileDownloadData downloadExpenseFile(Long fileId) {
+        ExpenseFile ef = expenseFileRepository.findById(fileId)
+                .orElseThrow(() -> new ExpenseNotFoundException(fileId));
+        byte[] bytes = storageService.getObject(ef.getFilePath());
+        if (bytes == null) return null;
+        return new FileDownloadData(bytes, ef.getOriginalFilename());
+    }
+
     /**
      * If the given categoryId is a parent category (has children), expand to a list
      * containing the parent + all child category IDs. Returns null if not a parent category

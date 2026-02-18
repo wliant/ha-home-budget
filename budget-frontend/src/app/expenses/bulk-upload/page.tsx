@@ -33,11 +33,13 @@ import {
   Undo as UndoIcon,
   CallMerge as MergeIcon,
   CheckCircle as CheckCircleIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { expenseInputJobService, ExpenseInputJobDTO, TemporaryExpenseRecordDTO } from '@/services/expenseInputJobService';
 import { categoryService } from '@/services/categoryService';
 import { CategoryDTO } from '@/types/category';
 import { BulkUploadDialog } from '@/components/expenses/BulkUploadDialog';
+import FilePreviewDialog from '@/components/expenses/FilePreviewDialog';
 
 const statusColor = (status: ExpenseInputJobDTO['status']): 'default' | 'warning' | 'error' | 'info' | 'success' => {
   switch (status) {
@@ -78,6 +80,9 @@ export default function BulkUploadExpensePage() {
   const [editedRecords, setEditedRecords] = useState<Map<number, EditedFields>>(new Map());
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [selectedRecordIds, setSelectedRecordIds] = useState<Map<number, Set<number>>>(new Map());
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
+  const [previewJobId, setPreviewJobId] = useState<number | null>(null);
+  const [previewFilename, setPreviewFilename] = useState('');
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -318,6 +323,49 @@ export default function BulkUploadExpensePage() {
     }
   };
 
+  const toggleJobSelect = (jobId: number) => {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllJobs = () => {
+    setSelectedJobIds((prev) => {
+      if (prev.size === jobs.length && jobs.length > 0) return new Set();
+      return new Set(jobs.map((j) => j.id));
+    });
+  };
+
+  const handleDeleteSelectedJobs = async () => {
+    if (selectedJobIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedJobIds.size} selected job(s) and all their records?`)) return;
+    setLoading(true);
+    setError('');
+    try {
+      await expenseInputJobService.deleteJobs(Array.from(selectedJobIds));
+      setExpandedJobIds((prev) => {
+        const next = new Set(prev);
+        for (const id of selectedJobIds) next.delete(id);
+        return next;
+      });
+      setSelectedRecordIds((prev) => {
+        const next = new Map(prev);
+        for (const id of selectedJobIds) next.delete(id);
+        return next;
+      });
+      setSelectedJobIds(new Set());
+      await fetchJobs();
+    } catch (err) {
+      console.error('Failed to delete selected jobs', err);
+      setError('Failed to delete selected jobs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
@@ -353,10 +401,33 @@ export default function BulkUploadExpensePage() {
         </Alert>
       )}
 
+      {selectedJobIds.size > 0 && (
+        <Box sx={{ mb: 1, display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            disabled={loading}
+            onClick={handleDeleteSelectedJobs}
+          >
+            Delete ({selectedJobIds.size})
+          </Button>
+        </Box>
+      )}
+
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  size="small"
+                  checked={jobs.length > 0 && selectedJobIds.size === jobs.length}
+                  indeterminate={selectedJobIds.size > 0 && selectedJobIds.size < jobs.length}
+                  onChange={toggleSelectAllJobs}
+                />
+              </TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Filename</TableCell>
               <TableCell>Created</TableCell>
@@ -376,6 +447,13 @@ export default function BulkUploadExpensePage() {
               return (
                 <React.Fragment key={job.id}>
                   <TableRow hover>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={selectedJobIds.has(job.id)}
+                        onChange={() => toggleJobSelect(job.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Chip label={job.status} color={statusColor(job.status)} size="small" />
                     </TableCell>
@@ -410,6 +488,14 @@ export default function BulkUploadExpensePage() {
                           </IconButton>
                         </Tooltip>
                       )}
+                      <Tooltip title="Preview file">
+                        <IconButton
+                          size="small"
+                          onClick={() => { setPreviewJobId(job.id); setPreviewFilename(job.originalFilename); }}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Delete job">
                         <IconButton size="small" onClick={() => handleDeleteJob(job.id)} disabled={loading}>
                           <DeleteIcon fontSize="small" />
@@ -419,7 +505,7 @@ export default function BulkUploadExpensePage() {
                   </TableRow>
                   {canExpand && (
                     <TableRow>
-                      <TableCell colSpan={5} sx={{ p: 0, borderBottom: isExpanded ? undefined : 0 }}>
+                      <TableCell colSpan={6} sx={{ p: 0, borderBottom: isExpanded ? undefined : 0 }}>
                         <Collapse in={isExpanded} unmountOnExit>
                           <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
                             {!isReadOnly && records.length > 0 && (
@@ -570,7 +656,7 @@ export default function BulkUploadExpensePage() {
             })}
             {jobs.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
                     No jobs yet. Upload files to get started.
                   </Typography>
@@ -585,6 +671,13 @@ export default function BulkUploadExpensePage() {
         open={uploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
         onUpload={handleUpload}
+      />
+
+      <FilePreviewDialog
+        open={previewJobId !== null}
+        onClose={() => { setPreviewJobId(null); setPreviewFilename(''); }}
+        fileUrl={previewJobId !== null ? `/api/expense-input-jobs/${previewJobId}/file` : null}
+        filename={previewFilename}
       />
     </Container>
   );

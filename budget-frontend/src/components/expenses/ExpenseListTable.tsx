@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import type { ExpenseListResponse } from '@/services/expenseService';
 import { formatExpenseDate, formatExpenseAmount } from '@/services/expenseService';
+import FilePreviewDialog from './FilePreviewDialog';
 
 type SortDirection = 'ASC' | 'DESC';
 
@@ -62,6 +63,9 @@ export default function ExpenseListTable({
   onEdit,
   onDelete,
 }: ExpenseListTableProps) {
+  const [previewFileUrl, setPreviewFileUrl] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState('');
+
   const canModify = (createdBy?: string) =>
     createdBy === 'common' || createdBy === currentUser;
 
@@ -194,13 +198,19 @@ export default function ExpenseListTable({
                 <TableCell>
                   {expense.files && expense.files.length > 0 ? (
                     <Tooltip
-                      title={expense.files.map((file) => file.originalFilename).join(', ')}
+                      title={`Preview: ${expense.files.map((file) => file.originalFilename).join(', ')}`}
                       arrow
                     >
                       <Chip
                         label={`${expense.files.length} file${expense.files.length > 1 ? 's' : ''}`}
                         size="small"
                         variant="outlined"
+                        onClick={() => {
+                          const file = expense.files![0];
+                          setPreviewFileUrl(`/api/expenses/files/${file.id}`);
+                          setPreviewFilename(file.originalFilename);
+                        }}
+                        sx={{ cursor: 'pointer' }}
                       />
                     </Tooltip>
                   ) : (
@@ -238,6 +248,12 @@ export default function ExpenseListTable({
         onPageChange={handleChangePage}
         rowsPerPage={data.pageSize}
         rowsPerPageOptions={[50]}
+      />
+      <FilePreviewDialog
+        open={previewFileUrl !== null}
+        onClose={() => { setPreviewFileUrl(null); setPreviewFilename(''); }}
+        fileUrl={previewFileUrl}
+        filename={previewFilename}
       />
     </Paper>
   );

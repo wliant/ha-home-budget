@@ -329,6 +329,38 @@ public class ExpenseController {
     }
 
     /**
+     * Download/preview an expense file by file ID.
+     *
+     * @param fileId ExpenseFile ID
+     * @return file bytes with appropriate content type for inline preview
+     */
+    @GetMapping("/files/{fileId}")
+    public ResponseEntity<byte[]> downloadExpenseFile(@PathVariable Long fileId) {
+        logger.info("GET /api/expenses/files/{} - Downloading file", fileId);
+        ExpenseService.FileDownloadData data = expenseService.downloadExpenseFile(fileId);
+        if (data == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String contentType = detectContentType(data.originalFilename());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header("Content-Disposition", "inline; filename=\"" + data.originalFilename() + "\"")
+                .body(data.bytes());
+    }
+
+    private static String detectContentType(String filename) {
+        if (filename == null) return "application/octet-stream";
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".heic")) return "image/heic";
+        return "application/octet-stream";
+    }
+
+    /**
      * Delete an expense.
      *
      * @param id Expense ID

@@ -473,6 +473,16 @@ public class ExpenseInputJobService {
         return dto;
     }
 
+    public record FileDownloadData(byte[] bytes, String originalFilename) {}
+
+    public FileDownloadData downloadJobFile(Long jobId) {
+        ExpenseInputJob job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Job not found: " + jobId));
+        byte[] bytes = storageService.getObject(job.getFilePath());
+        if (bytes == null) return null;
+        return new FileDownloadData(bytes, job.getOriginalFilename());
+    }
+
     private TemporaryExpenseRecordDTO toTemporaryDTO(TemporaryExpenseRecord record) {
         TemporaryExpenseRecordDTO dto = new TemporaryExpenseRecordDTO();
         dto.setId(record.getId());
