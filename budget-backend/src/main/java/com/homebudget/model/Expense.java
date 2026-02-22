@@ -1,7 +1,6 @@
 package com.homebudget.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -23,7 +22,6 @@ public class Expense {
     private Long id;
 
     @NotNull
-    @Min(0)
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
