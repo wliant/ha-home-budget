@@ -91,10 +91,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     const amount = parseFloat(formData.amount);
     if (!formData.amount || isNaN(amount)) {
       newErrors.amount = 'Amount is required';
-    } else if (amount <= 0) {
-      newErrors.amount = 'Amount must be greater than 0';
-    } else if (amount > 999999.99) {
-      newErrors.amount = 'Amount must be less than $999,999.99';
+    } else if (amount === 0) {
+      newErrors.amount = 'Amount cannot be zero';
+    } else if (amount > 999999.99 || amount < -999999.99) {
+      newErrors.amount = 'Amount must be between -$999,999.99 and $999,999.99';
     }
 
     // Validate description
@@ -176,7 +176,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           helperText={errors.amount}
           inputProps={{
             step: '0.01',
-            min: '0',
           }}
           sx={{ mb: 2 }}
         />
