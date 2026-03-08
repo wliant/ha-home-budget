@@ -67,3 +67,7 @@ coverage/
 # pnpm-lock.yaml
 .playwright-cli
 data
+
+
+.env.prod
+start.sh
