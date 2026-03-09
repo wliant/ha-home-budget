@@ -71,3 +71,10 @@ data
 
 .env.prod
 start.sh
+
+# Claude Code
+.claude/settings.local.json
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+*.tsbuildinfo
