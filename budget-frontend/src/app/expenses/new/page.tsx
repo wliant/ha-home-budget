@@ -21,6 +21,7 @@ import { AddCard as AddCardIcon, Add, Remove, AttachFile, CameraAlt } from '@mui
 import { CategorySelect } from '@/components/expenses/CategorySelect';
 import { expenseService, getTodayISO } from '@/services/expenseService';
 import { ExpenseFormState } from '@/types/expense';
+import { validateExpenseForm } from '@/utils/expenseValidation';
 
 /**
  * New expense page - Feature 007: Expense Recording
@@ -54,31 +55,14 @@ export default function NewExpensePage() {
 
   // Client-side form validation
   const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    const amountNum = parseFloat(formState.amount);
-    if (!formState.amount || isNaN(amountNum) || amountNum === 0) {
-      errors.amount = 'Amount must not be zero';
-    }
-
-    if (!formState.description.trim()) {
-      errors.description = 'Description is required';
-    } else if (formState.description.length > 500) {
-      errors.description = 'Description must be 500 characters or less';
-    }
-
-    if (!formState.categoryId) {
-      errors.category = 'Category is required';
-    }
-
-    if (!formState.expenseDate) {
-      errors.date = 'Date is required';
-    }
-
-    if (formState.files.length > maxFiles) {
-      errors.files = 'Maximum 5 files allowed';
-    }
-
+    const errors = validateExpenseForm({
+      amount: formState.amount,
+      description: formState.description,
+      expenseDate: formState.expenseDate,
+      categoryId: formState.categoryId,
+      filesCount: formState.files.length,
+      maxFiles,
+    });
     setFormState((prev) => ({ ...prev, errors }));
     return Object.keys(errors).length === 0;
   };
