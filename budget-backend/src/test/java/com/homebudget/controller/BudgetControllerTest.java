@@ -8,7 +8,7 @@ import com.homebudget.dto.BudgetValidationDTO;
 import com.homebudget.dto.YearlyBudgetViewDTO;
 import com.homebudget.exception.BudgetNotFoundException;
 import com.homebudget.exception.GlobalExceptionHandler;
-import com.homebudget.filter.HassUserHeaderFilter;
+
 import com.homebudget.service.BudgetService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,12 +55,6 @@ class BudgetControllerTest {
      */
     @MockBean
     private AuthHeaderInterceptor authHeaderInterceptor;
-
-    /**
-     * MockBean for HassUserHeaderFilter (@Component filter that is auto-scanned by @WebMvcTest).
-     */
-    @MockBean
-    private HassUserHeaderFilter hassUserHeaderFilter;
 
     // ---------------------------------------------------------------
     // Helper methods for building test DTOs
