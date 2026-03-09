@@ -12,7 +12,7 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 
 # Development mode - use spring-boot:run for hot reload
-CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
+CMD ["mvn", "spring-boot:run", "-Dmaven.test.skip=true", "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"]
 
 # For production build (not used in dev):
 # RUN mvn clean package -DskipTests

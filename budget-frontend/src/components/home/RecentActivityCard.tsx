@@ -53,19 +53,15 @@ export function RecentActivityCard() {
     setIsLoading(true);
     setError('');
     try {
-      // Get all expenses (backend should return sorted by date desc)
-      const allExpenses = await expenseService.getAllExpenses();
+      // Use paginated endpoint to fetch only the 5 most recent expenses
+      const result = await expenseService.getExpenseList({
+        page: 0,
+        size: 5,
+        sortBy: 'expenseDate',
+        sortDirection: 'desc',
+      });
 
-      // Take only the 5 most recent, sorted by date descending
-      const sortedExpenses = [...allExpenses]
-        .sort((a, b) => {
-          const dateA = new Date(a.expenseDate || a.createdAt || '');
-          const dateB = new Date(b.expenseDate || b.createdAt || '');
-          return dateB.getTime() - dateA.getTime();
-        })
-        .slice(0, 5);
-
-      setExpenses(sortedExpenses);
+      setExpenses(result.content);
     } catch (err: any) {
       console.error('Failed to load recent expenses:', err);
       setError(err.response?.data?.message || 'Failed to load recent activity');

@@ -1,3 +1,6 @@
+# Local developer tooling
+.local/
+
 # Node.js / Next.js (Frontend)
 node_modules/
 .next/
