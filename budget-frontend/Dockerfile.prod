@@ -27,5 +27,13 @@ COPY --from=build /app/next.config.js ./
 # Create public directory (Next.js needs it even if empty)
 RUN mkdir -p ./public
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+
+USER appuser
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
 CMD ["npm", "start"]
