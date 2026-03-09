@@ -1,11 +1,14 @@
 package com.homebudget.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,17 +29,31 @@ import java.util.Map;
 @RequestMapping("/api")
 public class HealthController {
 
+    @Autowired
+    private DataSource dataSource;
+
     /**
-     * Basic health check endpoint.
-     * Returns 200 OK when service is running.
+     * Health check endpoint that verifies database connectivity.
+     * Returns 200 OK when service and database are reachable.
+     * Returns 503 Service Unavailable when database is unreachable.
      */
     @GetMapping("/health")
-    public ResponseEntity<Map<String, String>> health() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "UP");
+    public ResponseEntity<Map<String, Object>> health() {
+        Map<String, Object> response = new HashMap<>();
         response.put("service", "home-budget-backend");
         response.put("version", "1.0.0-SNAPSHOT");
-        return ResponseEntity.ok(response);
+
+        try (Connection conn = dataSource.getConnection()) {
+            conn.isValid(2);
+            response.put("status", "UP");
+            response.put("database", "UP");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "DOWN");
+            response.put("database", "DOWN");
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(503).body(response);
+        }
     }
 
     /**
