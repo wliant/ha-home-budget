@@ -28,6 +28,10 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
 
 management:
   endpoints:
@@ -102,6 +106,12 @@ logging:
 app:
   dev-mode: false
   default-dev-user: ""
+  expense:
+    max-files: 1
+    max-file-size-bytes: 10485760  # 10MB
+    allowed-sort-fields: expenseDate,description,amount,createdBy,category.name
+  performance:
+    slow-method-threshold-ms: 100
   storage:
     endpoint: ${MINIO_ENDPOINT:http://minio:9000}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
