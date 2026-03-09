@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { Box, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { formatCurrencyCompact } from '@/utils/formatters';
 
 const CHART_COLORS = [
   '#2196F3', '#4CAF50', '#FF9800', '#E91E63', '#9C27B0',
@@ -56,15 +57,6 @@ export default function SpendingTrendChart({
   selectedMonth,
 }: SpendingTrendChartProps) {
   const theme = useTheme();
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   const formatTooltipLabel = (label: unknown) => {
     if (xAxisFormatter) return xAxisFormatter(label);
@@ -211,14 +203,14 @@ export default function SpendingTrendChart({
             stroke={theme.palette.divider}
           />
           <YAxis
-            tickFormatter={(v) => formatCurrency(v)}
+            tickFormatter={(v) => formatCurrencyCompact(v)}
             tick={{ fontSize: 12, fill: theme.palette.text.secondary }}
             stroke={theme.palette.divider}
             width={80}
           />
           <Tooltip
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            formatter={(value: any) => [formatCurrency(Number(value))]}
+            formatter={(value: any) => [formatCurrencyCompact(Number(value))]}
             labelFormatter={formatTooltipLabel}
             contentStyle={{
               backgroundColor: theme.palette.background.paper,

@@ -28,6 +28,7 @@ import type { CategoryDTO } from '@/services/categoryService';
 import CategoryChipFilter from '@/components/CategoryChipFilter';
 import BudgetGroup from './components/BudgetGroup';
 import type { CategoryBudgetGroup } from './components/BudgetGroup';
+import { MONTHS } from '@/utils/constants';
 
 /**
  * Budgets list page - User Story 1: Create and View Budgets
@@ -56,21 +57,6 @@ export default function BudgetsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedSort, setSelectedSort] = useState<string>('');
   const [selectedSortDirection, setSelectedSortDirection] = useState<'ASC' | 'DESC'>('DESC');
-
-  const monthOptions = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' },
-  ];
 
   const statusOptions = [
     { value: 'on-track', label: 'On track' },
@@ -418,7 +404,7 @@ export default function BudgetsPage() {
               displayEmpty
             >
               <MenuItem value="">All months</MenuItem>
-              {monthOptions.map((option) => (
+              {MONTHS.map((option) => (
                 <MenuItem key={option.value} value={String(option.value)}>
                   {option.label}
                 </MenuItem>

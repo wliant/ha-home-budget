@@ -204,69 +204,15 @@ export const budgetService = {
 };
 
 // ============================================================================
-// Utility Functions
+// Re-export shared utilities for backward compatibility
 // ============================================================================
 
-/**
- * Get month name from month number (1-12).
- */
-export const getMonthName = (month: number): string => {
-  const monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-  return monthNames[month - 1] || '';
-};
-
-/**
- * Format budget period (e.g., "January 2025").
- */
-export const formatBudgetPeriod = (year: number, month?: number | null): string => {
-  if (!month) {
-    return `${year} (Yearly)`;
-  }
-  return `${getMonthName(month)} ${year}`;
-};
-
-/**
- * Format currency amount.
- */
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-};
-
-/**
- * Get spending status color based on percentage.
- */
-export const getSpendingStatusColor = (percentage: number): string => {
-  if (percentage < 50) return 'success'; // Green
-  if (percentage < 75) return 'info'; // Blue
-  if (percentage < 90) return 'warning'; // Orange
-  return 'error'; // Red
-};
-
-/**
- * Get spending status text.
- */
-export const getSpendingStatusText = (percentage: number): string => {
-  if (percentage < 50) return 'On track';
-  if (percentage < 75) return 'Good';
-  if (percentage < 90) return 'Watch spending';
-  if (percentage < 100) return 'Near limit';
-  return 'Over budget';
-};
+export {
+  getMonthName,
+  formatBudgetPeriod,
+  formatCurrency,
+  getSpendingStatusColor,
+  getSpendingStatusText,
+} from '@/utils/formatters';
 
 export default budgetService;

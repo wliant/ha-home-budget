@@ -18,6 +18,7 @@ import { categoryService } from '@/services/categoryService';
 import type { ExpenseListFilters } from '@/services/expenseService';
 import type { CategoryDTO } from '@/types/category';
 import CategoryChipFilter from '@/components/CategoryChipFilter';
+import { MONTHS } from '@/utils/constants';
 
 interface ExpenseFiltersProps {
   filters: ExpenseListFilters;
@@ -27,21 +28,6 @@ interface ExpenseFiltersProps {
 }
 
 const currentYear = new Date().getFullYear();
-
-const MONTHS = [
-  { value: 1, label: 'January' },
-  { value: 2, label: 'February' },
-  { value: 3, label: 'March' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'May' },
-  { value: 6, label: 'June' },
-  { value: 7, label: 'July' },
-  { value: 8, label: 'August' },
-  { value: 9, label: 'September' },
-  { value: 10, label: 'October' },
-  { value: 11, label: 'November' },
-  { value: 12, label: 'December' },
-];
 
 export default function ExpenseFilters({
   filters,

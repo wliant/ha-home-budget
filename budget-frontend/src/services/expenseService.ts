@@ -224,33 +224,6 @@ export const expenseService = {
   },
 };
 
-/**
- * Format expense date for display
- */
-export const formatExpenseDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-/**
- * Format expense amount for display
- */
-export const formatExpenseAmount = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-};
-
-/**
- * Get today's date in YYYY-MM-DD format
- */
-export const getTodayISO = (): string => {
-  const today = new Date();
-  return today.toISOString().split('T')[0];
-};
+// Re-export shared utilities for backward compatibility
+export { formatExpenseDate, formatExpenseAmount, getTodayISO } from '@/utils/formatters';
 
