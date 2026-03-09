@@ -15,6 +15,7 @@ import com.homebudget.repository.ExpenseRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -40,8 +41,12 @@ import java.util.stream.Collectors;
 public class ExpenseService {
 
     private static final Logger logger = LoggerFactory.getLogger(ExpenseService.class);
-    private static final int MAX_FILES = 1;
-    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+    @Value("${app.expense.max-files:1}")
+    private int maxFiles;
+
+    @Value("${app.expense.max-file-size-bytes:10485760}")
+    private long maxFileSizeBytes;
 
     @Autowired
     private ExpenseRepository expenseRepository;
@@ -248,8 +253,8 @@ public class ExpenseService {
         for (ExpenseFile ef : expenseFiles) {
             try {
                 storageService.deleteObject(ef.getFilePath());
-            } catch (Exception e) {
-                logger.warn("Failed to delete file from storage: {}", ef.getFilePath(), e);
+            } catch (RuntimeException e) {
+                logger.warn("Failed to delete file from storage: {} - {}", ef.getFilePath(), e.getMessage(), e);
             }
         }
 
@@ -404,13 +409,13 @@ public class ExpenseService {
     }
 
     private void saveExpenseFiles(Expense expense, List<MultipartFile> files) {
-        if (files.size() > MAX_FILES) {
-            throw new IllegalArgumentException("Maximum " + MAX_FILES + " file(s) allowed per expense");
+        if (files.size() > maxFiles) {
+            throw new IllegalArgumentException("Maximum " + maxFiles + " file(s) allowed per expense");
         }
 
         long existingCount = expenseFileRepository.countByExpenseId(expense.getId());
-        if (existingCount + files.size() > MAX_FILES) {
-            throw new IllegalArgumentException("Maximum " + MAX_FILES + " file(s) allowed per expense");
+        if (existingCount + files.size() > maxFiles) {
+            throw new IllegalArgumentException("Maximum " + maxFiles + " file(s) allowed per expense");
         }
 
         for (MultipartFile file : files) {
@@ -418,15 +423,11 @@ public class ExpenseService {
         }
 
         for (MultipartFile file : files) {
-            ExpenseFile expenseFile = new ExpenseFile();
-            expenseFile.setExpense(expense);
-            expenseFile.setOriginalFilename(file.getOriginalFilename() == null ? "unnamed" : file.getOriginalFilename());
+            // Generate a unique key using expense ID and timestamp to avoid needing DB-generated file ID
+            String uniqueSuffix = expense.getId() + "_" + System.currentTimeMillis();
+            String objectKey = buildExpenseFileKeyWithSuffix(expense, uniqueSuffix);
 
-            // Save with temp path to get the DB-generated ID
-            expenseFile.setFilePath("temp");
-            expenseFile = expenseFileRepository.save(expenseFile);
-
-            String objectKey = buildExpenseFileKey(expense, expenseFile.getId());
+            // Upload to storage first - if this fails, no orphaned DB record is created
             try {
                 String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
                 storageService.putObject(objectKey, file.getBytes(), contentType);
@@ -434,6 +435,10 @@ public class ExpenseService {
                 throw new RuntimeException("Failed to store expense file", e);
             }
 
+            // Storage upload succeeded - now create DB record with the final path
+            ExpenseFile expenseFile = new ExpenseFile();
+            expenseFile.setExpense(expense);
+            expenseFile.setOriginalFilename(file.getOriginalFilename() == null ? "unnamed" : file.getOriginalFilename());
             expenseFile.setFilePath(objectKey);
             expenseFileRepository.save(expenseFile);
         }
@@ -443,7 +448,7 @@ public class ExpenseService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File cannot be empty");
         }
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+        if (file.getSize() > maxFileSizeBytes) {
             throw new IllegalArgumentException("File size exceeds 10MB limit");
         }
         String contentType = file.getContentType();
@@ -464,6 +469,13 @@ public class ExpenseService {
         return "expense-files/" + year + "/" + categorySlug + "/" + expense.getId() + "_" + fileId;
     }
 
+    private String buildExpenseFileKeyWithSuffix(Expense expense, String suffix) {
+        int year = expense.getExpenseDate().getYear();
+        String category = expense.getCategory() != null ? expense.getCategory().getName() : "uncategorized";
+        String categorySlug = sanitizeFolderName(category);
+        return "expense-files/" + year + "/" + categorySlug + "/" + suffix;
+    }
+
     ExpenseFile attachExistingFile(Expense expense, String sourceKey, String originalFilename) {
         ExpenseFile expenseFile = new ExpenseFile();
         expenseFile.setExpense(expense);
@@ -477,8 +489,8 @@ public class ExpenseService {
         storageService.copyObject(sourceKey, destKey);
         try {
             storageService.deleteObject(sourceKey);
-        } catch (Exception e) {
-            logger.warn("Failed to delete source file from storage after copy: {}", sourceKey, e);
+        } catch (RuntimeException e) {
+            logger.warn("Failed to delete source file from storage after copy: {} - {}", sourceKey, e.getMessage(), e);
         }
 
         expenseFile.setFilePath(destKey);
