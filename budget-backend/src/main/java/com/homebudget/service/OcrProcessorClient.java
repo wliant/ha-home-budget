@@ -1,5 +1,6 @@
 package com.homebudget.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.homebudget.dto.OcrResponseDTO;
 import com.homebudget.model.Category;
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -26,6 +28,8 @@ import org.springframework.web.client.RestTemplate;
 public class OcrProcessorClient {
 
     private static final Logger logger = LoggerFactory.getLogger(OcrProcessorClient.class);
+    private static final int CONNECTION_TIMEOUT_MS = 5_000;
+    private static final int READ_TIMEOUT_MS = 120_000;
 
     @Value("${OCR_PROCESSOR_URL:http://ocr-processor:8082}")
     private String ocrProcessorUrl;
@@ -34,7 +38,10 @@ public class OcrProcessorClient {
     private final ObjectMapper objectMapper;
 
     public OcrProcessorClient() {
-        this.restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(CONNECTION_TIMEOUT_MS);
+        factory.setReadTimeout(READ_TIMEOUT_MS);
+        this.restTemplate = new RestTemplate(factory);
         this.objectMapper = new ObjectMapper();
     }
 
@@ -94,7 +101,8 @@ public class OcrProcessorClient {
         try {
             Map<String, Object> cat = Map.of("id", category.getId(), "name", category.getName());
             return objectMapper.writeValueAsString(cat);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to serialize selected category ID={}: {}", category.getId(), e.getMessage());
             return "{}";
         }
     }
@@ -105,7 +113,8 @@ public class OcrProcessorClient {
                 .collect(Collectors.toList());
         try {
             return objectMapper.writeValueAsString(catList);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to serialize categories list: {}", e.getMessage());
             return "[]";
         }
     }
@@ -115,7 +124,7 @@ public class OcrProcessorClient {
             Map<?, ?> error = objectMapper.readValue(responseBody, Map.class);
             Object msg = error.get("message");
             return msg != null ? msg.toString() : "OCR processing failed";
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             return "OCR processing failed";
         }
     }
