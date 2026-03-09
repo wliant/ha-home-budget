@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,8 +22,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * REST API Controller for expense operations.
@@ -43,8 +46,15 @@ public class ExpenseController {
 
     private static final Logger logger = LoggerFactory.getLogger(ExpenseController.class);
     private static final String HASS_USER_HEADER = "X-Hass-User";
-    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
-            "expenseDate", "description", "amount", "createdBy", "category.name");
+
+    @Value("${app.expense.allowed-sort-fields:expenseDate,description,amount,createdBy,category.name}")
+    private String allowedSortFieldsConfig;
+
+    private Set<String> getAllowedSortFields() {
+        return Arrays.stream(allowedSortFieldsConfig.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+    }
 
     @Autowired
     private ExpenseService expenseService;
@@ -162,7 +172,7 @@ public class ExpenseController {
 
         // Map frontend sortBy to entity field, validate
         String entitySortField = "categoryName".equals(sortBy) ? "category.name" : sortBy;
-        if (!ALLOWED_SORT_FIELDS.contains(entitySortField)) {
+        if (!getAllowedSortFields().contains(entitySortField)) {
             entitySortField = "expenseDate";
             sortBy = "expenseDate";
         }

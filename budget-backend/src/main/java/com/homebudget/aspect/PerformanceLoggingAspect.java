@@ -6,6 +6,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
  * Implements User Story 4: Request and Performance Logging
  * - Measures execution time for all service layer methods
  * - Logs at DEBUG level for all methods with duration
- * - Logs at WARN level for slow methods (>100ms)
+ * - Logs at WARN level for slow methods (configurable threshold)
  * - Includes method name, masked arguments, and duration
  *
  * Uses Spring AOP to intercept service method calls without modifying business logic.
@@ -25,11 +26,8 @@ public class PerformanceLoggingAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(PerformanceLoggingAspect.class);
 
-    /**
-     * Slow query threshold in milliseconds.
-     * Methods taking longer than this will be logged at WARN level.
-     */
-    private static final long SLOW_METHOD_THRESHOLD_MS = 100;
+    @Value("${app.performance.slow-method-threshold-ms:100}")
+    private long slowMethodThresholdMs;
 
     /**
      * Pointcut for all service layer methods.
@@ -89,7 +87,7 @@ public class PerformanceLoggingAspect {
         String status = (exceptionType != null) ? "FAILED" : "SUCCESS";
         String exceptionInfo = (exceptionType != null) ? ", exception=" + exceptionType : "";
 
-        if (duration > SLOW_METHOD_THRESHOLD_MS) {
+        if (duration > slowMethodThresholdMs) {
             // Slow method - log at WARN level
             logger.warn("SLOW METHOD: {}.{}({}) - Status: {}, Duration: {}ms{}",
                     className, methodName, maskedArgs, status, duration, exceptionInfo);
