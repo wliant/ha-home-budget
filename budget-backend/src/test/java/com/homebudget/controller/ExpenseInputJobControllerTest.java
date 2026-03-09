@@ -72,7 +72,7 @@ class ExpenseInputJobControllerTest {
         record.setCategoryName("Groceries");
         record.setCategoryIcon("shopping_cart");
         record.setConfirmed(false);
-        dto.setTemporaryRecord(record);
+        dto.setTemporaryRecords(List.of(record));
         return dto;
     }
 
@@ -103,7 +103,7 @@ class ExpenseInputJobControllerTest {
 
             ExpenseInputJobDTO jobDTO = createJobDTO(1L, "PROCESSING", "receipt.pdf");
 
-            when(jobService.createJobs(any(), eq(TEST_USER)))
+            when(jobService.createJobs(any(), eq(TEST_USER), any()))
                     .thenReturn(List.of(jobDTO));
 
             mockMvc.perform(multipart(BASE_URL)
@@ -116,7 +116,7 @@ class ExpenseInputJobControllerTest {
                     .andExpect(jsonPath("$[0].status").value("PROCESSING"))
                     .andExpect(jsonPath("$[0].originalFilename").value("receipt.pdf"));
 
-            verify(jobService).createJobs(any(), eq(TEST_USER));
+            verify(jobService).createJobs(any(), eq(TEST_USER), any());
         }
 
         @Test
@@ -130,7 +130,7 @@ class ExpenseInputJobControllerTest {
             ExpenseInputJobDTO job1 = createJobDTO(1L, "PROCESSING", "receipt1.pdf");
             ExpenseInputJobDTO job2 = createJobDTO(2L, "PROCESSING", "receipt2.png");
 
-            when(jobService.createJobs(any(), eq(TEST_USER)))
+            when(jobService.createJobs(any(), eq(TEST_USER), any()))
                     .thenReturn(List.of(job1, job2));
 
             mockMvc.perform(multipart(BASE_URL)
@@ -153,18 +153,18 @@ class ExpenseInputJobControllerTest {
 
             ExpenseInputJobDTO jobDTO = createJobDTOWithRecord(1L, "COMPLETED", "receipt.jpg");
 
-            when(jobService.createJobs(any(), eq(TEST_USER)))
+            when(jobService.createJobs(any(), eq(TEST_USER), any()))
                     .thenReturn(List.of(jobDTO));
 
             mockMvc.perform(multipart(BASE_URL)
                             .file(file)
                             .header(HASS_USER_HEADER, TEST_USER))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].temporaryRecord").exists())
-                    .andExpect(jsonPath("$[0].temporaryRecord.id").value(100))
-                    .andExpect(jsonPath("$[0].temporaryRecord.amount").value(25.50))
-                    .andExpect(jsonPath("$[0].temporaryRecord.description").value("Store purchase"))
-                    .andExpect(jsonPath("$[0].temporaryRecord.categoryName").value("Groceries"));
+                    .andExpect(jsonPath("$[0].temporaryRecords[0]").exists())
+                    .andExpect(jsonPath("$[0].temporaryRecords[0].id").value(100))
+                    .andExpect(jsonPath("$[0].temporaryRecords[0].amount").value(25.50))
+                    .andExpect(jsonPath("$[0].temporaryRecords[0].description").value("Store purchase"))
+                    .andExpect(jsonPath("$[0].temporaryRecords[0].categoryName").value("Groceries"));
         }
 
         @Test
@@ -173,7 +173,7 @@ class ExpenseInputJobControllerTest {
             MockMultipartFile file = new MockMultipartFile(
                     "files", "bad.txt", "text/plain", "not-an-image".getBytes());
 
-            when(jobService.createJobs(any(), eq(TEST_USER)))
+            when(jobService.createJobs(any(), eq(TEST_USER), any()))
                     .thenThrow(new IllegalArgumentException("Only PDF and image files are allowed"));
 
             mockMvc.perform(multipart(BASE_URL)
@@ -218,8 +218,8 @@ class ExpenseInputJobControllerTest {
                     .andExpect(jsonPath("$[0].status").value("COMPLETED"))
                     .andExpect(jsonPath("$[0].originalFilename").value("receipt1.pdf"))
                     .andExpect(jsonPath("$[1].id").value(2))
-                    .andExpect(jsonPath("$[1].temporaryRecord").exists())
-                    .andExpect(jsonPath("$[1].temporaryRecord.amount").value(25.50));
+                    .andExpect(jsonPath("$[1].temporaryRecords[0]").exists())
+                    .andExpect(jsonPath("$[1].temporaryRecords[0].amount").value(25.50));
 
             verify(jobService).getJobs();
         }
@@ -270,7 +270,7 @@ class ExpenseInputJobControllerTest {
             when(jobService.updateTemporaryRecord(eq(1L), any(UpdateTemporaryExpenseRecordRequest.class)))
                     .thenReturn(updatedRecord);
 
-            mockMvc.perform(patch(BASE_URL + "/1/temporary-record")
+            mockMvc.perform(patch(BASE_URL + "/temporary-records/1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -306,7 +306,7 @@ class ExpenseInputJobControllerTest {
             when(jobService.updateTemporaryRecord(eq(5L), any(UpdateTemporaryExpenseRecordRequest.class)))
                     .thenReturn(updatedRecord);
 
-            mockMvc.perform(patch(BASE_URL + "/5/temporary-record")
+            mockMvc.perform(patch(BASE_URL + "/temporary-records/5")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -326,7 +326,7 @@ class ExpenseInputJobControllerTest {
             when(jobService.updateTemporaryRecord(eq(999L), any(UpdateTemporaryExpenseRecordRequest.class)))
                     .thenThrow(new ExpenseNotFoundException(999L));
 
-            mockMvc.perform(patch(BASE_URL + "/999/temporary-record")
+            mockMvc.perform(patch(BASE_URL + "/temporary-records/999")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isNotFound())
@@ -342,7 +342,7 @@ class ExpenseInputJobControllerTest {
             request.setDescription("Some description");
             request.setExpenseDate(LocalDate.of(2026, 1, 1));
 
-            mockMvc.perform(patch(BASE_URL + "/1/temporary-record")
+            mockMvc.perform(patch(BASE_URL + "/temporary-records/1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
@@ -361,7 +361,7 @@ class ExpenseInputJobControllerTest {
             request.setDescription("");
             request.setExpenseDate(LocalDate.of(2026, 1, 1));
 
-            mockMvc.perform(patch(BASE_URL + "/1/temporary-record")
+            mockMvc.perform(patch(BASE_URL + "/temporary-records/1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
@@ -379,7 +379,7 @@ class ExpenseInputJobControllerTest {
             request.setDescription("Valid description");
             request.setExpenseDate(null);
 
-            mockMvc.perform(patch(BASE_URL + "/1/temporary-record")
+            mockMvc.perform(patch(BASE_URL + "/temporary-records/1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
@@ -387,102 +387,6 @@ class ExpenseInputJobControllerTest {
                     .andExpect(jsonPath("$.errors.expenseDate").value("Expense date is required"));
 
             verifyNoInteractions(jobService);
-        }
-    }
-
-    @Nested
-    @DisplayName("POST /api/expense-input-jobs/confirm - Confirm Jobs")
-    class ConfirmJobs {
-
-        @Test
-        @DisplayName("Should confirm jobs and return confirmed IDs")
-        void shouldConfirmJobsAndReturnIds() throws Exception {
-            ConfirmExpenseInputJobsRequest request = new ConfirmExpenseInputJobsRequest();
-            request.setJobIds(List.of(1L, 2L, 3L));
-
-            when(jobService.confirmJobs(any(ConfirmExpenseInputJobsRequest.class), eq(TEST_USER)))
-                    .thenReturn(List.of(1L, 2L, 3L));
-
-            mockMvc.perform(post(BASE_URL + "/confirm")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .header(HASS_USER_HEADER, TEST_USER)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isOk())
-                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$", hasSize(3)))
-                    .andExpect(jsonPath("$[0]").value(1))
-                    .andExpect(jsonPath("$[1]").value(2))
-                    .andExpect(jsonPath("$[2]").value(3));
-
-            verify(jobService).confirmJobs(any(ConfirmExpenseInputJobsRequest.class), eq(TEST_USER));
-        }
-
-        @Test
-        @DisplayName("Should return empty list when no jobs confirmed")
-        void shouldReturnEmptyListWhenNoJobsConfirmed() throws Exception {
-            ConfirmExpenseInputJobsRequest request = new ConfirmExpenseInputJobsRequest();
-            request.setJobIds(List.of(10L, 20L));
-
-            when(jobService.confirmJobs(any(ConfirmExpenseInputJobsRequest.class), eq(TEST_USER)))
-                    .thenReturn(Collections.emptyList());
-
-            mockMvc.perform(post(BASE_URL + "/confirm")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .header(HASS_USER_HEADER, TEST_USER)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(0)));
-        }
-
-        @Test
-        @DisplayName("Should return partial list when some jobs already confirmed")
-        void shouldReturnPartialListWhenSomeAlreadyConfirmed() throws Exception {
-            ConfirmExpenseInputJobsRequest request = new ConfirmExpenseInputJobsRequest();
-            request.setJobIds(List.of(1L, 2L, 3L));
-
-            when(jobService.confirmJobs(any(ConfirmExpenseInputJobsRequest.class), eq(TEST_USER)))
-                    .thenReturn(List.of(1L, 3L));
-
-            mockMvc.perform(post(BASE_URL + "/confirm")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .header(HASS_USER_HEADER, TEST_USER)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(2)))
-                    .andExpect(jsonPath("$[0]").value(1))
-                    .andExpect(jsonPath("$[1]").value(3));
-        }
-
-        @Test
-        @DisplayName("Should return error when missing X-Hass-User header")
-        void shouldReturnErrorWhenMissingHassUserHeader() throws Exception {
-            ConfirmExpenseInputJobsRequest request = new ConfirmExpenseInputJobsRequest();
-            request.setJobIds(List.of(1L));
-
-            mockMvc.perform(post(BASE_URL + "/confirm")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isInternalServerError());
-
-            verifyNoInteractions(jobService);
-        }
-
-        @Test
-        @DisplayName("Should return 400 when service throws IllegalArgumentException")
-        void shouldReturn400WhenServiceThrowsIllegalArgument() throws Exception {
-            ConfirmExpenseInputJobsRequest request = new ConfirmExpenseInputJobsRequest();
-            request.setJobIds(List.of(1L));
-
-            when(jobService.confirmJobs(any(ConfirmExpenseInputJobsRequest.class), eq(TEST_USER)))
-                    .thenThrow(new IllegalArgumentException("No budgets available to confirm expense"));
-
-            mockMvc.perform(post(BASE_URL + "/confirm")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .header(HASS_USER_HEADER, TEST_USER)
-                            .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.message").value("No budgets available to confirm expense"));
         }
     }
 
