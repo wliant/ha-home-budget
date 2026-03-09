@@ -198,6 +198,7 @@ export function RecentActivityCard() {
                     </Typography>
                   </Box>
                 }
+                secondaryTypographyProps={{ component: 'div' }}
                 secondary={
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
                     <Typography variant="caption" color="text.secondary">
