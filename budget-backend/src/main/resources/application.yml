@@ -17,6 +17,13 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      connect-timeout: 1000ms
+
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
