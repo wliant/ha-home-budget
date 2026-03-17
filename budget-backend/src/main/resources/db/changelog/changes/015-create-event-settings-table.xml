@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="015-create-event-settings-table" author="codex">
+        <comment>Create event_settings table for configurable event emission rules</comment>
+
+        <createTable tableName="event_settings">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="setting_key" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="setting_value" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="created_at" type="DATETIME" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="event_settings" indexName="idx_event_settings_key">
+            <column name="setting_key"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="event_settings"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="015-seed-alcafe-event-setting" author="codex">
+        <comment>Seed event setting to emit events for expenses in the Alcafe category</comment>
+
+        <sql>
+            INSERT INTO event_settings (setting_key, setting_value, description)
+            SELECT 'expense.emit.category', CAST(id AS CHAR), 'Emit event when expense is created in Alcafe category'
+            FROM categories WHERE name = 'Alcafe'
+        </sql>
+
+        <rollback>
+            <sql>DELETE FROM event_settings WHERE setting_key = 'expense.emit.category' AND description LIKE '%Alcafe%'</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
