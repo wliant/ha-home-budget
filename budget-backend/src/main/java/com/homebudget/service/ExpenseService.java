@@ -14,8 +14,10 @@ import com.homebudget.repository.ExpenseFileRepository;
 import com.homebudget.repository.ExpenseRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.homebudget.event.ExpenseCreatedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -60,6 +62,9 @@ public class ExpenseService {
     @Autowired
     private StorageService storageService;
 
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
+
     /**
      * Create a new expense.
      *
@@ -99,7 +104,10 @@ public class ExpenseService {
         Expense saved = expenseRepository.save(expense);
         logger.info("Created expense ID: {}", saved.getId());
 
-        return toDTO(saved);
+        ExpenseDTO result = toDTO(saved);
+        eventPublisher.publishEvent(new ExpenseCreatedEvent(result));
+
+        return result;
     }
 
     public ExpenseDTO createExpenseWithFiles(ExpenseDTO dto, List<MultipartFile> files, String username) {
