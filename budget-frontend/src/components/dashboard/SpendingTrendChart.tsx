@@ -63,8 +63,7 @@ export default function SpendingTrendChart({
     return String(label);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleLegendClick = (data: any) => {
+  const handleLegendClick = (data: { dataKey?: string }) => {
     if (onToggleCategory && data.dataKey) {
       onToggleCategory(String(data.dataKey));
     }
@@ -101,13 +100,12 @@ export default function SpendingTrendChart({
     );
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderLegend = (props: any) => {
+  const renderLegend = (props: { payload?: Array<{ value: string; color: string }> }) => {
     const { payload } = props;
     if (!payload) return null;
 
     const colorMap = new Map<string, string>();
-    payload.forEach((entry: { value: string; color: string }) => {
+    payload.forEach((entry) => {
       colorMap.set(entry.value, entry.color);
     });
 
@@ -209,8 +207,7 @@ export default function SpendingTrendChart({
             width={80}
           />
           <Tooltip
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            formatter={(value: any) => [formatCurrencyCompact(Number(value))]}
+            formatter={(value) => [formatCurrencyCompact(Number(value))]}
             labelFormatter={formatTooltipLabel}
             contentStyle={{
               backgroundColor: theme.palette.background.paper,
@@ -218,7 +215,7 @@ export default function SpendingTrendChart({
               borderRadius: 8,
             }}
           />
-          <Legend content={renderLegend} onClick={handleLegendClick} />
+          <Legend content={renderLegend as never} onClick={handleLegendClick as never} />
           {categories.map((category, index) => (
             <Line
               key={category}

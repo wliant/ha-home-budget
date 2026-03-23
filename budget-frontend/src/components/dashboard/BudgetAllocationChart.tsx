@@ -42,8 +42,7 @@ export default function BudgetAllocationChart({ data, totalBudget, label = 'tota
     .filter(d => d.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderCustomLabel = ({ cx, cy }: any) => {
+  const renderCustomLabel = ({ cx, cy }: { cx: number; cy: number }) => {
     return (
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
         <tspan x={cx} dy="-0.4em" fontSize="18" fontWeight="bold">
@@ -78,8 +77,7 @@ export default function BudgetAllocationChart({ data, totalBudget, label = 'tota
             ))}
           </Pie>
           <Tooltip
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            formatter={(value: any) => formatCurrency(Number(value))}
+            formatter={(value) => formatCurrency(Number(value))}
           />
           <Legend
             formatter={(value: string) => (

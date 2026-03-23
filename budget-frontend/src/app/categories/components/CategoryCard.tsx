@@ -34,12 +34,12 @@ interface CategoryCardProps {
  * Card component displaying category information with edit/delete actions
  * Memoized for performance optimization
  */
-export const CategoryCard: React.FC<CategoryCardProps> = React.memo(({
+export const CategoryCard: React.FC<CategoryCardProps> = React.memo(function CategoryCard({
   category,
   isChild = false,
   onEdit,
   onDelete,
-}) => {
+}) {
   const theme = useTheme();
 
   const handleEdit = () => {
