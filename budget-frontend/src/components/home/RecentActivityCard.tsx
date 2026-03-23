@@ -58,7 +58,7 @@ export function RecentActivityCard() {
         page: 0,
         size: 5,
         sortBy: 'expenseDate',
-        sortDirection: 'desc',
+        sortDirection: 'DESC',
       });
 
       setExpenses(result.content);
