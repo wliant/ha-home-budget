@@ -14,6 +14,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class ExpenseEventListener {
@@ -56,6 +57,12 @@ public class ExpenseEventListener {
         fields.put("createdBy", expense.getCreatedBy() != null ? expense.getCreatedBy() : "");
         fields.put("createdAt", expense.getCreatedAt() != null ? expense.getCreatedAt().toString() : "");
         fields.put("triggeredBy", triggeredBy);
+
+        String filePaths = expense.getFiles().stream()
+                .map(f -> f.getFilePath())
+                .filter(p -> p != null && !p.isEmpty())
+                .collect(Collectors.joining(","));
+        fields.put("filePaths", filePaths);
 
         MapRecord<String, String, String> record = StreamRecords.string(fields).withStreamKey(STREAM_KEY);
         redisTemplate.opsForStream().add(record);

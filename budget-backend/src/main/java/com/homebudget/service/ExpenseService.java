@@ -409,7 +409,7 @@ public class ExpenseService {
 
         List<ExpenseFileDTO> files = expenseFileRepository.findByExpenseIdOrderByIdAsc(expense.getId())
                 .stream()
-                .map(file -> new ExpenseFileDTO(file.getId(), file.getOriginalFilename()))
+                .map(file -> new ExpenseFileDTO(file.getId(), file.getOriginalFilename(), file.getFilePath()))
                 .collect(Collectors.toList());
         dto.setFiles(files);
 

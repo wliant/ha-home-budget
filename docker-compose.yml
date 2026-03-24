@@ -107,6 +107,7 @@ services:
       dockerfile: Dockerfile
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      INTERNAL_API_URL: http://backend:8080
       NODE_ENV: ${NODE_ENV:-development}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
