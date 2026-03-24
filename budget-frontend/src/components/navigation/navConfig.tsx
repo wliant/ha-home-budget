@@ -8,6 +8,7 @@ import {
   CalendarMonth as CalendarIcon,
   AddCard as AddCardIcon,
   CloudUpload as CloudUploadIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 
 export type NavItem = {
@@ -34,6 +35,12 @@ export const navItems: NavItem[] = [
     href: '/dashboard',
     icon: <DashboardIcon />,
     match: (pathname) => pathname === '/dashboard',
+  },
+  {
+    label: 'Spending Trends',
+    href: '/spending-trends',
+    icon: <TrendingUpIcon />,
+    match: (pathname) => pathname === '/spending-trends',
   },
   {
     label: 'Budgets',
@@ -79,6 +86,13 @@ const breadcrumbDefinitions: Array<{ regex: RegExp; crumbs: BreadcrumbItem[] }> 
     crumbs: [
       { label: 'Home', href: '/' },
       { label: 'Dashboard' },
+    ],
+  },
+  {
+    regex: /^\/spending-trends$/,
+    crumbs: [
+      { label: 'Home', href: '/' },
+      { label: 'Spending Trends' },
     ],
   },
   {

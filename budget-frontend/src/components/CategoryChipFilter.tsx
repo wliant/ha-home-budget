@@ -36,20 +36,12 @@ export default function CategoryChipFilter({
   };
 
   const handleParentClick = useCallback((parent: CategoryDTO) => {
-    const children = getChildren(parent);
     const parentId = parent.id!;
-    const childIds = children.map(c => c.id!);
-    const groupIds = [parentId, ...childIds];
-
-    const allGroupSelected = groupIds.every(id => selectedCategoryIds.has(id));
-
     const next = new Set(selectedCategoryIds);
-    if (allGroupSelected) {
-      // Deselect entire group
-      for (const id of groupIds) next.delete(id);
+    if (next.has(parentId)) {
+      next.delete(parentId);
     } else {
-      // Select entire group
-      for (const id of groupIds) next.add(id);
+      next.add(parentId);
     }
     onSelectionChange(next);
   }, [selectedCategoryIds, onSelectionChange]);
@@ -118,22 +110,19 @@ export default function CategoryChipFilter({
           {categories.map((parent) => {
             const children = getChildren(parent);
             const parentId = parent.id!;
-            const childIds = children.map(c => c.id!);
-            const groupIds = [parentId, ...childIds];
-            const allGroupSelected = !isAllSelected && groupIds.every(id => selectedCategoryIds.has(id));
-            const someGroupSelected = !isAllSelected && groupIds.some(id => selectedCategoryIds.has(id));
+            const isParentSelected = !isAllSelected && selectedCategoryIds.has(parentId);
 
             return (
               <Box key={parentId} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
                 <Chip
                   label={`${parent.icon ? parent.icon + ' ' : ''}${parent.name}`}
                   size="small"
-                  color={allGroupSelected || someGroupSelected ? 'primary' : 'default'}
-                  variant={allGroupSelected || someGroupSelected ? 'filled' : 'outlined'}
+                  color={isParentSelected ? 'primary' : 'default'}
+                  variant={isParentSelected ? 'filled' : 'outlined'}
                   onClick={() => handleParentClick(parent)}
                   sx={{
                     fontWeight: 600,
-                    ...(!isAllSelected && !someGroupSelected ? { opacity: 0.5 } : {}),
+                    ...(!isAllSelected && !isParentSelected ? { opacity: 0.5 } : {}),
                   }}
                 />
                 {children.map((child) => {

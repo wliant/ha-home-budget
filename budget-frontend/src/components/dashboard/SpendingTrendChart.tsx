@@ -40,6 +40,7 @@ export interface SpendingTrendChartProps {
   categoryGroups?: CategoryGroupInfo[];
   selectedYear?: number;
   selectedMonth?: number;
+  height?: { xs: number; sm: number };
 }
 
 export default function SpendingTrendChart({
@@ -55,6 +56,7 @@ export default function SpendingTrendChart({
   categoryGroups,
   selectedYear,
   selectedMonth,
+  height,
 }: SpendingTrendChartProps) {
   const theme = useTheme();
 
@@ -172,7 +174,7 @@ export default function SpendingTrendChart({
   }
 
   return (
-    <Box sx={{ width: '100%', height: { xs: 350, sm: 450 } }}>
+    <Box sx={{ width: '100%', height: height ?? { xs: 350, sm: 450 } }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
