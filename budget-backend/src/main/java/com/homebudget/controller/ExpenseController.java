@@ -1,8 +1,6 @@
 package com.homebudget.controller;
 
-import com.homebudget.dto.CategoryExpenseAggregateDTO;
-import com.homebudget.dto.ExpenseDTO;
-import com.homebudget.dto.ExpenseListResponse;
+import com.homebudget.dto.*;
 import com.homebudget.service.ExpenseAggregateService;
 import com.homebudget.service.ExpenseService;
 import jakarta.validation.Valid;
@@ -148,13 +146,16 @@ public class ExpenseController {
             @RequestParam(required = false) BigDecimal minAmount,
             @RequestParam(required = false) BigDecimal maxAmount,
             @RequestParam(required = false) String createdBy,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "expenseDate") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        logger.info("GET /api/expenses/list - year={}, month={}, categoryId={}, categoryIds={}, amount={}-{}, createdBy={}, page={}, size={}, sort={}:{}",
-                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy, page, size, sortBy, sortDirection);
+        logger.info("GET /api/expenses/list - year={}, month={}, categoryId={}, categoryIds={}, amount={}-{}, createdBy={}, search={}, dateRange={}-{}, page={}, size={}, sort={}:{}",
+                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy, search, startDate, endDate, page, size, sortBy, sortDirection);
 
         // Validate month
         if (month != null && (month < 1 || month > 12)) {
@@ -190,7 +191,7 @@ public class ExpenseController {
 
         ExpenseListResponse response = expenseService.getExpenseList(
                 year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy,
-                pageable, sortBy, sortDirection);
+                search, startDate, endDate, pageable, sortBy, sortDirection);
 
         return ResponseEntity.ok(response);
     }
@@ -335,6 +336,63 @@ public class ExpenseController {
 
         List<CategoryExpenseAggregateDTO> aggregates = expenseAggregateService.getDailyAggregates(year, month);
         logger.info("Returning {} daily aggregates", aggregates.size());
+        return ResponseEntity.ok(aggregates);
+    }
+
+    /**
+     * Get spending aggregates grouped by user and category for a specific month.
+     */
+    @GetMapping("/aggregates/by-user")
+    public ResponseEntity<List<UserSpendingAggregateDTO>> getUserSpendingAggregates(
+            @RequestParam int year,
+            @RequestParam int month) {
+
+        logger.info("GET /api/expenses/aggregates/by-user - year={}, month={}", year, month);
+
+        if (month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<UserSpendingAggregateDTO> aggregates = expenseAggregateService.getUserSpendingAggregates(year, month);
+        logger.info("Returning {} user spending aggregates", aggregates.size());
+        return ResponseEntity.ok(aggregates);
+    }
+
+    /**
+     * Get category statistics (count, avg, min, max, total) for a specific month.
+     */
+    @GetMapping("/aggregates/category-stats")
+    public ResponseEntity<List<CategoryStatsDTO>> getCategoryStats(
+            @RequestParam int year,
+            @RequestParam int month) {
+
+        logger.info("GET /api/expenses/aggregates/category-stats - year={}, month={}", year, month);
+
+        if (month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<CategoryStatsDTO> stats = expenseAggregateService.getCategoryStats(year, month);
+        logger.info("Returning {} category stats", stats.size());
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Get spending aggregates grouped by day of week.
+     */
+    @GetMapping("/aggregates/day-of-week")
+    public ResponseEntity<List<DayOfWeekAggregateDTO>> getDayOfWeekAggregates(
+            @RequestParam int year,
+            @RequestParam(required = false) Integer month) {
+
+        logger.info("GET /api/expenses/aggregates/day-of-week - year={}, month={}", year, month);
+
+        if (month != null && (month < 1 || month > 12)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<DayOfWeekAggregateDTO> aggregates = expenseAggregateService.getDayOfWeekAggregates(year, month);
+        logger.info("Returning {} day-of-week aggregates", aggregates.size());
         return ResponseEntity.ok(aggregates);
     }
 

@@ -113,13 +113,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
             "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
-            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+            "(:createdBy IS NULL OR e.createdBy = :createdBy) AND " +
+            "(:search IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Expense> findByFiltersPageable(@Param("categoryId") Long categoryId,
                                          @Param("startDate") LocalDate startDate,
                                          @Param("endDate") LocalDate endDate,
                                          @Param("minAmount") BigDecimal minAmount,
                                          @Param("maxAmount") BigDecimal maxAmount,
                                          @Param("createdBy") String createdBy,
+                                         @Param("search") String search,
                                          Pageable pageable);
 
     /**
@@ -131,13 +133,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
             "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
-            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+            "(:createdBy IS NULL OR e.createdBy = :createdBy) AND " +
+            "(:search IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     long countByFiltersPageable(@Param("categoryId") Long categoryId,
                                 @Param("startDate") LocalDate startDate,
                                 @Param("endDate") LocalDate endDate,
                                 @Param("minAmount") BigDecimal minAmount,
                                 @Param("maxAmount") BigDecimal maxAmount,
-                                @Param("createdBy") String createdBy);
+                                @Param("createdBy") String createdBy,
+                                @Param("search") String search);
 
     /**
      * Aggregate summary for filtered expenses: returns total amount.
@@ -149,13 +153,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
             "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
-            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+            "(:createdBy IS NULL OR e.createdBy = :createdBy) AND " +
+            "(:search IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     BigDecimal getFilteredTotalAmount(@Param("categoryId") Long categoryId,
                                       @Param("startDate") LocalDate startDate,
                                       @Param("endDate") LocalDate endDate,
                                       @Param("minAmount") BigDecimal minAmount,
                                       @Param("maxAmount") BigDecimal maxAmount,
-                                      @Param("createdBy") String createdBy);
+                                      @Param("createdBy") String createdBy,
+                                      @Param("search") String search);
 
     /**
      * Get distinct years from expense dates, sorted descending.
@@ -181,13 +187,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
             "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
-            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+            "(:createdBy IS NULL OR e.createdBy = :createdBy) AND " +
+            "(:search IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Expense> findByFiltersPageableWithCategoryIds(@Param("categoryIds") List<Long> categoryIds,
                                                         @Param("startDate") LocalDate startDate,
                                                         @Param("endDate") LocalDate endDate,
                                                         @Param("minAmount") BigDecimal minAmount,
                                                         @Param("maxAmount") BigDecimal maxAmount,
                                                         @Param("createdBy") String createdBy,
+                                                        @Param("search") String search,
                                                         Pageable pageable);
 
     /**
@@ -199,13 +207,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
             "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
-            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+            "(:createdBy IS NULL OR e.createdBy = :createdBy) AND " +
+            "(:search IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     long countByFiltersPageableWithCategoryIds(@Param("categoryIds") List<Long> categoryIds,
                                                 @Param("startDate") LocalDate startDate,
                                                 @Param("endDate") LocalDate endDate,
                                                 @Param("minAmount") BigDecimal minAmount,
                                                 @Param("maxAmount") BigDecimal maxAmount,
-                                                @Param("createdBy") String createdBy);
+                                                @Param("createdBy") String createdBy,
+                                                @Param("search") String search);
 
     /**
      * Aggregate total amount for expenses filtered by multiple category IDs.
@@ -216,13 +226,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "(:endDate IS NULL OR e.expenseDate <= :endDate) AND " +
             "(:minAmount IS NULL OR e.amount >= :minAmount) AND " +
             "(:maxAmount IS NULL OR e.amount <= :maxAmount) AND " +
-            "(:createdBy IS NULL OR e.createdBy = :createdBy)")
+            "(:createdBy IS NULL OR e.createdBy = :createdBy) AND " +
+            "(:search IS NULL OR LOWER(e.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     BigDecimal getFilteredTotalAmountWithCategoryIds(@Param("categoryIds") List<Long> categoryIds,
                                                       @Param("startDate") LocalDate startDate,
                                                       @Param("endDate") LocalDate endDate,
                                                       @Param("minAmount") BigDecimal minAmount,
                                                       @Param("maxAmount") BigDecimal maxAmount,
-                                                      @Param("createdBy") String createdBy);
+                                                      @Param("createdBy") String createdBy,
+                                                      @Param("search") String search);
 
     // ========================================================================
     // Category Expense Aggregate Queries (Feature 016)
@@ -284,4 +296,36 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "FROM Expense e WHERE YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month " +
             "GROUP BY e.category.id, DAY(e.expenseDate)")
     List<Object[]> getDailyAggregatesByYearAndMonth(@Param("year") Integer year, @Param("month") Integer month);
+
+    // ========================================================================
+    // Per-User Spending Aggregates
+    // ========================================================================
+
+    @Query("SELECT e.createdBy, e.category.id, COALESCE(SUM(e.amount), 0) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month " +
+            "GROUP BY e.createdBy, e.category.id")
+    List<Object[]> getMonthlyAggregatesByUserAndCategory(@Param("year") Integer year, @Param("month") Integer month);
+
+    // ========================================================================
+    // Category Statistics
+    // ========================================================================
+
+    @Query("SELECT e.category.id, COUNT(e), COALESCE(AVG(e.amount), 0), COALESCE(MIN(e.amount), 0), COALESCE(MAX(e.amount), 0), COALESCE(SUM(e.amount), 0) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month " +
+            "GROUP BY e.category.id")
+    List<Object[]> getCategoryStatsByYearAndMonth(@Param("year") Integer year, @Param("month") Integer month);
+
+    // ========================================================================
+    // Day-of-Week Aggregates
+    // ========================================================================
+
+    @Query("SELECT DAYOFWEEK(e.expenseDate), COALESCE(SUM(e.amount), 0), COUNT(e) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year AND MONTH(e.expenseDate) = :month " +
+            "GROUP BY DAYOFWEEK(e.expenseDate)")
+    List<Object[]> getDayOfWeekAggregatesByYearAndMonth(@Param("year") Integer year, @Param("month") Integer month);
+
+    @Query("SELECT DAYOFWEEK(e.expenseDate), COALESCE(SUM(e.amount), 0), COUNT(e) " +
+            "FROM Expense e WHERE YEAR(e.expenseDate) = :year " +
+            "GROUP BY DAYOFWEEK(e.expenseDate)")
+    List<Object[]> getDayOfWeekAggregatesByYear(@Param("year") Integer year);
 }

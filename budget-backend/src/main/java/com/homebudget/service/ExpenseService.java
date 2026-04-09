@@ -289,15 +289,20 @@ public class ExpenseService {
     public ExpenseListResponse getExpenseList(Integer year, Integer month, Long categoryId,
                                                List<Long> categoryIds,
                                                BigDecimal minAmount, BigDecimal maxAmount,
-                                               String createdBy, Pageable pageable,
+                                               String createdBy, String search,
+                                               LocalDate startDateParam, LocalDate endDateParam,
+                                               Pageable pageable,
                                                String sortBy, String sortDirection) {
-        logger.info("Getting expense list - year: {}, month: {}, categoryId: {}, categoryIds: {}, amountRange: {}-{}, createdBy: {}",
-                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy);
+        logger.info("Getting expense list - year: {}, month: {}, categoryId: {}, categoryIds: {}, amountRange: {}-{}, createdBy: {}, search: {}, dateRange: {}-{}",
+                year, month, categoryId, categoryIds, minAmount, maxAmount, createdBy, search, startDateParam, endDateParam);
 
-        // Convert year/month to date range
+        // Convert year/month to date range, or use explicit date params
         LocalDate startDate;
         LocalDate endDate;
-        if (year != null && month != null) {
+        if (startDateParam != null || endDateParam != null) {
+            startDate = startDateParam != null ? startDateParam : LocalDate.of(2000, 1, 1);
+            endDate = endDateParam != null ? endDateParam : LocalDate.of(2200, 12, 31);
+        } else if (year != null && month != null) {
             YearMonth ym = YearMonth.of(year, month);
             startDate = ym.atDay(1);
             endDate = ym.atEndOfMonth();
@@ -311,6 +316,9 @@ public class ExpenseService {
         }
 
         logger.debug("Date range: {} to {}", startDate, endDate);
+
+        // Normalize empty search to null
+        String effectiveSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
         // Determine effective category filter list
         // Precedence: categoryIds (explicit list) > categoryId (single, with expansion) > none
@@ -330,14 +338,14 @@ public class ExpenseService {
         BigDecimal totalAmount;
         if (effectiveCategoryIds != null) {
             page = expenseRepository.findByFiltersPageableWithCategoryIds(
-                    effectiveCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+                    effectiveCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy, effectiveSearch, pageable);
             totalAmount = expenseRepository.getFilteredTotalAmountWithCategoryIds(
-                    effectiveCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy);
+                    effectiveCategoryIds, startDate, endDate, minAmount, maxAmount, createdBy, effectiveSearch);
         } else {
             page = expenseRepository.findByFiltersPageable(
-                    categoryId, startDate, endDate, minAmount, maxAmount, createdBy, pageable);
+                    categoryId, startDate, endDate, minAmount, maxAmount, createdBy, effectiveSearch, pageable);
             totalAmount = expenseRepository.getFilteredTotalAmount(
-                    categoryId, startDate, endDate, minAmount, maxAmount, createdBy);
+                    categoryId, startDate, endDate, minAmount, maxAmount, createdBy, effectiveSearch);
         }
 
         // Convert to DTOs

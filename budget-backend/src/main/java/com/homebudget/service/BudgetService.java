@@ -665,13 +665,13 @@ public class BudgetService {
         }
 
         long count = expenseRepository.countByFiltersPageable(
-                category.getId(), startDate, endDate, null, null, null);
+                category.getId(), startDate, endDate, null, null, null, null);
 
         // Add children's expenses for parent categories
         List<Category> children = categoryRepository.findByParentCategoryId(category.getId());
         for (Category child : children) {
             count += expenseRepository.countByFiltersPageable(
-                    child.getId(), startDate, endDate, null, null, null);
+                    child.getId(), startDate, endDate, null, null, null, null);
         }
 
         return count;
@@ -723,7 +723,7 @@ public class BudgetService {
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate endDate = startDate.plusMonths(1).minusDays(1);
         long expenseCount = expenseRepository.countByFiltersPageable(
-                null, startDate, endDate, null, null, null);
+                null, startDate, endDate, null, null, null, null);
 
         BudgetSummaryDTO summary = new BudgetSummaryDTO(
                 null,

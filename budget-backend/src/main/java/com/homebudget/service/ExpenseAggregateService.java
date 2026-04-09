@@ -1,6 +1,9 @@
 package com.homebudget.service;
 
 import com.homebudget.dto.CategoryExpenseAggregateDTO;
+import com.homebudget.dto.CategoryStatsDTO;
+import com.homebudget.dto.DayOfWeekAggregateDTO;
+import com.homebudget.dto.UserSpendingAggregateDTO;
 import com.homebudget.model.Category;
 import com.homebudget.repository.CategoryRepository;
 import com.homebudget.repository.ExpenseRepository;
@@ -265,6 +268,125 @@ public class ExpenseAggregateService {
             results.add(dto);
         }
 
+        return results;
+    }
+
+    // ========================================================================
+    // Per-User Spending Aggregates
+    // ========================================================================
+
+    public List<UserSpendingAggregateDTO> getUserSpendingAggregates(Integer year, Integer month) {
+        logger.info("Getting user spending aggregates for {}/{}", year, month);
+
+        List<Object[]> rawData = expenseRepository.getMonthlyAggregatesByUserAndCategory(year, month);
+        Map<Long, Category> categoryMap = new HashMap<>();
+        categoryRepository.findAll().forEach(c -> categoryMap.put(c.getId(), c));
+
+        // Build per-user per-category DTOs and track user totals
+        Map<String, BigDecimal> userTotals = new HashMap<>();
+        List<UserSpendingAggregateDTO> results = new ArrayList<>();
+
+        for (Object[] row : rawData) {
+            String username = (String) row[0];
+            Long categoryId = (Long) row[1];
+            BigDecimal amount = (BigDecimal) row[2];
+
+            Category category = categoryMap.get(categoryId);
+            if (category == null) continue;
+
+            UserSpendingAggregateDTO dto = new UserSpendingAggregateDTO();
+            dto.setUsername(username);
+            dto.setCategoryId(categoryId);
+            dto.setCategoryName(category.getName());
+            dto.setCategoryIcon(category.getIcon());
+            dto.setAmount(amount);
+            results.add(dto);
+
+            userTotals.merge(username, amount, BigDecimal::add);
+        }
+
+        // Set totalUserSpending on each DTO
+        for (UserSpendingAggregateDTO dto : results) {
+            dto.setTotalUserSpending(userTotals.getOrDefault(dto.getUsername(), BigDecimal.ZERO));
+        }
+
+        logger.info("Returning {} user spending aggregates for {} users", results.size(), userTotals.size());
+        return results;
+    }
+
+    // ========================================================================
+    // Category Statistics
+    // ========================================================================
+
+    public List<CategoryStatsDTO> getCategoryStats(Integer year, Integer month) {
+        logger.info("Getting category stats for {}/{}", year, month);
+
+        List<Object[]> rawData = expenseRepository.getCategoryStatsByYearAndMonth(year, month);
+        Map<Long, Category> categoryMap = new HashMap<>();
+        categoryRepository.findAll().forEach(c -> categoryMap.put(c.getId(), c));
+
+        List<CategoryStatsDTO> results = new ArrayList<>();
+        for (Object[] row : rawData) {
+            Long categoryId = (Long) row[0];
+            Long count = (Long) row[1];
+            BigDecimal avg = row[2] instanceof Double ? BigDecimal.valueOf((Double) row[2]) : (BigDecimal) row[2];
+            BigDecimal min = (BigDecimal) row[3];
+            BigDecimal max = (BigDecimal) row[4];
+            BigDecimal total = (BigDecimal) row[5];
+
+            Category category = categoryMap.get(categoryId);
+            if (category == null) continue;
+
+            CategoryStatsDTO dto = new CategoryStatsDTO();
+            dto.setCategoryId(categoryId);
+            dto.setCategoryName(category.getName());
+            dto.setCategoryIcon(category.getIcon());
+            dto.setExpenseCount(count);
+            dto.setAverageAmount(avg);
+            dto.setMinAmount(min);
+            dto.setMaxAmount(max);
+            dto.setTotalAmount(total);
+            results.add(dto);
+        }
+
+        logger.info("Returning {} category stats", results.size());
+        return results;
+    }
+
+    // ========================================================================
+    // Day-of-Week Aggregates
+    // ========================================================================
+
+    private static final String[] DAY_NAMES = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+    public List<DayOfWeekAggregateDTO> getDayOfWeekAggregates(Integer year, Integer month) {
+        logger.info("Getting day-of-week aggregates for year={}, month={}", year, month);
+
+        List<Object[]> rawData;
+        if (month != null) {
+            rawData = expenseRepository.getDayOfWeekAggregatesByYearAndMonth(year, month);
+        } else {
+            rawData = expenseRepository.getDayOfWeekAggregatesByYear(year);
+        }
+
+        List<DayOfWeekAggregateDTO> results = new ArrayList<>();
+        for (Object[] row : rawData) {
+            Integer dayOfWeek = (Integer) row[0];
+            BigDecimal totalAmount = (BigDecimal) row[1];
+            Long expenseCount = (Long) row[2];
+
+            DayOfWeekAggregateDTO dto = new DayOfWeekAggregateDTO();
+            dto.setDayOfWeek(dayOfWeek);
+            dto.setDayName(dayOfWeek >= 1 && dayOfWeek <= 7 ? DAY_NAMES[dayOfWeek - 1] : "Unknown");
+            dto.setTotalAmount(totalAmount);
+            dto.setExpenseCount(expenseCount);
+            dto.setAverageAmount(expenseCount > 0
+                    ? totalAmount.divide(BigDecimal.valueOf(expenseCount), 2, java.math.RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO);
+            results.add(dto);
+        }
+
+        logger.info("Returning {} day-of-week aggregates", results.size());
         return results;
     }
 }
