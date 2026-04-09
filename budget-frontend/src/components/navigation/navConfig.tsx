@@ -9,6 +9,7 @@ import {
   AddCard as AddCardIcon,
   CloudUpload as CloudUploadIcon,
   TrendingUp as TrendingUpIcon,
+  Insights as InsightsIcon,
 } from '@mui/icons-material';
 
 export type NavItem = {
@@ -41,6 +42,12 @@ export const navItems: NavItem[] = [
     href: '/spending-trends',
     icon: <TrendingUpIcon />,
     match: (pathname) => pathname === '/spending-trends',
+  },
+  {
+    label: 'Category Insights',
+    href: '/category-insights',
+    icon: <InsightsIcon />,
+    match: (pathname) => pathname === '/category-insights',
   },
   {
     label: 'Budgets',
@@ -93,6 +100,13 @@ const breadcrumbDefinitions: Array<{ regex: RegExp; crumbs: BreadcrumbItem[] }> 
     crumbs: [
       { label: 'Home', href: '/' },
       { label: 'Spending Trends' },
+    ],
+  },
+  {
+    regex: /^\/category-insights$/,
+    crumbs: [
+      { label: 'Home', href: '/' },
+      { label: 'Category Insights' },
     ],
   },
   {
