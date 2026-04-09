@@ -22,7 +22,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
+import { CalendarMonth as CalendarIcon, AccessTime as AccessTimeIcon } from '@mui/icons-material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { budgetService, formatCurrency, YearlyBudgetViewDTO, YearlyCategoryBudgetDTO } from '@/services/budgetService';
@@ -349,7 +349,7 @@ export default function YearlyBudgetPage() {
       {!isLoading && data && (
         <>
           <Paper sx={{ p: 2, mb: 3 }}>
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
               <Box>
                 <Typography variant="body2" color="text.secondary">Total Budget</Typography>
                 <Typography variant="h6">{formatCurrency(data.totalBudget)}</Typography>
@@ -362,6 +362,36 @@ export default function YearlyBudgetPage() {
                 <Typography variant="body2" color="text.secondary">Total Available</Typography>
                 <Typography variant="h6" color={data.totalRemaining >= 0 ? 'success.main' : 'error.main'}>
                   {formatCurrency(data.totalRemaining)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary">Spent % of Budget</Typography>
+                <Typography
+                  variant="h6"
+                  color={data.totalBudget > 0 ? getSpendingColor(data.totalSpending, data.totalBudget) : 'text.secondary'}
+                >
+                  {data.totalBudget > 0
+                    ? `${(data.totalSpending / data.totalBudget * 100).toFixed(1)}%`
+                    : '—'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  <AccessTimeIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
+                  Year Progress
+                </Typography>
+                <Typography variant="h6" color="text.secondary">
+                  {(() => {
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    if (year < currentYear) return '100.0%';
+                    if (year > currentYear) return '0.0%';
+                    const startOfYear = new Date(year, 0, 1);
+                    const endOfYear = new Date(year + 1, 0, 1);
+                    const totalDays = (endOfYear.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
+                    const daysPassed = (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
+                    return `${(daysPassed / totalDays * 100).toFixed(1)}%`;
+                  })()}
                 </Typography>
               </Box>
             </Box>
