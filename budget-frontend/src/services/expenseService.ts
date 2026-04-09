@@ -56,10 +56,41 @@ export interface ExpenseListFilters {
   minAmount?: number;
   maxAmount?: number;
   createdBy?: string;
+  search?: string;
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
   page?: number;
   size?: number;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
+}
+
+export interface UserSpendingAggregate {
+  username: string;
+  categoryId: number;
+  categoryName: string;
+  categoryIcon?: string;
+  amount: number;
+  totalUserSpending: number;
+}
+
+export interface CategoryStats {
+  categoryId: number;
+  categoryName: string;
+  categoryIcon?: string;
+  expenseCount: number;
+  averageAmount: number;
+  minAmount: number;
+  maxAmount: number;
+  totalAmount: number;
+}
+
+export interface DayOfWeekAggregate {
+  dayOfWeek: number;
+  dayName: string;
+  totalAmount: number;
+  expenseCount: number;
+  averageAmount: number;
 }
 
 export interface ExpenseListResponse {
@@ -160,7 +191,6 @@ export const expenseService = {
   getExpenseList: async (filters: ExpenseListFilters): Promise<ExpenseListResponse> => {
     const params = new URLSearchParams();
     if (filters.year != null) params.append('year', filters.year.toString());
-
     if (filters.month != null) params.append('month', filters.month.toString());
     if (filters.categoryIds != null && filters.categoryIds.length > 0) {
       params.append('categoryIds', filters.categoryIds.join(','));
@@ -170,6 +200,9 @@ export const expenseService = {
     if (filters.minAmount != null) params.append('minAmount', filters.minAmount.toString());
     if (filters.maxAmount != null) params.append('maxAmount', filters.maxAmount.toString());
     if (filters.createdBy) params.append('createdBy', filters.createdBy);
+    if (filters.search) params.append('search', filters.search);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
     if (filters.page != null) params.append('page', filters.page.toString());
     if (filters.size != null) params.append('size', filters.size.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
@@ -219,6 +252,29 @@ export const expenseService = {
   getDailyAggregates: async (year: number, month: number): Promise<CategoryExpenseAggregate[]> => {
     const response = await api.get<CategoryExpenseAggregate[]>(
       `/api/expenses/aggregates/daily?year=${year}&month=${month}`
+    );
+    return response.data;
+  },
+
+  getUserSpendingAggregates: async (year: number, month: number): Promise<UserSpendingAggregate[]> => {
+    const response = await api.get<UserSpendingAggregate[]>(
+      `/api/expenses/aggregates/by-user?year=${year}&month=${month}`
+    );
+    return response.data;
+  },
+
+  getCategoryStats: async (year: number, month: number): Promise<CategoryStats[]> => {
+    const response = await api.get<CategoryStats[]>(
+      `/api/expenses/aggregates/category-stats?year=${year}&month=${month}`
+    );
+    return response.data;
+  },
+
+  getDayOfWeekAggregates: async (year: number, month?: number): Promise<DayOfWeekAggregate[]> => {
+    const params = new URLSearchParams({ year: year.toString() });
+    if (month != null) params.append('month', month.toString());
+    const response = await api.get<DayOfWeekAggregate[]>(
+      `/api/expenses/aggregates/day-of-week?${params.toString()}`
     );
     return response.data;
   },

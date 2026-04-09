@@ -10,9 +10,10 @@ import {
   Select,
   TextField,
   Typography,
+  InputAdornment,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
-import { Clear as ClearIcon } from '@mui/icons-material';
+import { Clear as ClearIcon, Search as SearchIcon } from '@mui/icons-material';
 import { expenseService } from '@/services/expenseService';
 import { categoryService } from '@/services/categoryService';
 import type { ExpenseListFilters } from '@/services/expenseService';
@@ -111,6 +112,18 @@ export default function ExpenseFilters({
     }
   };
 
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onFilterChange({ ...filters, search: event.target.value || undefined });
+  };
+
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onFilterChange({ ...filters, startDate: event.target.value || undefined });
+  };
+
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onFilterChange({ ...filters, endDate: event.target.value || undefined });
+  };
+
   const handleClearFilters = () => {
     setAmountError(null);
     onFilterChange({
@@ -128,6 +141,9 @@ export default function ExpenseFilters({
     filters.minAmount != null ||
     filters.maxAmount != null ||
     filters.createdBy != null ||
+    filters.search != null ||
+    filters.startDate != null ||
+    filters.endDate != null ||
     filters.year == null ||
     filters.year !== currentYear;
 
@@ -143,6 +159,22 @@ export default function ExpenseFilters({
         minWidth: { xs: '100%', sm: 'auto' },
       },
     }}>
+      <TextField
+        size="small"
+        label="Search"
+        placeholder="Search descriptions..."
+        value={filters.search ?? ''}
+        onChange={handleSearchChange}
+        sx={{ minWidth: 200 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+        }}
+      />
+
       <FormControl size="small" sx={{ minWidth: 100 }}>
         <InputLabel id="year-filter-label" shrink>Year</InputLabel>
         <Select
@@ -180,6 +212,26 @@ export default function ExpenseFilters({
           ))}
         </Select>
       </FormControl>
+
+      <TextField
+        size="small"
+        label="Start Date"
+        type="date"
+        value={filters.startDate ?? ''}
+        onChange={handleStartDateChange}
+        InputLabelProps={{ shrink: true }}
+        sx={{ minWidth: 150 }}
+      />
+
+      <TextField
+        size="small"
+        label="End Date"
+        type="date"
+        value={filters.endDate ?? ''}
+        onChange={handleEndDateChange}
+        InputLabelProps={{ shrink: true }}
+        sx={{ minWidth: 150 }}
+      />
 
       <TextField
         size="small"
